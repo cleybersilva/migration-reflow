@@ -51,3 +51,8 @@ conversão anterior deixa de valer).
 - Veredito (`PAD`/`PARTIAL`/`NOT_PAD`), os `pad_use_cases` e os `alerts`
   identificados. Se `NOT_PAD`, deixe claro que o projeto encerra aqui — sem
   conversão.
+
+## Próximo passo recomendado
+
+Antes do checkpoint humano, rode `reflow-classify-review` para uma segunda
+opinião independente sobre este mesmo veredito.

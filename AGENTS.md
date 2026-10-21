@@ -22,12 +22,18 @@ Os harnesses OpenCode e Claude Code fazem as chamadas ao LLM, não o pacote Pyth
 | Extração | CLI determinística | `00-manifest.json`, `01-inventory/inventory.json` |
 | Documentação | reflow-documenter | `02-docs/`, incluindo arquitetura Mermaid |
 | Classificação | reflow-classifier | `03-classification/classification.md` |
+| Segunda opinião da classificação | reflow-classification-reviewer | `03-classification/review.md` |
 | Checkpoint | Analista | Decisão explícita no manifesto |
 | Conversão | reflow-pad-converter | `04-pad/<flow>/Main.robin` |
+| Revisão semântica do Robin | reflow-robin-reviewer | `04-pad/<flow>/review.md` |
 | Testes PAD | reflow-pad-tester | `05-test/test_<flow>/Main.robin` |
 
 NOT_PAD encerra após documentação e classificação. PAD/PARTIAL exige aprovação
 humana antes da conversão. Não confundir teste gerado com teste executado no PAD.
+Os agents de revisão (classificação e Robin) são uma segunda leitura
+independente — nunca sobrescrevem o artefato da fase original, só gravam o
+próprio `review.md` ao lado, e nunca aprovam/bloqueiam sozinhos: quem decide
+continua sendo o checkpoint humano.
 
 ## Convenções
 

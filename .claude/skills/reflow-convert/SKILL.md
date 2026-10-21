@@ -53,3 +53,9 @@ corresponder ao `Main.robin` novo — recomende rodar `reflow-test` de novo.
 
 - Flows gerados, quantas ações vieram da whitelist vs. quantas ficaram como
   `TODO reflow`, e o resultado do `lint-robin` (passou ou os achados).
+
+## Próximo passo recomendado
+
+Depois do `lint-robin` passar, rode `reflow-convert-review` para uma
+auditoria semântica do `Main.robin` (cobertura de caso de uso, densidade de
+`TODO reflow`, nomenclatura) antes de gerar o teste.

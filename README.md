@@ -166,17 +166,29 @@ entra): [`docs/architecture.md`](docs/architecture.md).
 | 1 | `reflow-extract` | — (determinístico) | `00-manifest.json`, `01-inventory/inventory.json` |
 | 2 | `reflow-document` | `reflow-documenter` | `02-docs/` (inclui `architecture.md`) |
 | 3 | `reflow-classify` | `reflow-classifier` | `03-classification/classification.md` |
+| 3b · QA | `reflow-classify-review` | `reflow-classification-reviewer` | `03-classification/review.md` |
 | checkpoint | — | — | `00-manifest.json` → `checkpoint` |
 | 4 | `reflow-convert` | `reflow-pad-converter` | `04-pad/<flow>/Main.robin` |
+| 4b · QA | `reflow-convert-review` | `reflow-robin-reviewer` | `04-pad/<flow>/review.md` |
 | 5 | `reflow-test` | `reflow-pad-tester` | `05-test/test_<flow>/` |
 | auxiliar | `reflow-truth-table` | `reflow-truth-table-curator` | `reference/a360-to-pad.md` |
 | orquestrador | `reflow` | aciona todos acima | o pipeline completo, um projeto por vez |
 
+As fases `3b` e `4b` são uma **segunda opinião independente** adicionada
+depois da reunião de 16/10/2026 (por isso não aparecem no diagrama da seção
+anterior, que é o retrato exato do que foi combinado naquela reunião): um
+segundo agent reclassifica/audita sem ver o raciocínio do primeiro, grava só
+o próprio `review.md` ao lado do artefato original — nunca o sobrescreve — e
+nunca aprova nem bloqueia sozinho. O checkpoint humano continua sendo quem
+decide; essas fases só dão a ele mais informação antes de decidir (ver
+ADR-014 e ADR-015 em [`docs/decisions.md`](docs/decisions.md)).
+
 **Python determinístico × LLM:** `reflow/` (o pacote Python) só lê e faz
 parse — AST para Python, JSON para A360, heurística por linha para .NET.
 Zero rede, zero dependência de runtime, zero chamada a LLM. Só os agents
-(fases 2–5 e a curadoria da tabela verdade) usam um LLM, e só recebem o
-inventário já mascarado — nunca o `input/` bruto, além de trechos já citados
+(fases 2–5, as duas revisões 3b/4b, e a curadoria da tabela verdade) usam um
+LLM, e só recebem o inventário já mascarado — nunca o `input/` bruto, além
+de trechos já citados
 por `arquivo:linha`.
 
 ## ⚙️ Pré-requisitos (Windows)
@@ -395,7 +407,7 @@ grande demais.
 
 **AI Scientist / SRE Engineer** · TCS × Itaú Unibanco
 **Aluno de MBA em Inteligência Artificial e Big Data** · ICMC / USP
-**Doutorando em Engenharia de Software** · CESAR School · **Educação Sciences** · VCCU
+**Mestrando em Engenharia de Software** · CESAR School · **Educação Sciences** · VCCU
 
 📍 João Pessoa, Paraíba, Brasil
 
@@ -408,8 +420,8 @@ grande demais.
 
 AI Scientist / SRE Engineer com experiência em ambientes bancários regulados,
 atualmente alocado ao **Itaú Unibanco** via **TCS (Tata Consultancy
-Services)**. Simultaneamente, doutorando em **Engenharia de Software** pela
-**CESAR School** e em **Ciências da Educação** pela **VCCU (Veni Creator
+Services)**. Simultaneamente, mestrando em **Engenharia de Software** pela
+**CESAR School** e doutorando em **Ciências da Educação** pela **VCCU (Veni Creator
 Christian University)**, onde também atua como professor, pesquisador e
 gestor do VLE (Moodle).
 
@@ -422,7 +434,7 @@ qualquer conversão ir para produção.
 
 **Formação simultânea:**
 - 🎓 MBA em Inteligência Artificial e Big Data — ICMC/USP
-- 🎓 Doutorado em Engenharia de Software — CESAR School
+- 🎓 Mestrado em Engenharia de Software — CESAR School
 - 🎓 Doutorado em Ciências da Educação — VCCU
 - 🎓 Pós-graduações concorrentes em DevOps, Cloud Architecture, SRE e .NET/Azure
 

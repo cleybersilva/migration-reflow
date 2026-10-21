@@ -260,3 +260,81 @@ Dois commits enviados para `https://github.com/cleybersilva/migration-reflow`:
   ainda não passaram pelo pipeline.
 - UC-02 (bot filho lendo Excel) não teve uma alternativa de arquitetura
   avaliada em detalhe ainda.
+
+## Fase 11 — segunda opinião e auditoria semântica (dois agents novos)
+
+Depois de modernizar o `README.md` (header, badges, autor), o usuário pediu
+uma avaliação honesta de quais agents/skills a mais trariam robustez e
+eficiência reais ao pipeline, e autorizou implementar os que fizessem
+sentido. Levantamento (AGENTS.md, `docs/architecture.md`,
+`docs/decisions.md`, as 7 skills e os 5 agents existentes, `report.py`,
+`inventory.py`, `cli.py`, e os testes que travam a convenção de
+skills/agents) apontou uma lacuna real: cada fase do pipeline tem um único
+agent decidindo sozinho, sem segunda leitura, e `reflow lint-robin`
+(ADR-012) só valida estrutura — nunca semântica.
+
+Apresentei 4 candidatos ao usuário (segunda opinião na classificação,
+revisor semântico do Robin, triagem de lote determinística, resumo
+executivo multi-projeto) e ele escolheu os dois primeiros:
+
+1. **`reflow-classification-reviewer`** (agent) + **`reflow-classify-review`**
+   (skill) — reclassifica um projeto do zero, sem ver o raciocínio do
+   `reflow-classifier`, e grava `03-classification/review.md` com
+   `original_verdict`/`reviewed_verdict`/`agreement`. Permissão de edição
+   restrita ao próprio `review.md` (mais estrita que os demais agents, que
+   podem escrever em qualquer arquivo da subpasta de fase) — nunca pode
+   sobrescrever `classification.md`.
+2. **`reflow-robin-reviewer`** (agent) + **`reflow-convert-review`** (skill)
+   — audita um `Main.robin` já aprovado no lint estrutural: cobertura de
+   caso de uso, densidade de `TODO reflow`, convenções de nomenclatura e
+   consistência entre `notas-conversao.md` e o flow de fato (o que o lint
+   determinístico não verifica). Grava `04-pad/<flow>/review.md`, nunca o
+   `Main.robin`.
+
+Documentado em `AGENTS.md` (pipeline alvo), `docs/architecture.md` (diagrama,
+componentes, fluxo de dados), `docs/decisions.md` (ADR-014 e ADR-015), e no
+orquestrador `/reflow` (novos passos 4 e 7 na sequência). Os dois novos
+agents canônicos ficam em `.opencode/agents/`, espelhados em `.claude/agents/`
+via `scripts/sync_agents.py`; as duas skills em `.claude/skills/`; os dois
+commands finos em `.opencode/commands/`. Nenhum teste precisou mudar — os
+parametrizados sobre `_skill_dirs()`/`_source_agents()` já cobrem qualquer
+skill/agent novo automaticamente, e os testes de "pelo menos N" (sete skills,
+cinco agents) continuam passando por serem checagens de subconjunto.
+
+**Validação real, não simulada**: antes de considerar a fase pronta, invoquei
+as duas skills novas de verdade contra `a360-browser-rest` (que já tinha
+`classification.md` e `04-pad/uc-01-browser-rest/Main.robin` prontos da Fase
+10) — segui eu mesmo as instruções de cada agent, como fiz na Fase 10:
+
+- `reflow-classify-review` → reclassifiquei UC-01/UC-02 do zero a partir do
+  inventário e de `02-docs/`, cheguei a `reviewed_verdict: PARTIAL` pelo
+  mesmo caminho da rubrica (regra de desempate explícita, não cópia do
+  primeiro veredito), `agreement: concorda`, e registrei uma nota adicional
+  sobre o alerta A3 que o veredito original não tinha levantado (Excel
+  tipicamente depende de instalação local, mesmo sem UI explícita) —
+  gravado em `output/a360-browser-rest/03-classification/review.md`.
+- `reflow-convert-review` → rodei `uv run python -m reflow lint-robin
+  a360-browser-rest` antes (passou, 0 achados) e então auditei
+  `uc-01-browser-rest/Main.robin`: cobertura completa de UC-01, nomenclatura
+  100% dentro de `robin-conventions.md`, `notas-conversao.md` consistente com
+  o flow — nenhum achado bloqueante, só uma nota informativa sobre os 3
+  passos ainda `[não validado]` (esperado, consistente com o que
+  `historico.md` já registrava sobre nenhuma ação ter sido validada num PAD
+  real) — gravado em
+  `output/a360-browser-rest/04-pad/uc-01-browser-rest/review.md`.
+
+`uv run pytest`, `ruff check`/`format --check` e o hook de pre-commit
+(`scan` + `lint-robin`) continuaram verdes depois desta fase.
+
+### O que esta fase não fez
+
+- Não implementei os outros dois candidatos (triagem de lote determinística,
+  resumo executivo multi-projeto) — ficam como ideia registrada, não como
+  trabalho pendente assumido.
+- Não rodei estes dois agents novos contra nenhum outro projeto além de
+  `a360-browser-rest`; `quote-scraper` (NOT_PAD, sem `04-pad/`) não se
+  aplica ao `reflow-convert-review`, e não repeti o `reflow-classify-review`
+  nele nesta sessão.
+- Os dois agents de revisão continuam sem ter sido chamados de dentro do
+  próprio orquestrador `/reflow` em uma execução de lote real — só foram
+  invocados isoladamente, via skill, para validar que funcionam.

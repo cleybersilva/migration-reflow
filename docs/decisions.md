@@ -101,3 +101,36 @@ fase correspondente ainda não rodou para aquele projeto, em vez de omitir a
 coluna ou inventar um valor. Isso é consistente com a regra de não declarar
 pronto o que não foi feito — o relatório é honesto sobre o que falta, não só
 sobre o que já existe.
+
+## ADR-014 — Segunda opinião na classificação (reflow-classification-reviewer)
+
+A classificação é a decisão mais cara do pipeline: ela decide se um projeto
+vai para o PAD ou não. Em vez de confiar num único agent, `reflow-classify-review`
+roda um segundo agent que reaplica `classification-rubric.md` do zero, sem ver
+o raciocínio do primeiro, e grava a própria opinião em
+`03-classification/review.md`. Decisões explícitas:
+
+- O reviewer **nunca** sobrescreve `classification.md` — permissão de edição
+  restrita ao arquivo `review.md`, não só à pasta da fase (mais estrita que os
+  demais agents, que podem escrever em qualquer arquivo da própria subpasta).
+- Divergência (`agreement: diverge`) não bloqueia nada sozinha; ela só precisa
+  aparecer com destaque no checkpoint humano, que continua sendo quem decide.
+- Rodar sempre, mesmo em `NOT_PAD` — um falso negativo (projeto que deveria
+  ir para o PAD e foi classificado como `NOT_PAD`) é tão caro quanto um falso
+  positivo.
+- Custo aceito: uma chamada de LLM a mais por projeto. Troca-se inferência
+  extra por robustez na decisão mais cara do pipeline.
+
+## ADR-015 — Revisor semântico do Robin (reflow-robin-reviewer)
+
+`reflow lint-robin` (ADR-012) só valida o que o próprio pipeline controla —
+estrutura, não semântica: segredo atribuído, caminho absoluto fora do
+permitido, ação citada em `notas-conversao.md` ausente da whitelist, cabeçalho
+do `README.md`. Ele não verifica se o `Main.robin` cobre de fato os
+`pad_use_cases`, se há `TODO reflow` demais para o flow ser útil, se a
+nomenclatura segue `robin-conventions.md`, nem se `notas-conversao.md`
+realmente corresponde ao que está no `.robin`. `reflow-convert-review` cobre
+exatamente essa lacuna, como um segundo agent depois do lint, nunca no lugar
+dele. Mesmas restrições do ADR-014: só grava o próprio `04-pad/<flow>/review.md`,
+nunca `Main.robin`/`README.md`/`notas-conversao.md`, e não aprova nem bloqueia
+sozinho — só informa o checkpoint humano antes de `reflow-test`.
