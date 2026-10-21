@@ -395,7 +395,7 @@ grande demais.
 
 **AI Scientist / SRE Engineer** · TCS × Itaú Unibanco
 **Aluno de MBA em Inteligência Artificial e Big Data** · ICMC / USP
-**Doutorando em IA & Big Data** · USP · **Educação Sciences** · VCCU
+**Doutorando em Engenharia de Software** · CESAR School · **Educação Sciences** · VCCU
 
 📍 João Pessoa, Paraíba, Brasil
 
@@ -408,8 +408,8 @@ grande demais.
 
 AI Scientist / SRE Engineer com experiência em ambientes bancários regulados,
 atualmente alocado ao **Itaú Unibanco** via **TCS (Tata Consultancy
-Services)**. Simultaneamente, doutorando em **Inteligência Artificial e Big
-Data** pela **USP** e em **Ciências da Educação** pela **VCCU (Veni Creator
+Services)**. Simultaneamente, doutorando em **Engenharia de Software** pela
+**CESAR School** e em **Ciências da Educação** pela **VCCU (Veni Creator
 Christian University)**, onde também atua como professor, pesquisador e
 gestor do VLE (Moodle).
 
@@ -422,7 +422,7 @@ qualquer conversão ir para produção.
 
 **Formação simultânea:**
 - 🎓 MBA em Inteligência Artificial e Big Data — ICMC/USP
-- 🎓 Doutorado em IA & Big Data — USP
+- 🎓 Doutorado em Engenharia de Software — CESAR School
 - 🎓 Doutorado em Ciências da Educação — VCCU
 - 🎓 Pós-graduações concorrentes em DevOps, Cloud Architecture, SRE e .NET/Azure
 
