@@ -1,12 +1,46 @@
-# reflow
+<div align="center">
 
-Pipeline de migração assistida por IA de robôs legados (Automation Anywhere
-A360 — prioridade —, Python e .NET C#/VB.NET) para Power Automate Desktop
-(PAD). Extração determinística em Python, documentação/classificação/conversão
-por agents com LLM, e validação humana obrigatória antes de qualquer flow
-rodar de verdade.
+# 🔁 reflow
 
-## O problema que isto resolve
+### Pipeline de migração assistida por IA de robôs legados (A360 · Python · .NET) para Power Automate Desktop, com checkpoint humano obrigatório
+
+[![Python](https://img.shields.io/badge/Python-%E2%89%A53.12-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![uv](https://img.shields.io/badge/uv-managed-de5fe9?logo=uv&logoColor=white)](https://docs.astral.sh/uv/)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-skills_%2B_agents-d97757?logo=anthropic&logoColor=white)](https://docs.claude.com/en/docs/claude-code/overview)
+[![opencode](https://img.shields.io/badge/opencode-harness_principal-2b7fff)](https://opencode.ai)
+[![Power Automate Desktop](https://img.shields.io/badge/Power_Automate-Desktop-0066FF)](https://learn.microsoft.com/power-automate/desktop-flows/introduction)
+
+[![Fases](https://img.shields.io/badge/fases-5%20%2B%20checkpoint-a3e635.svg)](#-arquitetura)
+[![Agents](https://img.shields.io/badge/agents-5-blue.svg)](#-arquitetura)
+[![Zero LLM na extração](https://img.shields.io/badge/extra%C3%A7%C3%A3o-determin%C3%ADstica%2C_zero_LLM-brightgreen.svg)](#-arquitetura)
+[![Secrets](https://img.shields.io/badge/secrets-mascarados_sempre-yellow.svg)](#-segurança)
+[![Checkpoint humano](https://img.shields.io/badge/checkpoint-humano_obrigatório-critical.svg)](#-arquitetura)
+
+[Sobre](#-sobre-o-projeto) •
+[Arquitetura](#-arquitetura) •
+[Pré-requisitos](#️-pré-requisitos-windows) •
+[Instalação](#-instalação) •
+[Uso](#️-uso) •
+[Segurança](#-segurança) •
+[Como estender](#-como-estender) •
+[Troubleshooting](#-troubleshooting) •
+[Autor](#-autor)
+
+---
+
+</div>
+
+## 📖 Sobre o Projeto
+
+**reflow** é um pipeline de migração assistida por IA que pega robôs legados
+— **Automation Anywhere A360** (prioridade), **Python** ou **.NET C#/VB.NET**
+— e os leva até um `Main.robin` pronto para colar no designer do **Power
+Automate Desktop (PAD)**. A extração dos fatos é 100% determinística (sem
+LLM, sem rede, sem rodar o legado); a documentação, classificação e conversão
+usam agents de IA especializados, um por fase; e nenhum flow chega ao PAD sem
+passar por um **checkpoint humano** explícito.
+
+### 🧩 O problema que isto resolve
 
 O código gerado pelo PAD é uma "caixa fechada": não existe import de binário
 nem de JSON, só colar (Ctrl+V) um texto Robin (`Main.robin`) no designer. A
@@ -18,11 +52,45 @@ em lote, diagrama de arquitetura por projeto, uma tabela verdade A360→PAD
 (Robin tem pouquíssima documentação pública), testes de regressão/integração,
 e uma classificação que sabe dizer quando RPA **não** é a resposta.
 
-## Arquitetura
+## 🏗️ Arquitetura
 
-Diagrama da fase final tal como desenhado na reunião de 16/10/2026
-(`diagram - FINAL com AGENTS.drawio`, material local fora do Git — convertido
-para Mermaid aqui porque `.drawio` não renderiza em Markdown):
+![Diagrama reflow · fase final: skills + agentes, com o agente próprio como plano B](diagram%20-%20FINAL%20com%20AGENTS.jpg)
+
+Este é o diagrama da fase final, desenhado na reunião de 16/10/2026
+(fonte editável: `diagram - FINAL com AGENTS.drawio`). Ele mostra o pipeline
+de ponta a ponta, da esquerda para a direita:
+
+1. **Entradas** (`input/<projeto>/`) — export A360, código Python ou binário
+   .NET C#/VB.
+2. **Fase 1, Python determinístico, sem LLM** — `cli.py extract` roda os
+   `extractors/` e grava `01-inventory/inventory.json`: fatos crus, por
+   `arquivo:linha`, com secrets já mascarados.
+3. **Claude Code / opencode** — a skill orquestradora `/reflow` encadeia
+   `reflow-document` → `reflow-classify` → **checkpoint humano** (só
+   `PAD`/`PARTIAL` seguem; `NOT_PAD` encerra ali) → `reflow-convert` →
+   `reflow-test`. Cada seta é uma fase com um agent isolado, que só enxerga a
+   própria subpasta de saída.
+4. **`reference/` editável** — a classificação e a conversão consultam
+   `classification-rubric.md`, `robin-conventions.md`, a whitelist
+   `robin-actions.md` e a tabela verdade A360 → PAD, todas versionadas e
+   revisáveis por humano.
+5. **Camada LLM** — hoje a IAra (LLM interno do Itaú); o contorno tracejado
+   verde é o "Plano B" ainda pendente, um harness próprio reaproveitando as
+   mesmas skills/agents caso o acesso ao Claude Code se perca.
+6. **Validação no PAD** (laranja, fora deste repositório) — o analista cola o
+   `Main.robin` gerado no designer do Power Automate Desktop, roda o flow de
+   teste, registra PASS/FAIL e só então os testes de regressão/integração e
+   os ajustes de borda entram, antes de ir para produção.
+
+Em resumo, **o que este projeto faz**: pega um robô legado (A360, Python ou
+.NET), extrai os fatos dele sem rodar nada e sem LLM, documenta e classifica
+com agents especializados, exige aprovação humana antes de qualquer conversão,
+gera um `Main.robin` pronto para colar no PAD e já entrega o flow de teste
+junto — sempre com secrets mascarados e sem nenhuma chamada de rede saindo do
+Python determinístico.
+
+Versão em texto do mesmo diagrama, em Mermaid (útil para diffs e leitores que
+não carregam a imagem):
 
 ```mermaid
 flowchart LR
@@ -111,7 +179,7 @@ Zero rede, zero dependência de runtime, zero chamada a LLM. Só os agents
 inventário já mascarado — nunca o `input/` bruto, além de trechos já citados
 por `arquivo:linha`.
 
-## Pré-requisitos (Windows)
+## ⚙️ Pré-requisitos (Windows)
 
 | Ferramenta | Para quê | Link |
 | --- | --- | --- |
@@ -126,7 +194,7 @@ por `arquivo:linha`.
 | ILSpy (opcional) | Decompilar binário .NET antes de extrair | https://github.com/icsharpcode/ILSpy/releases |
 | Automation Anywhere Community Edition (opcional) | Gerar exports A360 reais para testar | https://www.automationanywhere.com/products/community-edition |
 
-## Instalação
+## 🚀 Instalação
 
 ```powershell
 git clone <url-do-seu-remoto> reflow
@@ -149,7 +217,7 @@ Dentro do opencode, configure o provider e confirme o modelo:
 receber essas variáveis no ambiente do processo. Nunca grave chave real em
 arquivo versionado; `.env.example` só documenta os nomes.
 
-## Como obter os exports A360
+## 📥 Como obter os exports A360
 
 Hoje este repositório só versiona fixtures sintéticas
 (`tests/fixtures/a360/`, `input/quote-scraper/`). Para testar com exports
@@ -159,7 +227,7 @@ operação do Itaú (que já está separando os repositórios a migrar) um expor
 de um robô simples. Coloque o resultado — pasta ou `.zip` — em
 `input/<projeto>/`, com nome em minúsculas, números, hífen ou underscore.
 
-## Uso
+## ▶️ Uso
 
 ```powershell
 uv run python -m reflow extract <projeto>   # ou --all
@@ -185,7 +253,7 @@ Fases avulsas são úteis quando o contexto fica grande demais para o
 orquestrador completo (ver `docs/runbook.md`). `/reflow` retoma de onde um
 projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
 
-## Saídas (`output/<projeto>/`)
+## 📂 Saídas (`output/<projeto>/`)
 
 | Pasta | Conteúdo |
 | --- | --- |
@@ -199,7 +267,7 @@ projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
 `NOT_PAD` encerra o projeto depois de `02-docs`/`03-classification` — não há
 `04-pad` nem `05-test` para ele.
 
-## Do flow para o PAD
+## 📋 Do flow para o PAD
 
 1. Abra o PAD, crie um novo flow desktop (nome livre).
 2. Abra `output/<projeto>/04-pad/<flow>/Main.robin`, selecione tudo, copie.
@@ -209,7 +277,7 @@ projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
    cenários `CT-xx` no `README.md` ao lado e registre manualmente
    PASS/FAIL — o pipeline nunca escreve isso por você.
 
-## Tabela verdade e whitelist
+## ✅ Tabela verdade e whitelist
 
 [`reference/robin-actions.md`](reference/robin-actions.md) (whitelist, por
 módulo) e [`reference/a360-to-pad.md`](reference/a360-to-pad.md) (A360 → PAD)
@@ -225,7 +293,7 @@ Comando desconhecido na extração (`unknown_commands`) entra em
 `a360-to-pad.md` como `pendente de classificação` via `/reflow-truth-table`
 — nunca com uma ação já suposta.
 
-## Segurança
+## 🔒 Segurança
 
 Resumo — detalhe completo em [`SECURITY.md`](SECURITY.md): secrets e PII são
 mascarados antes de qualquer saída (`security/masking.py`); `reflow scan`
@@ -236,7 +304,7 @@ bash e sem rede; `input/` fica fora do Git; chave de LLM só por variável de
 ambiente. O hook de pre-commit roda `scan` e `lint-robin` de verdade — não é
 decorativo.
 
-## Plano B: opencode e Claude Code
+## 🛟 Plano B: opencode e Claude Code
 
 As mesmas skills (`.claude/skills/`) são lidas nativamente pelos dois
 harnesses. Os agents têm formato diferente: `.opencode/agents/*.md` é a
@@ -252,7 +320,7 @@ Isso existe porque o risco principal apontado na reunião foi perder o acesso
 ao Claude Code no ambiente do Itaú — o pipeline continua funcionando no
 opencode sem reescrever nada.
 
-## Como estender
+## 🧱 Como estender
 
 - **Novo extractor** (ex.: UiPath): crie `reflow/extractors/<nome>.py`
   implementando o `Protocol` de `extractors/base.py`, registre em
@@ -267,7 +335,7 @@ opencode sem reescrever nada.
 - **Nova ação Robin**: adicione em `reference/robin-actions.md` como
   `[não validado]` primeiro; só promova depois de rodar no PAD de verdade.
 
-## Testes e qualidade
+## 🧪 Testes e qualidade
 
 ```powershell
 uv run pytest                                    # unit + regression + integration
@@ -283,13 +351,13 @@ schema do inventário, frontmatter das skills e paridade dos agents.
 sobre as fixtures. O hook de pre-commit roda `scan` e `lint-robin` de verdade
 antes de qualquer commit.
 
-## Troubleshooting
+## 🩺 Troubleshooting
 
 Ver [`docs/runbook.md`](docs/runbook.md): origem não suportada, IAra
 indisponível, Robin não cola no PAD, ação `[não validado]` falhou, contexto
 grande demais.
 
-## Glossário
+## 📘 Glossário
 
 | Termo | Significado |
 | --- | --- |
@@ -304,7 +372,7 @@ grande demais.
 | Tabela verdade | `reference/a360-to-pad.md`: comando A360 → ação PAD |
 | Whitelist | `reference/robin-actions.md`: toda ação Robin usada tem que vir daqui |
 
-## Roadmap (pedidos da reunião ainda abertos)
+## 🗺️ Roadmap (pedidos da reunião ainda abertos)
 
 - Validar as primeiras ações da whitelist num PAD de verdade (hoje tudo é
   `[não validado]`).
@@ -314,3 +382,68 @@ grande demais.
   mesmas skills/agents — ainda não iniciado.
 - Ano de desligamento do datacenter on-prem do Itaú: "a confirmar" (citado de
   forma pouco clara na reunião de 16/10/2026).
+
+---
+
+## 👤 Autor
+
+<div align="center">
+
+<img src="https://github.com/cleybersilva.png" width="120" style="border-radius:50%" alt="Cleyber Silva"/>
+
+### **Cleyber Gomes da Silva**
+
+**AI Scientist / SRE Engineer** · TCS × Itaú Unibanco
+**Aluno de MBA em Inteligência Artificial e Big Data** · ICMC / USP
+**Doutorando em IA & Big Data** · USP · **Educação Sciences** · VCCU
+
+📍 João Pessoa, Paraíba, Brasil
+
+[![GitHub](https://img.shields.io/badge/GitHub-cleybersilva-181717?logo=github)](https://github.com/cleybersilva)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?logo=linkedin)](https://linkedin.com/in/cleyber-silva)
+
+</div>
+
+### Sobre o autor
+
+AI Scientist / SRE Engineer com experiência em ambientes bancários regulados,
+atualmente alocado ao **Itaú Unibanco** via **TCS (Tata Consultancy
+Services)**. Simultaneamente, doutorando em **Inteligência Artificial e Big
+Data** pela **USP** e em **Ciências da Educação** pela **VCCU (Veni Creator
+Christian University)**, onde também atua como professor, pesquisador e
+gestor do VLE (Moodle).
+
+Especialista em **RPA → hyperautomation**, **GitOps**, **Observability** e
+**AI aplicada a operações**. O **reflow** nasceu da necessidade real de
+migrar robôs A360 legados para o Power Automate Desktop no Itaú sem perder
+rastreabilidade nem governança — substituindo um prompt monolítico por
+skills e agents especializados, com checkpoint humano obrigatório antes de
+qualquer conversão ir para produção.
+
+**Formação simultânea:**
+- 🎓 MBA em Inteligência Artificial e Big Data — ICMC/USP
+- 🎓 Doutorado em IA & Big Data — USP
+- 🎓 Doutorado em Ciências da Educação — VCCU
+- 🎓 Pós-graduações concorrentes em DevOps, Cloud Architecture, SRE e .NET/Azure
+
+---
+
+<div align="center">
+
+### ⭐ Se este projeto foi útil, considere dar uma estrela!
+
+**Feito com ❤️ para tirar a migração RPA → PAD da mão de quem recorta prompt**
+
+---
+
+**reflow** · Skills + Agents + Checkpoint Humano · TCS × Itaú
+
+[⬆ Voltar ao topo](#-reflow)
+
+---
+
+_"A esteira executa o que é determinístico; o humano decide o que é sensível — com o inventário já mascarado na mão."_
+
+© 2026 · Cleyber Gomes da Silva
+
+</div>
