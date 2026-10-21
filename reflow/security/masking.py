@@ -25,7 +25,7 @@ EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 PHONE_RE = re.compile(r"\(\d{2}\)\s?9?\d{4}-\d{4}")
 BANK_ACCOUNT_RE = re.compile(r"(?i)\b(agência|agencia|conta)(\s*[:=]?\s*)(\d[\d.-]{2,10}\d)")
 
-PLACEHOLDER_VALUES = frozenset({"", "xxx", "changeme", "todo", "placeholder"})
+PLACEHOLDER_VALUES = frozenset({"", "xxx", "changeme", "todo", "placeholder", "***"})
 
 
 def is_placeholder_value(value: str) -> bool:

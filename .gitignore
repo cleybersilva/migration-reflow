@@ -23,3 +23,6 @@ __pycache__/
 /prerequisitos-reflow.xlsx
 /prompt-opencode-reflow.md
 /Relatório — Reunião com Augusto (16 10 2026).docx
+
+# Arquivos de lock temporário do Office (criados enquanto o arquivo está aberto).
+~$*

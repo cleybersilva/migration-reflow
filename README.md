@@ -20,24 +20,78 @@ e uma classificação que sabe dizer quando RPA **não** é a resposta.
 
 ## Arquitetura
 
+Diagrama da fase final tal como desenhado na reunião de 16/10/2026
+(`diagram - FINAL com AGENTS.drawio`, material local fora do Git — convertido
+para Mermaid aqui porque `.drawio` não renderiza em Markdown):
+
 ```mermaid
 flowchart LR
-    IN[input/projeto] --> EXT[reflow extract\nPython, sem LLM]
-    EXT --> INV[01-inventory]
-    INV --> DOC[reflow-document]
-    DOC --> CLS[reflow-classify]
-    CLS --> CHK{checkpoint humano}
-    CHK -->|PAD/PARTIAL| CONV[reflow-convert]
-    CHK -->|NOT_PAD| FIM[encerra]
-    CONV --> TEST[reflow-test]
-    TEST --> PAD[analista cola no PAD]
+    subgraph INP["Entradas · input/&lt;projeto&gt;/"]
+        I1["Export A360<br/>JSON / .zip · lote de exemplos (Community Edition)"]
+        I2["Python"]
+        I3[".NET C# / VB<br/>binários: decompilar com ILSpy"]
+    end
+
+    subgraph F1["Fase 1 · Python determinístico (sem LLM)"]
+        C1["cli.py extract<br/>/reflow-extract · &lt;projeto&gt; | --all"]
+        C2["extractors/<br/>a360 · python · dotnet"]
+        C3["01-inventory/inventory.json<br/>fatos arquivo:linha · secrets mascarados"]
+        C1 --> C2 --> C3
+    end
+
+    subgraph CC["Claude Code / opencode · um agent isolado por fase"]
+        ORC["/reflow · skill orquestradora:<br/>extract → document → classify → checkpoint → convert → test<br/>(retoma de onde parou)"]
+        D["2 · /reflow-document<br/>agent reflow-documenter<br/>→ 02-docs/ + diagrama de arquitetura"]
+        CL["3 · /reflow-classify<br/>agent reflow-classifier<br/>→ PAD · PARTIAL · NOT_PAD"]
+        CK{"Checkpoint humano<br/>NOT_PAD encerra"}
+        CV["4 · /reflow-convert<br/>agent reflow-pad-converter<br/>→ 04-pad/&lt;flow&gt;/Main.robin"]
+        TS["5 · /reflow-test<br/>agent reflow-pad-tester<br/>→ 05-test/ flow PASS/FAIL"]
+        D --> CL --> CK
+        CK -->|PAD / PARTIAL| CV --> TS
+    end
+
+    subgraph REF["reference/ · editável"]
+        R1["classification-rubric.md"]
+        R2["robin-conventions.md"]
+        R3["robin-actions.md<br/>whitelist Robin"]
+        R4["Tabela verdade<br/>A360 → ação PAD"]
+    end
+
+    subgraph LLMC["Camada LLM"]
+        IA["IAra<br/>LLM interno do Itaú"]
+        HB["Plano B: agente próprio<br/>harness reaproveita as mesmas skills e agents"]
+        HB -.-> IA
+    end
+
+    subgraph VAL["Validação no PAD"]
+        V1["Analista cola o Main.robin no PAD"]
+        V2["PAD executa o flow<br/>Edge + extensão Power Automate"]
+        V3["Flow de teste<br/>05-test · PASS/FAIL no log"]
+        V4["Testes de regressão e integração automatizados"]
+        V5["Analistas ajustam<br/>casos de borda e controle"]
+        V1 --> V2 --> V3 --> V4 --> V5
+    end
+
+    INP --> C1
+    C3 -->|inventário| D
+    REF -.->|consulta| CC
+    CC -.->|proxy| IA
+    CV -->|Main.robin| V1
+    TS -->|teste .robin| V3
+
+    classDef evolucao stroke:#2D7600,stroke-width:2px,stroke-dasharray: 5 5;
+    class R4,HB,V4 evolucao;
 ```
 
-Diagrama completo (componentes, fronteiras de confiança, onde o LLM entra):
-[`docs/architecture.md`](docs/architecture.md). Não existe `docs/architecture.drawio`
-neste repositório — os `.drawio` trazidos da reunião são materiais locais,
-fora do Git (ver `.gitignore`); se um diagrama editável for necessário, crie-o
-em `docs/architecture.drawio` e linke aqui.
+Contorno verde tracejado = evolução pedida pelo Augusto na reunião (R1–R8) ·
+tracejado cinza = consulta ou chamada ao LLM · laranja no original = execução
+no Power Automate Desktop (etapas `V1`–`V5`). Todos esses itens já existem
+hoje neste repositório — ver a tabela fase → skill → agent → artefato abaixo
+e [`docs/historico.md`](docs/historico.md) para a validação real de ponta a
+ponta já executada (`quote-scraper` e `a360-browser-rest`).
+
+Diagrama complementar (componentes, fronteiras de confiança, onde o LLM
+entra): [`docs/architecture.md`](docs/architecture.md).
 
 | Fase | Skill | Agent | Artefato |
 | --- | --- | --- | --- |
