@@ -10,6 +10,7 @@ texto vá para output/, docs/ ou o terminal (inclusive os achados do próprio
 from __future__ import annotations
 
 import re
+from typing import Any
 
 SECRET_KEY_RE = re.compile(
     r"(?i)\b(password|passwd|pwd|secret|api[_-]?key|access[_-]?key|private[_-]?key"
@@ -61,3 +62,21 @@ def mask_pii(text: str) -> str:
 def mask(text: str) -> str:
     """Aplica as duas máscaras — segredos e PII — em qualquer texto livre."""
     return mask_pii(mask_secrets(text))
+
+
+def mask_data(value: Any) -> Any:
+    """Aplica `mask()` recursivamente em toda string-folha (e chave) de um valor.
+
+    Usado pelo dashboard local antes de gravar ou emitir qualquer evento/log
+    que tenha passado por um JSON do legado ou de um modelo de linguagem.
+    """
+    if isinstance(value, str):
+        return mask(value)
+    if isinstance(value, list):
+        return [mask_data(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            (mask(key) if isinstance(key, str) else key): mask_data(item)
+            for key, item in value.items()
+        }
+    return value

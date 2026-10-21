@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from reflow.cli import main
+from reflow.cli import extract_to, main
 from reflow.extractors import detect_extractor
 from reflow.extractors.a360 import A360Extractor
 from reflow.extractors.dotnet import DotnetExtractor
@@ -141,3 +141,12 @@ def test_cli_batch_and_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     require(len(manifest["inputs"][0]["sha256"]) == 64, "Manifesto exige SHA256.")
     require(manifest["checkpoint"] is None, "Nunca presumir aprovação.")
     require(main(["extract", "../escape"]) != 0, "Rejeitar traversal no projeto.")
+
+
+def test_extract_to_writes_inventory_without_manifest(tmp_path: Path) -> None:
+    out_dir = tmp_path / "isolated-run" / "quote-scraper"
+    source_type, inventory = extract_to(ROOT / "input" / "quote-scraper", out_dir)
+    require(source_type == "python", "Fixture quote-scraper é Python.")
+    require(inventory.project == "quote-scraper", "Nome do projeto vem do diretório.")
+    require((out_dir / "01-inventory" / "inventory.json").is_file(), "Inventário tem que existir.")
+    require(not (out_dir / "00-manifest.json").is_file(), "extract_to não grava manifesto.")

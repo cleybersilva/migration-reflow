@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>reflow — Dashboard local</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="topbar shell">
+    <a class="brand" href="/" aria-label="reflow, início">reflow <span>/ dashboard</span></a>
+    <div class="topbar-right">
+      <span class="local-label">SOMENTE LOCAL</span>
+      <span class="connection" id="connection-status" role="status">Conectando ao servidor</span>
+    </div>
+  </header>
+  <main class="shell">
+    <div id="notice" class="notice" role="alert" hidden></div>
+    <section class="intro" aria-labelledby="page-title">
+      <div class="intro-copy">
+        <div class="orbital" aria-hidden="true">
+          <div class="orbit"></div>
+          <div class="orbit orbit-two"></div>
+          <span>RF</span>
+        </div>
+        <p class="eyebrow">TESTE HONESTO, NÃO HOMOLOGAÇÃO</p>
+        <h1 id="page-title">Teste seu pipeline local.<br><span>Sem perder uma etapa.</span></h1>
+        <p class="lead">Acompanhe o teste textual do LLM local, do inventário mascarado à sugestão de classificação. Eventos reais do servidor, nunca progresso simulado.</p>
+        <div class="tags"><span>A360 · Python · .NET</span><span>Ollama local</span><span>pt-BR</span></div>
+      </div>
+      <aside class="control-stack" aria-label="Controles do teste">
+        <div class="control-heading">
+          <span class="eyebrow">AMBIENTE DE TESTE</span>
+          <span class="pill" id="ollama-status">Verificando</span>
+        </div>
+        <div class="control-card spotlight">
+          <span class="control-index" aria-hidden="true">01</span>
+          <span class="model-icon" aria-hidden="true">◈</span>
+          <div class="control-copy">
+            <span class="control-label">Modelo local</span>
+            <strong id="llm-status">Consultando modelo</strong>
+            <p id="model-detail">Verificação feita pelo servidor local</p>
+          </div>
+        </div>
+        <div class="control-card spotlight">
+          <span class="control-index" aria-hidden="true">02</span>
+          <span class="model-icon" aria-hidden="true">▤</span>
+          <div class="control-copy">
+            <label for="project-select">Projeto do teste</label>
+            <select id="project-select"><option value="">Carregando projetos…</option></select>
+          </div>
+        </div>
+        <div class="control-card control-run spotlight">
+          <span class="control-index" aria-hidden="true">03</span>
+          <span class="model-icon" aria-hidden="true">▶</span>
+          <div class="control-copy">
+            <button class="primary" id="run-btn" type="button" disabled><span aria-hidden="true">▶</span> Executar pipeline local <span aria-hidden="true">↗</span></button>
+            <button class="secondary" id="cancel-btn" type="button" hidden>Cancelar teste em andamento</button>
+            <p class="control-footnote">Execução isolada em <code>.dashboard-runs/</code>. Não altera flows existentes, não aprova migrações e não executa o PAD.</p>
+          </div>
+        </div>
+      </aside>
+    </section>
+    <section class="metrics" aria-label="Métricas reais da execução">
+      <article class="metric spotlight">
+        <div class="metric-top"><span class="metric-index" aria-hidden="true">01</span><span>ESTADO DO TESTE</span></div>
+        <strong id="pipeline-status">Aguardando</strong>
+      </article>
+      <article class="metric spotlight">
+        <div class="metric-top"><span class="metric-index" aria-hidden="true">02</span><span>PROJETOS SELECIONADOS</span></div>
+        <strong id="projects-count">—</strong>
+      </article>
+      <article class="metric spotlight">
+        <div class="metric-top"><span class="metric-index" aria-hidden="true">03</span><span>ETAPAS FINALIZADAS</span></div>
+        <strong id="steps-count">0 / 0</strong>
+      </article>
+      <article class="metric spotlight">
+        <div class="metric-top"><span class="metric-index" aria-hidden="true">04</span><span>TEMPO DECORRIDO</span></div>
+        <strong id="stats-duration">—</strong>
+      </article>
+    </section>
+    <section class="panel pipeline-panel spotlight" aria-labelledby="pipeline-title">
+      <div class="section-heading">
+        <div class="section-title">
+          <p class="eyebrow">DA ENTRADA À EVIDÊNCIA</p>
+          <h2 id="pipeline-title">Acompanhe o fluxo</h2>
+        </div>
+        <label class="view-selector" for="project-view">
+          <span>Visualizar projeto</span>
+          <select id="project-view"><option value="">Nenhum teste iniciado</option></select>
+        </label>
+      </div>
+      <div class="progress-heading">
+        <span id="progress-label">Pronto para iniciar</span>
+        <strong id="progress-number">0%</strong>
+      </div>
+      <progress id="progress-fill" value="0" max="100" aria-label="Progresso do teste"></progress>
+      <ol id="steps-container" class="stage-list" aria-label="Etapas da execução"></ol>
+      <div class="live-caption">
+        <span class="live-dot" aria-hidden="true"></span>
+        <span id="current-step-detail">As etapas são atualizadas pelos eventos do servidor, sem progresso simulado.</span>
+      </div>
+    </section>
+    <section class="bottom-grid">
+      <div class="panel logs-panel spotlight">
+        <div class="section-heading">
+          <div class="section-title">
+            <p class="eyebrow">OBSERVABILIDADE</p>
+            <h2>Eventos em tempo real</h2>
+          </div>
+          <button id="clear-btn" class="text-button" type="button">Limpar visualização</button>
+        </div>
+        <ol id="logs-container" class="logs" aria-live="polite" aria-relevant="additions">
+          <li class="empty-log">Conectando ao servidor local…</li>
+        </ol>
+      </div>
+      <aside class="panel review-panel spotlight">
+        <p class="eyebrow">RESULTADOS, NÃO SUPOSIÇÕES</p>
+        <h2>Um teste não é uma homologação.</h2>
+        <p>Documentação e classificação exibidas aqui são prévias textuais do modelo. Precisam de revisão humana com as evidências do inventário mascarado.</p>
+        <dl>
+          <div><dt>Concluídas</dt><dd id="stats-completed">0</dd></div>
+          <div><dt>Com erro</dt><dd id="stats-errors">0</dd></div>
+          <div><dt>Não executadas / não aplicáveis</dt><dd id="stats-skipped">0</dd></div>
+        </dl>
+        <details>
+          <summary>O que este painel executa?</summary>
+          <p>Verifica o modelo local, extrai em área isolada, solicita prévias documentais e de classificação, verifica dados sensíveis e salva um relatório local. Conversão, checkpoint humano e teste no PAD não são executados por este botão.</p>
+        </details>
+      </aside>
+    </section>
+  </main>
+  <footer class="shell footer">
+    <span>reflow / dashboard</span>
+    <span>Somente localhost · Sem bibliotecas ou fontes de CDN</span>
+  </footer>
+</body>
+</html>

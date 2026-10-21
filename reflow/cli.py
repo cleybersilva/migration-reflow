@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import __version__
 from .extractors import detect_extractor
+from .inventory import Inventory
 from .report import build_batch_report
 from .robin import lint_robin_files
 from .security.scan import Finding, scan_repository
@@ -72,23 +73,34 @@ def _write_json(path: Path, payload: dict) -> None:
     )
 
 
+def extract_to(project_dir: Path, out_dir: Path) -> tuple[str, Inventory]:
+    """Extrai `project_dir` para `out_dir/01-inventory/inventory.json`.
+
+    Só a extração determinística — sem manifesto, sem assumir o layout
+    `input/<nome>` → `output/<nome>`. Reaproveitado pelo dashboard local de
+    teste isolado (`dashboard/pipeline.py`), que escreve em `.dashboard-runs/`
+    em vez de `output/`.
+    """
+    extractor = detect_extractor(project_dir)
+    inventory = extractor.extract(project_dir)
+    inventory.project = project_dir.name
+    _write_json(out_dir / "01-inventory" / "inventory.json", inventory.to_dict())
+    return extractor.name, inventory
+
+
 def _extract_one(root: Path, name: str) -> int:
     project_dir = root / "input" / name
     if not project_dir.is_dir():
         print(f"projeto não encontrado: {name}", file=sys.stderr)
         return 1
+    out_dir = root / "output" / name
     try:
-        extractor = detect_extractor(project_dir)
+        source_type, inventory = extract_to(project_dir, out_dir)
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
 
-    inventory = extractor.extract(project_dir)
-    inventory.project = name
-
-    out_dir = root / "output" / name
-    _write_json(out_dir / "01-inventory" / "inventory.json", inventory.to_dict())
-    _write_json(out_dir / "00-manifest.json", _build_manifest(project_dir, name, extractor.name))
+    _write_json(out_dir / "00-manifest.json", _build_manifest(project_dir, name, source_type))
 
     counts = (
         f"ui={len(inventory.ui_interactions)} http={len(inventory.http_calls)} "
@@ -96,7 +108,7 @@ def _extract_one(root: Path, name: str) -> int:
         f"dependencias={len(inventory.dependencies)} "
         f"desconhecidos={len(inventory.unknown_commands)}"
     )
-    print(f"{name}: origem={extractor.name} {counts}")
+    print(f"{name}: origem={source_type} {counts}")
     return 0
 
 

@@ -12,6 +12,9 @@ __pycache__/
 !.env.example
 .pytest_cache/
 .ruff_cache/
+
+# Dashboard local: saídas de teste isoladas, fora de output/ e fora do Git.
+.dashboard-runs/
 *.zip
 !/tests/fixtures/**/*.zip
 

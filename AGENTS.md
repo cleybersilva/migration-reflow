@@ -13,7 +13,11 @@ Documentação, mensagens e conteúdo de negócio em pt-BR.
 Python >= 3.12, gerenciado por uv, usa somente stdlib em runtime. Sem rede e sem LLM.
 Somente pytest e ruff são dependências diretas de desenvolvimento.
 Python lê AST, JSON e texto: nunca executa o legado.
-Os harnesses OpenCode e Claude Code fazem as chamadas ao LLM, não o pacote Python.
+Os harnesses OpenCode, Claude Code e Copilot fazem as chamadas ao LLM, não o pacote Python.
+Exceção estreita e documentada: `dashboard/` (opcional, fora de `reflow/`) tem um botão de
+teste local que chama um LLM — mas a chamada de rede fica isolada num subprocesso
+PowerShell fixo (`dashboard/ollama_worker.ps1`), nunca dentro do processo Python do
+servidor. Zero dependência de runtime nova; ver ADR em `docs/decisions.md`.
 
 ## Pipeline alvo
 

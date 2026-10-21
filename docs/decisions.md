@@ -172,3 +172,47 @@ verdade (a extensão não está disponível neste ambiente) — o formato segue 
 documentação pública de customização do Copilot Chat (prompt files, chat
 modes), mas, como o `IARA_MODEL` do ADR-002, o comportamento exato só se
 confirma com a ferramenta real instalada.
+
+## ADR-017 — Dashboard local de teste honesto, sem dependência de runtime nova
+
+Pedido original do usuário: uma "estrutura robusta de LangChain" e um
+dashboard local de teste "como tinha antes" (o projeto irmão
+`D:\ENGINEER\VS_Code\reflow\`, que tem um `web/` com exatamente esse
+propósito). Análise, apresentada e aceita pelo usuário antes de implementar:
+**LangChain foi avaliado e descartado.** O design anterior (worker
+PowerShell isolado + `format` JSON Schema nativo do Ollama + validação de
+evidência feita à mão) já resolve o mesmo problema com uma fronteira de
+segurança **mais forte** — a chamada de rede ao LLM fica fora do processo
+Python, nunca dentro dele — e zero dependência pesada nova. Adotar LangChain
+aqui significaria puxar uma árvore grande de dependências transitivas só
+para reimplementar algo que o Ollama já faz nativamente, e reabriria a
+"Fronteira Python × LLM" (ADR-001) para um ganho líquido nulo.
+
+Decisão: portar a estrutura madura como estava, em `dashboard/` (irmão de
+`reflow/`, nunca importado por ele):
+
+- `dashboard/pipeline.py` (`DashboardRunner`) reaproveita
+  `reflow.cli.extract_to` (extraído de `_extract_one` para ser chamável com
+  um diretório de saída arbitrário, sem gravar manifesto — usado também pelo
+  CLI real, comportamento idêntico), `reflow.security.masking.mask_data` e
+  `reflow.security.scan.scan_bytes` — duas funções pequenas e aditivas que
+  não existiam antes desta fase e foram adicionadas ao núcleo (nunca
+  alterando as funções já existentes `mask`/`scan_repository`).
+- `dashboard/ollama_worker.ps1` é a única chamada de rede ao LLM — um
+  subprocesso PowerShell fixo e confiável, nunca dentro do processo Python
+  de longa duração do servidor (`dashboard/server.py`).
+- `dashboard/server.py` reaproveita o mesmo design do projeto irmão:
+  loopback-only, checagem de Host/Origin, token CSRF por sessão (nomeado
+  `csrf`, não `token`, para não disparar falso positivo do scanner de
+  segredos — `AGENTS.md` nunca permite silenciar com `reflow:allow-secret`
+  fora de fixtures/definição do detector), CSP, SSE com cursor por cliente.
+- Zero dependência nova em `pyproject.toml`; `dashboard/` em Python usa só
+  stdlib, mesma régua do núcleo. `test_runtime_dependencies_are_empty`
+  continua validando isso sem nenhuma mudança.
+- Mesmo escopo honesto de antes: teste textual isolado em
+  `.dashboard-runs/`, nunca escreve em `output/`, nunca fabrica PASS/FAIL,
+  Robin aparece como "não aplicável" (este teste não gera flow).
+
+`tests/integration/test_dashboard.py` e `tests/frontend/dashboard.test.cjs`
+portam a suíte de regressão do projeto irmão (SSE real, `FakeRunner` sem
+rede, isolamento de `output/`, retry de inferência, validação de HTML/CSS).

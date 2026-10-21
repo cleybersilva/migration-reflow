@@ -138,3 +138,17 @@ humano, não depois. O pacote `reflow/` (Python puro) nunca importa
 um cliente de LLM, nunca faz chamada de rede e roda igual com ou sem IAra
 configurada — é por isso que `extract`, `scan`, `lint-robin` e `report`
 funcionam mesmo sem nenhum provider disponível.
+
+## Dashboard local (opcional) — ramo de teste, fora da pipeline orientada a harness
+
+`dashboard/` é um botão local de teste textual honesto, deliberadamente
+**sem LangChain** (ver ADR-017): reaproveita `reflow/extractors` e
+`reflow/security` da mesma forma que os agents (fronteira de mão única,
+`dashboard/` nunca é importado por `reflow/`), mas a chamada de rede ao LLM
+é feita por `dashboard/ollama_worker.ps1`, um subprocesso PowerShell fixo —
+nunca dentro do processo Python de longa duração do servidor
+(`dashboard/server.py`). Roda isolado em `.dashboard-runs/`, nunca escreve
+em `output/`, nunca gera `Main.robin` nem fabrica PASS/FAIL. Não faz parte
+do diagrama acima porque não é uma fase do pipeline real — é uma ferramenta
+de diagnóstico local, independente dos harnesses com LLM (opencode/Claude
+Code/Copilot) e do checkpoint humano. Ver `dashboard/README.md`.

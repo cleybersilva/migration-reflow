@@ -393,3 +393,78 @@ limpos.
   histórico.
 - Não criei testes de integração que simulem o Copilot executando um
   prompt/chatmode — só testes estruturais (frontmatter, paridade, conteúdo).
+
+## Fase 13 — dashboard local portado, LangChain avaliado e descartado
+
+O usuário pediu uma "estrutura robusta de LangChain" e um dashboard de
+teste "como tinha antes", com a ressalva explícita: se LangChain não
+agregasse valor real, era para portar a estrutura madura sem ele. Antes de
+escrever qualquer código, entrei em modo de planejamento (o pedido envolvia
+decisão arquitetural real e múltiplos arquivos) e investiguei o "antes":
+o projeto irmão `D:\ENGINEER\VS_Code\reflow\` (`web/server.py`,
+`web/pipeline.py`, `web/ollama_worker.ps1`, `web/app.js`,
+`docs/dashboard.md`, testes em `tests/integration/test_dashboard.py` e
+`tests/frontend/dashboard.test.cjs`).
+
+Achado decisivo: o worker PowerShell isolado já resolve o mesmo problema
+(prévia JSON estruturada, retry com dica, validação de evidência) com uma
+fronteira de segurança **mais forte** que LangChain traria — a chamada de
+rede ao LLM fica fora do processo Python, nunca dentro dele — e zero
+dependência pesada. Apresentei essa análise ao usuário antes de implementar
+(via `ExitPlanMode`), ele confirmou: sem LangChain, portar a estrutura
+madura como estava.
+
+O que foi feito:
+
+1. Duas funções pequenas e aditivas no núcleo, nunca alterando o que já
+   existia: `reflow/security/scan.py` ganhou `scan_bytes()` (reaproveita o
+   `_scan_line()` já existente para bytes arbitrários, não só arquivos do
+   repositório) e `reflow/security/masking.py` ganhou `mask_data()`
+   (mascara recursivamente toda string-folha de um dict/list, reaproveitando
+   `mask()`). `reflow/cli.py` ganhou `extract_to(project_dir, out_dir)`,
+   fatorado de `_extract_one` sem mudar nenhum comportamento observável
+   (confirmado pelos 111 testes existentes passando antes e depois do
+   refactor).
+2. `dashboard/` novo (irmão de `reflow/`, nunca importado por ele):
+   `pipeline.py` (`DashboardRunner`, porta `LocalRunner` quase literalmente),
+   `ollama_worker.ps1` (porta verbatim — prompt, JSON Schema, sanitização de
+   erro, idênticos), `server.py` (porta `web/server.py`: loopback-only,
+   CSRF, CSP, SSE com cursor por cliente), `index.html`/`app.js`/
+   `favicon.svg` (mesmo comportamento, mesmos ids que `app.js` espera),
+   `style.css` (**redesenho visual completo** — tema escuro moderno, grade
+   de passos, métricas e progresso redesenhados, CSS puro sem CDN) e
+   `README.md` (escopo honesto, igual ao `docs/dashboard.md` original).
+3. Durante o port, o `reflow scan` pegou um falso positivo real: a palavra
+   "token" (CSRF) bate no regex de segredo atribuído
+   (`reflow/security/masking.py` → `SECRET_KEY_RE`). `AGENTS.md`/`scan.py`
+   proíbem explicitamente usar `reflow:allow-secret` fora de fixtures/
+   definição do detector — por isso renomeei a variável para `csrf` (nome
+   aliás mais preciso) em vez de silenciar o scanner.
+4. `tests/integration/test_dashboard.py` (8 testes) e
+   `tests/frontend/dashboard.test.cjs` (3 testes) portam a suíte de
+   regressão do projeto irmão. Precisei convertê-los do `assert` nu do
+   projeto irmão para o helper `require(condition, message)` que todo outro
+   teste deste repositório usa — o `pyproject.toml` daqui, ao contrário do
+   irmão, não isenta `tests/**` da regra `S101` do ruff, e eu quase deixei
+   passar essa inconsistência até o `ruff check` apontar 58 ocorrências.
+5. `AGENTS.md`, `docs/decisions.md` (ADR-017), `docs/architecture.md` e
+   `README.md` documentam o dashboard como ramo opcional, fora da pipeline
+   orientada a harness, com a exceção estreita e documentada à "Fronteira
+   Python × LLM".
+
+`uv run pytest` → 124/124 (116 anteriores + 8 do dashboard),
+`node --test tests/frontend/dashboard.test.cjs` → 3/3, `ruff check`/`format`
+e `reflow scan`/`lint-robin` limpos.
+
+### O que esta fase não fez (honestidade)
+
+- **Nenhuma execução real contra Ollama/PowerShell 7 de verdade** —
+  confirmei só com `FakeRunner` (sem rede) nos testes automatizados; não
+  tenho Ollama instalado neste ambiente para rodar
+  `uv run python dashboard/server.py` ponta a ponta e ver a prévia real na
+  tela. O manual de verificação ficou documentado (`dashboard/README.md`),
+  não executado.
+- Não portei `reflow/agent_profiles.py`, `reflow/state.py` nem
+  `scripts/orchestrate_llm.py` do projeto irmão (o driver headless do
+  `opencode` CLI) — ficam fora de escopo desta fase, que tratou só do
+  dashboard de teste textual, não de disparar a pipeline real.

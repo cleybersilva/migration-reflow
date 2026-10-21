@@ -63,6 +63,22 @@ def _scan_line(relative: str, lineno: int, text: str) -> list[Finding]:
     return findings
 
 
+def scan_bytes(content: bytes, file: str) -> list[Finding]:
+    """Varre bytes arbitrários (não um arquivo do repositório) pelos mesmos padrões.
+
+    Usado pelo dashboard local para checar uma saída isolada antes de servi-la
+    ou gravá-la, sem exigir que o conteúdo já esteja em disco sob `root`.
+    """
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        return []
+    findings: list[Finding] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        findings.extend(_scan_line(file, lineno, line))
+    return findings
+
+
 def scan_repository(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     for path in _candidate_files(root):

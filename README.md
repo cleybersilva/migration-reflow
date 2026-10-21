@@ -23,6 +23,7 @@
 [Uso](#️-uso) •
 [Segurança](#-segurança) •
 [Como estender](#-como-estender) •
+[Dashboard local](#️-dashboard-local-opcional) •
 [Troubleshooting](#-troubleshooting) •
 [Autor](#-autor)
 
@@ -206,6 +207,7 @@ por `arquivo:linha`.
 | Acesso à IAra (ou outro provider compatível OpenAI) | LLM usado pelos agents | solicitar ao time responsável — sem URL pública |
 | ILSpy (opcional) | Decompilar binário .NET antes de extrair | https://github.com/icsharpcode/ILSpy/releases |
 | Automation Anywhere Community Edition (opcional) | Gerar exports A360 reais para testar | https://www.automationanywhere.com/products/community-edition |
+| PowerShell 7 + Ollama local (opcional) | Dashboard local de teste (`dashboard/`) | https://ollama.com/download |
 
 ## 🚀 Instalação
 
@@ -382,6 +384,33 @@ schema do inventário, frontmatter das skills e paridade dos agents.
 `--update-golden` explícito. `tests/integration/` roda a CLI ponta a ponta
 sobre as fixtures. O hook de pre-commit roda `scan` e `lint-robin` de verdade
 antes de qualquer commit.
+
+## 🖥️ Dashboard local (opcional)
+
+Painel web local (SSE + HTML/JS/CSS puros, sem framework, tema escuro) para
+testar o fluxo com um LLM local, sem tocar `output/` nem o pipeline real de
+skills/agents — mesmo espírito do laboratório que já existia num projeto
+irmão, agora portado e modernizado.
+
+```powershell
+uv run python dashboard/server.py
+```
+
+Abra **http://127.0.0.1:8765/** (não abra o HTML como arquivo). Requisitos:
+PowerShell 7 (`pwsh`) e Ollama local (`ollama serve` +
+`ollama pull llama3.1:8b`) — nada é baixado pelo botão. Zero dependência
+Python nova: `dashboard/` usa só stdlib, mesma régua do núcleo `reflow/`.
+
+Escopo honesto: o botão roda um **teste textual isolado** em
+`.dashboard-runs/` — extrai de verdade, pede prévia de documentação/
+classificação ao LLM local, valida evidência contra o inventário mascarado,
+nunca fabrica PASS/FAIL e nunca escreve em `output/`. Não homologa a
+migração. Detalhes completos em [`dashboard/README.md`](dashboard/README.md).
+
+Avaliamos usar LangChain aqui e descartamos: o worker PowerShell isolado já
+resolve o mesmo problema com uma fronteira de segurança mais forte (a
+chamada de rede ao LLM fica fora do processo Python) e zero dependência
+pesada nova — ver ADR em [`docs/decisions.md`](docs/decisions.md).
 
 ## 🩺 Troubleshooting
 

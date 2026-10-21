@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from reflow.security.masking import is_placeholder_value, mask_pii, mask_secrets
+from reflow.security.masking import is_placeholder_value, mask_data, mask_pii, mask_secrets
 from reflow.security.safe_zip import safe_zip
-from reflow.security.scan import scan_repository
+from reflow.security.scan import scan_bytes, scan_repository
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -71,6 +71,33 @@ def test_safe_zip_rejects_too_many_files(tmp_path: Path) -> None:
     zipped = safe_zip(archive, tmp_path, max_file_count=2)
     with pytest.raises(ValueError, match="quantidade"), zipped:
         pytest.fail("Não deve extrair acima do limite de quantidade de arquivos.")
+
+
+def test_scan_bytes_finds_the_same_patterns_as_scan_repository() -> None:
+    secret = "sk-this-is-a-real-looking-secret"  # noqa: S105  # reflow:allow-secret
+    content = f'API_KEY="{secret}"\n'.encode()  # reflow:allow-secret
+    findings = scan_bytes(content, "preview.json")
+    require(bool(findings), "scan_bytes deveria encontrar o segredo atribuído.")
+    for finding in findings:
+        require(secret not in finding.excerpt, "O achado nunca pode ecoar o segredo real.")
+
+
+def test_scan_bytes_ignores_undecodable_content() -> None:
+    findings = scan_bytes(b"\xff\xfe\x00", "bin.dat")
+    require(findings == [], "Bytes não-UTF-8 não devem quebrar o scan.")
+
+
+def test_mask_data_redacts_nested_strings_in_dict_and_list() -> None:
+    secret = "sk-this-is-a-real-looking-secret"  # noqa: S105  # reflow:allow-secret
+    payload = {"evidence": [{"file": "a.json", "note": f"token={secret}"}]}  # reflow:allow-secret
+    masked = mask_data(payload)
+    require(secret not in str(masked), "mask_data tem que mascarar strings aninhadas.")
+    require(masked["evidence"][0]["file"] == "a.json", "Valor sem segredo/PII não muda.")
+
+
+def test_mask_data_passes_through_non_string_leaves() -> None:
+    original = {"line": 12, "ok": True}
+    require(mask_data(original) == original, "Número/booleano ficam iguais.")
 
 
 def test_scan_excerpt_never_echoes_the_real_secret(
