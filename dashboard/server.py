@@ -331,16 +331,25 @@ def create_server(port: int = 8765, app: Dashboard | None = None) -> DashboardSe
 def main() -> None:
     parser = argparse.ArgumentParser(description="Dashboard local do reflow (somente loopback).")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument(
+        "--model",
+        default="llama3.1:8b",
+        help="Modelo Ollama já baixado (ver `ollama list`). Padrão: llama3.1:8b.",
+    )
     args = parser.parse_args()
     try:
-        server = create_server(args.port)
+        app = Dashboard(ROOT, DashboardRunner(ROOT, model=args.model))
+        server = create_server(args.port, app)
     except OSError:
         print(
             "Não foi possível abrir a porta. Já há um servidor? Não encerre todos os processos.",
             flush=True,
         )
         raise SystemExit(1) from None
-    print(f"Reflow Dashboard: http://127.0.0.1:{server.server_port}", flush=True)
+    print(
+        f"Reflow Dashboard: http://127.0.0.1:{server.server_port} (modelo: {args.model})",
+        flush=True,
+    )
     print("Abra o endereço HTTP, não o arquivo HTML. Ctrl+C encerra este servidor.", flush=True)
     try:
         server.serve_forever()
