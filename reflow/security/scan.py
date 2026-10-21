@@ -4,6 +4,8 @@ Checa só o que `git` versionaria (`git ls-files --cached --others --exclude-sta
 caindo para uma varredura simples de diretório fora de um repositório git.
 Uma linha com o marcador `reflow:allow-secret` é pulada; use só para fixtures
 sintéticas ou para a própria definição do detector, nunca para mascarar valor real.
+Os achados são reportados já mascarados (ver security/masking.py) — o próprio
+scan nunca ecoa um segredo real no terminal.
 """
 
 from __future__ import annotations
@@ -13,17 +15,11 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-IGNORED_DIR_NAMES = {".git", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
+from .masking import CNPJ_RE, CPF_RE, SECRET_ASSIGNMENT_RE, is_placeholder_value, mask
 
-CPF_RE = re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b")
-CNPJ_RE = re.compile(r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b")
+IGNORED_DIR_NAMES = {".git", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
 INTERNAL_DOMAIN_RE = re.compile(r"(?i)\bitau[a-zç]*\b|\.corp\b")  # reflow:allow-secret
-ASSIGNED_SECRET_RE = re.compile(
-    r"(?i)\b(password|passwd|pwd|secret|api[_-]?key|access[_-]?key|private[_-]?key"
-    r"|token|bearer|authorization|connection[_-]?string)\b"
-    r"\s*[:=]\s*(?P<quote>['\"]?)(?P<value>[^'\"\s]+)(?P=quote)"
-)
-PLACEHOLDER_VALUES = {"", "xxx", "changeme", "todo", "placeholder"}
+ALLOW_MARKER = "reflow:allow-secret"
 
 
 @dataclass
@@ -32,16 +28,6 @@ class Finding:
     line: int
     pattern: str
     excerpt: str
-
-
-def _is_placeholder(value: str) -> bool:
-    stripped = value.strip()
-    if not stripped or stripped.lower() in PLACEHOLDER_VALUES:
-        return True
-    if stripped.startswith("{env:") and stripped.endswith("}"):
-        return True
-    lowered = stripped.lower()
-    return "synthetic" in lowered or lowered.startswith("not-a-real")
 
 
 def _candidate_files(root: Path) -> list[Path]:
@@ -62,20 +48,17 @@ def _candidate_files(root: Path) -> list[Path]:
         ]
 
 
-ALLOW_MARKER = "reflow:allow-secret"
-
-
 def _scan_line(relative: str, lineno: int, text: str) -> list[Finding]:
     if ALLOW_MARKER in text:
         return []
     findings: list[Finding] = []
-    excerpt = text.strip()[:120]
+    excerpt = mask(text.strip()[:120])
     if CPF_RE.search(text) or CNPJ_RE.search(text):
         findings.append(Finding(relative, lineno, "cpf_cnpj", excerpt))
     if INTERNAL_DOMAIN_RE.search(text):
         findings.append(Finding(relative, lineno, "dominio_interno", excerpt))
-    for match in ASSIGNED_SECRET_RE.finditer(text):
-        if not _is_placeholder(match.group("value")):
+    for match in SECRET_ASSIGNMENT_RE.finditer(text):
+        if not is_placeholder_value(match.group("value")):
             findings.append(Finding(relative, lineno, "segredo_atribuido", excerpt))
     return findings
 

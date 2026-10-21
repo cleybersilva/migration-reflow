@@ -68,3 +68,36 @@ Cada extração gera hashes SHA256 de todos os arquivos de entrada (ZIP incluíd
 data UTC e versão do reflow. Reextração limpa veredito/checkpoint e marca fases
 02–05 como desatualizadas; não remove artefatos anteriores. O inventário não tem
 timestamp. Projetos inválidos fazem o lote falhar, sem impedir os demais projetos.
+
+## ADR-011 — `opencode.json` e agents: schema V2 real, não o legado
+
+Validado contra o `opencode` 2.0.32 instalado (`opencode debug config`,
+`opencode debug agents`, e o `$schema` de `https://opencode.ai/config.json`):
+`provider`/`permission` (singular) são campos legados V1; os atuais são
+`providers`/`permissions` (plural, `permissions` sempre um array de
+`{action, resource, effect}}`), e isso vale tanto no `opencode.json` raiz
+quanto no frontmatter de cada `.opencode/agents/*.md`. `doom_loop` não é usado
+(ADR-003). Agent markdown **não tem campo `temperature`** —
+`additionalProperties: false` no schema rejeitaria/ignoraria silenciosamente.
+Corrigido um bug real herdado: a ação `"shell"` não existe; é `"bash"`.
+
+## ADR-012 — Lint Robin nunca interpreta sintaxe Robin
+
+`robin/lint.py` não tenta reconhecer qual ação PAD um `Main.robin` usa —
+isso exigiria conhecer a sintaxe interna do Robin, que não está validada
+(proibido por `AGENTS.md`). Em vez disso, o lint valida a estrutura que o
+próprio pipeline controla: `notas-conversao.md` lista as ações usadas (uma
+convenção nossa, em Markdown) e é cruzado contra `reference/robin-actions.md`;
+`README.md` do flow precisa de um cabeçalho; o texto puro do `.robin` é
+varrido para segredo atribuído e caminho absoluto fora de
+`C:\Users\Public\Documents\`. Ação fora da whitelist só é pega se estiver
+citada em `notas-conversao.md` — por isso todo agent que gera `Main.robin`
+é instruído a manter esse arquivo em dia.
+
+## ADR-013 — Relatório de lote nunca presume fase futura
+
+`reflow/report.py` mostra `—` no veredito e `0` em flows/TODO/ações quando a
+fase correspondente ainda não rodou para aquele projeto, em vez de omitir a
+coluna ou inventar um valor. Isso é consistente com a regra de não declarar
+pronto o que não foi feito — o relatório é honesto sobre o que falta, não só
+sobre o que já existe.

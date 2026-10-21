@@ -1,0 +1,46 @@
+{
+  "credentials": [],
+  "data_sources": [
+    {
+      "file": "main.py",
+      "line": 10,
+      "operation": "open"
+    },
+    {
+      "file": "main.py",
+      "line": 11,
+      "operation": "csv.writer"
+    }
+  ],
+  "dependencies": [
+    {
+      "file": "main.py",
+      "kind": "import",
+      "line": 3,
+      "module": "urllib.request.urlopen"
+    },
+    {
+      "file": "main.py",
+      "kind": "import",
+      "line": 4,
+      "module": "csv"
+    }
+  ],
+  "files": [
+    ".gitkeep",
+    "main.py"
+  ],
+  "http_calls": [
+    {
+      "file": "main.py",
+      "line": 8,
+      "operation": "urllib.request.urlopen"
+    }
+  ],
+  "project": "",
+  "schema_version": "1.0",
+  "source_type": "python",
+  "ui_interactions": [],
+  "unknown_commands": [],
+  "warnings": []
+}

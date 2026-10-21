@@ -75,6 +75,22 @@ def test_dotnet_source_and_binary(tmp_path: Path) -> None:
     )
 
 
+def test_a360_registry_covers_window_soap_and_database(tmp_path: Path) -> None:
+    document = {
+        "nodes": [
+            {"packageName": "Window", "commandName": "activate", "attributes": {}},
+            {"packageName": "SOAP", "commandName": "call", "attributes": {"url": "x"}},
+            {"packageName": "Database", "commandName": "query", "attributes": {"sql": "x"}},
+        ]
+    }
+    (tmp_path / "main.json").write_text(json.dumps(document), encoding="utf-8")
+    inventory = A360Extractor().extract(tmp_path)
+    require(len(inventory.ui_interactions) == 1, "Window/activate deve ser ui_interactions.")
+    require(len(inventory.http_calls) == 1, "SOAP/call deve ser http_calls.")
+    require(len(inventory.data_sources) == 1, "Database/query deve ser data_sources.")
+    require(not inventory.unknown_commands, "Nenhum comando deveria ficar desconhecido aqui.")
+
+
 def test_registry_precedence_and_unsupported(tmp_path: Path) -> None:
     (tmp_path / "main.py").write_text("pass", encoding="utf-8")
     (tmp_path / "main.cs").write_text("class Example {}", encoding="utf-8")

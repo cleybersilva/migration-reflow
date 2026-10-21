@@ -24,9 +24,21 @@
     { "action": "read", "resource": "*.env", "effect": "deny" },
     { "action": "read", "resource": "*.env.*", "effect": "deny" },
     { "action": "read", "resource": "*.env.example", "effect": "allow" },
-    { "action": "shell", "resource": "*", "effect": "ask" },
+    { "action": "bash", "resource": "*", "effect": "ask" },
+    { "action": "bash", "resource": "uv run python -m reflow *", "effect": "allow" },
+    { "action": "bash", "resource": "uv run pytest*", "effect": "allow" },
+    { "action": "bash", "resource": "uv run ruff *", "effect": "allow" },
+    { "action": "bash", "resource": "git status*", "effect": "allow" },
+    { "action": "bash", "resource": "git diff*", "effect": "allow" },
+    { "action": "bash", "resource": "rm *", "effect": "deny" },
+    { "action": "bash", "resource": "curl *", "effect": "deny" },
+    { "action": "bash", "resource": "Invoke-WebRequest *", "effect": "deny" },
     { "action": "webfetch", "resource": "*", "effect": "deny" },
     { "action": "websearch", "resource": "*", "effect": "deny" },
-    { "action": "external_directory", "resource": "*", "effect": "deny" }
+    { "action": "external_directory", "resource": "*", "effect": "deny" },
+    { "action": "skill", "resource": "*", "effect": "deny" },
+    { "action": "skill", "resource": "reflow*", "effect": "allow" },
+    { "action": "task", "resource": "*", "effect": "deny" },
+    { "action": "task", "resource": "reflow-*", "effect": "allow" }
   ]
 }

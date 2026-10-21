@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 
 DEFAULT_MAX_FILE_SIZE = 50_000_000
 DEFAULT_MAX_TOTAL_SIZE = 200_000_000
+DEFAULT_MAX_FILE_COUNT = 10_000
 
 
 def _is_safe_member(name: str) -> bool:
@@ -30,12 +31,18 @@ def safe_zip(
     dest_dir: Path,
     max_file_size: int = DEFAULT_MAX_FILE_SIZE,
     max_total_size: int = DEFAULT_MAX_TOTAL_SIZE,
+    max_file_count: int = DEFAULT_MAX_FILE_COUNT,
 ) -> Iterator[Path]:
     """Valida limites e caminhos do ZIP, extrai em pasta temporária local e limpa ao sair."""
     dest_dir = Path(dest_dir)
     with zipfile.ZipFile(archive_path) as bundle:
+        members = bundle.infolist()
+        if len(members) > max_file_count:
+            raise ValueError(
+                f"ZIP excede a quantidade máxima de arquivos permitida: {len(members)}"
+            )
         total = 0
-        for info in bundle.infolist():
+        for info in members:
             if not _is_safe_member(info.filename):
                 raise ValueError(f"Caminho inseguro no ZIP: {info.filename}")
             if info.file_size > max_file_size:
@@ -46,7 +53,7 @@ def safe_zip(
 
         extract_dir = Path(tempfile.mkdtemp(prefix=".reflow-zip-", dir=dest_dir))
         try:
-            for info in bundle.infolist():
+            for info in members:
                 if info.filename.endswith("/"):
                     continue
                 target = extract_dir / info.filename

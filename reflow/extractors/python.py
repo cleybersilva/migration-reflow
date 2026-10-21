@@ -6,36 +6,12 @@ import ast
 from pathlib import Path
 
 from ..inventory import Inventory
+from ..patterns import PYTHON_DATA_SOURCE_OPERATIONS, PYTHON_HTTP_OPERATIONS
 from ._shared import all_files
-
-HTTP_OPERATIONS = {
-    "requests.get",
-    "requests.post",
-    "requests.put",
-    "requests.delete",
-    "requests.patch",
-    "requests.head",
-    "requests.options",
-    "httpx.get",
-    "httpx.post",
-    "httpx.put",
-    "httpx.delete",
-    "urllib.request.urlopen",
-    "http.client.HTTPConnection",
-}
-DATA_SOURCE_OPERATIONS = {
-    "open",
-    "csv.writer",
-    "csv.reader",
-    "sqlite3.connect",
-    "pandas.read_csv",
-    "pandas.read_excel",
-    "openpyxl.load_workbook",
-}
 
 
 class PythonExtractor:
-    name = "python"
+    name: str = "python"
 
     def detect(self, path: Path) -> bool:
         path = Path(path)
@@ -97,9 +73,9 @@ class PythonExtractor:
             if operation is None:
                 continue
             entry = {"file": relative, "line": node.lineno, "operation": operation}
-            if operation in HTTP_OPERATIONS:
+            if operation in PYTHON_HTTP_OPERATIONS:
                 inventory.http_calls.append(entry)
-            elif operation in DATA_SOURCE_OPERATIONS:
+            elif operation in PYTHON_DATA_SOURCE_OPERATIONS:
                 inventory.data_sources.append(entry)
 
     @staticmethod

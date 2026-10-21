@@ -1,0 +1,91 @@
+// =================================================================
+// Main.robin — teste do flow a360-browser-rest / uc-01-browser-rest
+//
+// Escopo: valida UC-01 (Browser.open + REST.get +
+// CredentialVault.getCredential, main.json:1-3), mesmo flow convertido em
+// output/a360-browser-rest/04-pad/uc-01-browser-rest/Main.robin, conforme
+// checkpoint humano aprovado em output/a360-browser-rest/00-manifest.json ->
+// checkpoint (approved_at: 2026-10-21T16:44:33+00:00).
+// UC-02 (TaskBot.run -> Excel.read) fica fora deste teste, conforme verdict
+// PARTIAL em output/a360-browser-rest/03-classification/classification.md.
+//
+// Este arquivo NÃO foi executado no PAD. Ele é o roteiro de teste a colar
+// no designer; o resultado real só existe depois que um analista rodar os
+// cenários do README.md (ver docs/runbook.md). Nunca escrever PASS/FAIL aqui.
+//
+// Todo snippet abaixo vem de reference/robin-actions.md. Hoje todas as
+// ações usadas estão com Status: [não validado], então o texto do snippet
+// já é o placeholder "TODO reflow" registrado lá — nenhuma sintaxe Robin
+// foi inventada aqui.
+// =================================================================
+
+// cfg_ — configuração fixa do teste.
+// Nunca o valor da credencial: só a referência ao cofre (ver
+// 02-docs/integrations.md e reference/a360-to-pad.md linha
+// "CredentialVault | getCredential").
+cfg_credential_reference: "main.json:3:credential-vault"
+cfg_output_folder: "C:\Users\Public\Documents\"
+
+// in_ — dado de entrada comum a todos os cenários (CT-01 a CT-04 do
+// README.md ao lado). Cada cenário substitui este valor conforme a coluna
+// "Dado de entrada" da tabela de cenários.
+// TODO reflow: a extração (01-inventory/inventory.json) registra só o nome
+// do atributo "url" de Browser.open (main.json:1), não o valor real. O
+// analista preenche o valor concreto de cada cenário antes de rodar no PAD.
+in_target_url: "TODO reflow — valor de teste do cenário (ver README.md), origem main.json:1 (atributo url)"
+
+// -----------------------------------------------------------------
+// step_01_open_browser
+// Origem A360: Browser.open (main.json:1)
+// Tabela verdade: reference/a360-to-pad.md — "Browser | open ->
+// Browser.LaunchNewBrowser" (status: não validado)
+// Ação PAD (whitelist): Browser.LaunchNewBrowser
+// Verifica: CT-01, CT-03 (ver README.md)
+// -----------------------------------------------------------------
+[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+
+// -----------------------------------------------------------------
+// step_02_call_rest_api
+// Origem A360: REST.get (main.json:2)
+// Tabela verdade: reference/a360-to-pad.md — "REST | get ->
+// Web.InvokeRestApi" (status: não validado)
+// Ação PAD (whitelist): Web.InvokeRestApi
+// Verifica: CT-01, CT-04 (ver README.md)
+// -----------------------------------------------------------------
+[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+
+// out_ — saída do passo 2, comparada ao "Resultado esperado" de cada
+// cenário no README.md.
+// TODO reflow: nome real da variável de saída só existe depois que a ação
+// Web.InvokeRestApi for montada de verdade no designer do PAD.
+out_rest_response: "TODO reflow — variável de saída depende do snippet real (ainda [não validado])"
+
+// -----------------------------------------------------------------
+// step_03_get_credential
+// Origem A360: CredentialVault.getCredential (main.json:3)
+// Tabela verdade: reference/a360-to-pad.md — "CredentialVault |
+// getCredential -> Credentials.GetCredential" (status: não validado;
+// observação: "nunca copiar o valor bruto, só a referência ao cofre")
+// Ação PAD (whitelist): Credentials.GetCredential
+// Verifica: CT-01, CT-02 (ver README.md)
+// -----------------------------------------------------------------
+[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+
+// out_ — saída do passo 3. Referência ao cofre apenas (cfg_credential_reference
+// acima); nunca atribuir aqui o valor bruto da credencial.
+out_credential: "TODO reflow — variável de saída depende do snippet real (ainda [não validado])"
+
+// -----------------------------------------------------------------
+// step_04_record_test_result
+// Não corresponde a uma ação A360: é só o registro manual do resultado do
+// cenário em execução, usando a mesma variável de configuração para
+// localizar a pasta de saída do teste.
+// Ação PAD (whitelist): Variables.SetVariable
+// -----------------------------------------------------------------
+[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+
+// out_ — resultado observado pelo analista ao rodar o cenário no PAD.
+// TODO reflow: preencher manualmente com "passou"/"falhou" + evidência
+// depois da execução real; nunca preencher antes de rodar (ver
+// README.md -> tabela de resultados e docs/runbook.md).
+out_test_result: "TODO reflow — preencher somente após execução real no PAD"

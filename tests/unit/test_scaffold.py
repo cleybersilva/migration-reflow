@@ -58,6 +58,25 @@ def test_lint_robin_passes_without_robin_files(
         pytest.fail("Sem .robin no repo não há nada a reprovar.")
 
 
+def test_lint_robin_scopes_to_the_given_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    other = tmp_path / "output" / "other-project" / "04-pad" / "other-flow"
+    other.mkdir(parents=True)
+    (other / "Main.robin").write_text("// placeholder\n", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as scoped:
+        main(["lint-robin", "quote-scraper"])
+    if scoped.value.code != 0:
+        pytest.fail("Lint de um projeto não deve ver .robin de outro projeto.")
+
+    with pytest.raises(SystemExit) as whole_repo:
+        main(["lint-robin", "--all"])
+    if whole_repo.value.code != 2:
+        pytest.fail("Sem o escopo de projeto, o .robin de other-project deveria ser visto.")
+
+
 def test_lint_robin_fails_closed_without_whitelist(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -8,21 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from ..inventory import Inventory
+from ..patterns import A360_REGISTRY
 from ..security.safe_zip import safe_zip
 from ._shared import all_files
-
-# (packageName, commandName) -> categoria do inventário. Base conservadora;
-# não equivale a uma whitelist Robin (ver reference/robin-conventions.md).
-REGISTRY: dict[tuple[str, str], str] = {
-    ("Browser", "open"): "ui_interactions",
-    ("REST", "get"): "http_calls",
-    ("REST", "post"): "http_calls",
-    ("Excel", "open"): "data_sources",
-    ("Excel", "read"): "data_sources",
-    ("CredentialVault", "getCredential"): "credentials",
-    ("CredentialVault", "get"): "credentials",
-    ("TaskBot", "run"): "dependencies",
-}
 
 
 def _attribute_names(attributes: Any) -> list[str]:
@@ -52,7 +40,7 @@ def _preorder(nodes: list[dict]) -> Iterator[dict]:
 
 
 class A360Extractor:
-    name = "a360"
+    name: str = "a360"
 
     def detect(self, path: Path) -> bool:
         path = Path(path)
@@ -96,7 +84,7 @@ class A360Extractor:
                     "line": line,
                     "packageName": package,
                 }
-                category = REGISTRY.get((package, command))
+                category = A360_REGISTRY.get((package, command))
                 if category is None:
                     inventory.unknown_commands.append(base_fact)
                     continue

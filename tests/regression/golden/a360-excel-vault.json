@@ -1,0 +1,71 @@
+{
+  "credentials": [
+    {
+      "attribute_names": [
+        "credential"
+      ],
+      "commandName": "get",
+      "file": "main.json",
+      "line": 4,
+      "packageName": "CredentialVault",
+      "reference": "main.json:4:credential-vault"
+    }
+  ],
+  "data_sources": [
+    {
+      "attribute_names": [
+        "file"
+      ],
+      "commandName": "open",
+      "file": "main.json",
+      "line": 1,
+      "packageName": "Excel"
+    },
+    {
+      "attribute_names": [
+        "range"
+      ],
+      "commandName": "read",
+      "file": "main.json",
+      "line": 2,
+      "packageName": "Excel"
+    }
+  ],
+  "dependencies": [],
+  "files": [
+    "main.json"
+  ],
+  "http_calls": [
+    {
+      "attribute_names": [
+        "body",
+        "authorization"
+      ],
+      "commandName": "post",
+      "file": "main.json",
+      "line": 3,
+      "packageName": "REST"
+    }
+  ],
+  "project": "",
+  "schema_version": "1.0",
+  "source_type": "a360",
+  "ui_interactions": [],
+  "unknown_commands": [
+    {
+      "attribute_names": [],
+      "commandName": "transform",
+      "file": "main.json",
+      "line": 5,
+      "packageName": "CustomPackage"
+    },
+    {
+      "attribute_names": [],
+      "commandName": "unmappedAction",
+      "file": "main.json",
+      "line": 6,
+      "packageName": "Browser"
+    }
+  ],
+  "warnings": []
+}

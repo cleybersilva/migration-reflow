@@ -1,0 +1,33 @@
+{
+  "credentials": [],
+  "data_sources": [
+    {
+      "file": "Module.vb",
+      "line": 4,
+      "operation": "File I/O"
+    },
+    {
+      "file": "Program.cs",
+      "line": 7,
+      "operation": "File I/O"
+    }
+  ],
+  "dependencies": [],
+  "files": [
+    "Module.vb",
+    "Program.cs"
+  ],
+  "http_calls": [
+    {
+      "file": "Program.cs",
+      "line": 6,
+      "operation": "HttpClient"
+    }
+  ],
+  "project": "",
+  "schema_version": "1.0",
+  "source_type": "dotnet",
+  "ui_interactions": [],
+  "unknown_commands": [],
+  "warnings": []
+}

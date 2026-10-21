@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import __version__
 from .extractors import detect_extractor
+from .report import build_batch_report
 from .robin import lint_robin_files
 from .security.scan import Finding, scan_repository
 
@@ -32,6 +33,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("scan")
 
     lint = sub.add_parser("lint-robin")
+    lint.add_argument("project", nargs="?", default=None)
     lint.add_argument("--all", action="store_true")
 
     return parser
@@ -87,6 +89,14 @@ def _extract_one(root: Path, name: str) -> int:
     out_dir = root / "output" / name
     _write_json(out_dir / "01-inventory" / "inventory.json", inventory.to_dict())
     _write_json(out_dir / "00-manifest.json", _build_manifest(project_dir, name, extractor.name))
+
+    counts = (
+        f"ui={len(inventory.ui_interactions)} http={len(inventory.http_calls)} "
+        f"dados={len(inventory.data_sources)} credenciais={len(inventory.credentials)} "
+        f"dependencias={len(inventory.dependencies)} "
+        f"desconhecidos={len(inventory.unknown_commands)}"
+    )
+    print(f"{name}: origem={extractor.name} {counts}")
     return 0
 
 
@@ -117,21 +127,8 @@ def _cmd_extract(args: argparse.Namespace) -> int:
 def _cmd_report() -> int:
     root = Path.cwd()
     output_dir = root / "output"
-    rows: list[tuple[str, str, str]] = []
-    if output_dir.is_dir():
-        for project_dir in sorted(p for p in output_dir.iterdir() if p.is_dir()):
-            manifest_path = project_dir / "00-manifest.json"
-            if not manifest_path.is_file():
-                continue
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            status = "Extraído" if manifest.get("status") == "extracted" else manifest.get("status")
-            rows.append((manifest["project"], manifest["source_type"], status))
-
-    lines = ["# Relatório de extração", "", "| Projeto | Origem | Estado |", "| --- | --- | --- |"]
-    lines += [f"| {project} | {origin} | {status} |" for project, origin, status in rows]
-
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "_batch-report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (output_dir / "_batch-report.md").write_text(build_batch_report(root), encoding="utf-8")
     return 0
 
 
@@ -159,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(0)
 
     if args.command == "lint-robin":
-        findings = lint_robin_files(Path.cwd())
+        findings = lint_robin_files(Path.cwd(), project=args.project)
         if findings:
             _report_findings(findings, "lint-robin")
             raise SystemExit(2)

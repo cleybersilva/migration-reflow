@@ -1,0 +1,66 @@
+// =================================================================
+// Main.robin — a360-browser-rest / uc-01-browser-rest
+//
+// Escopo: somente UC-01 (Browser.open + REST.get +
+// CredentialVault.getCredential, main.json:1-3), conforme checkpoint
+// humano aprovado em output/a360-browser-rest/00-manifest.json ->
+// checkpoint (approved_at: 2026-10-21T16:44:33+00:00).
+// UC-02 (TaskBot.run -> Excel.read, main.json:4 / child.json:1) fica
+// fora deste flow, conforme verdict PARTIAL em
+// output/a360-browser-rest/03-classification/classification.md.
+//
+// Todo snippet abaixo vem de reference/robin-actions.md. Hoje todas as
+// ações usadas estão com Status: [não validado], então o texto do
+// snippet já é o placeholder "TODO reflow" registrado lá — nenhuma
+// sintaxe Robin foi inventada aqui.
+// =================================================================
+
+// cfg_ — configuração fixa do flow.
+// Nunca o valor da credencial: só a referência ao cofre (ver
+// 02-docs/integrations.md e reference/a360-to-pad.md linha
+// "CredentialVault | getCredential").
+cfg_credential_reference: "main.json:3:credential-vault"
+cfg_output_folder: "C:\Users\Public\Documents\"
+
+// in_ — entrada do passo 1.
+// TODO reflow: a extração (01-inventory/inventory.json) registra só o
+// nome do atributo "url" de Browser.open (main.json:1), não o valor.
+// Preencher com o analista antes de rodar o flow no designer.
+in_target_url: "TODO reflow — valor de main.json:1 (atributo url) não capturado pela extração"
+
+// -----------------------------------------------------------------
+// step_01_open_browser
+// Origem A360: Browser.open (main.json:1)
+// Tabela verdade: reference/a360-to-pad.md — "Browser | open ->
+// Browser.LaunchNewBrowser" (status: não validado)
+// Ação PAD (whitelist): Browser.LaunchNewBrowser
+// -----------------------------------------------------------------
+[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+
+// -----------------------------------------------------------------
+// step_02_call_rest_api
+// Origem A360: REST.get (main.json:2)
+// Tabela verdade: reference/a360-to-pad.md — "REST | get ->
+// Web.InvokeRestApi" (status: não validado)
+// Ação PAD (whitelist): Web.InvokeRestApi
+// -----------------------------------------------------------------
+[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+
+// out_ — saída do passo 2.
+// TODO reflow: nome real da variável de saída só existe depois que a
+// ação Web.InvokeRestApi for montada de verdade no designer do PAD.
+out_rest_response: "TODO reflow — variável de saída depende do snippet real (ainda [não validado])"
+
+// -----------------------------------------------------------------
+// step_03_get_credential
+// Origem A360: CredentialVault.getCredential (main.json:3)
+// Tabela verdade: reference/a360-to-pad.md — "CredentialVault |
+// getCredential -> Credentials.GetCredential" (status: não validado;
+// observação: "nunca copiar o valor bruto, só a referência ao cofre")
+// Ação PAD (whitelist): Credentials.GetCredential
+// -----------------------------------------------------------------
+[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+
+// out_ — saída do passo 3. Referência ao cofre apenas (cfg_credential_reference
+// acima); nunca atribuir aqui o valor bruto da credencial.
+out_credential: "TODO reflow — variável de saída depende do snippet real (ainda [não validado])"

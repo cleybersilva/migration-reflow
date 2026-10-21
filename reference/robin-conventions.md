@@ -7,4 +7,6 @@
 - Nunca inventar sintaxe. Usar somente a whitelist de `robin-actions.md`.
 - Sem validação real no PAD, marcar `[não validado]`; pendências são TODO reflow.
 
-As referências completas e snippets serão trabalhados na Fase 4.
+Whitelist completa: [`robin-actions.md`](robin-actions.md). Tabela verdade A360 → PAD:
+[`a360-to-pad.md`](a360-to-pad.md). Critérios de classificação PAD/PARTIAL/NOT_PAD:
+[`classification-rubric.md`](classification-rubric.md).
