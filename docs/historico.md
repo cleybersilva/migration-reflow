@@ -338,3 +338,58 @@ as duas skills novas de verdade contra `a360-browser-rest` (que já tinha
 - Os dois agents de revisão continuam sem ter sido chamados de dentro do
   próprio orquestrador `/reflow` em uma execução de lote real — só foram
   invocados isoladamente, via skill, para validar que funcionam.
+
+## Fase 12 — Copilot como terceiro harness espelhado
+
+Ao revisar a Fase 11, o usuário perguntou se tudo tinha sido aplicado também
+ao opencode, e deixou uma regra permanente: **Claude Code, opencode e
+GitHub Copilot têm que evoluir juntos** — o que for feito num tem que ser
+feito nos outros dois, sempre, incluindo criar todas as skills e agents
+também para o Copilot. Antes desta fase, `.github/` nem existia neste
+repositório.
+
+Conferência do lado opencode primeiro (o que o usuário pediu para checar):
+7 agents em `.opencode/agents/` e 9 commands em `.opencode/commands/` já
+batiam 1:1 com as 7 skills/2 revisões da Fase 11 — só achei uma divergência
+real, a description de `.opencode/commands/reflow.md` ainda citava a
+sequência antiga do orquestrador (sem os passos de revisão), corrigida nesta
+fase.
+
+Desenho para o Copilot, caso a caso (detalhado em `docs/decisions.md`
+ADR-016):
+
+1. `.github/copilot-instructions.md` — ponteiro para `AGENTS.md`, igual ao
+   `CLAUDE.md`.
+2. `.github/prompts/<nome>.prompt.md` — um por skill (9) mais
+   `reflow-report.prompt.md` (CLI, sem skill dedicada) = 10 arquivos.
+   Escritos à mão, como ponteiro de uma linha para a `SKILL.md`
+   correspondente — o Copilot, em modo agent, abre e segue o arquivo
+   apontado, então não há necessidade de duplicar o conteúdo da skill.
+3. `.github/chatmodes/<nome>.chatmode.md` — 7 arquivos, **gerados** por
+   `scripts/sync_copilot.py` (script novo) a partir de `.opencode/agents/`,
+   mesma fonte dos espelhos Claude. Cada chatmode gerado ganha um aviso
+   automático no rodapé: o Copilot Chat não tem motor de permissão por
+   recurso como o OpenCode, então a restrição de escopo ali é só instrução —
+   nunca prometer ao usuário uma garantia técnica que esse harness não tem.
+4. `tests/unit/test_copilot.py` (novo, 26 casos): toda skill tem prompt,
+   todo agent tem chatmode, todo chatmode mirrora byte a byte o agent
+   OpenCode de origem, todo chatmode carrega o aviso de permissão.
+5. `AGENTS.md` ganhou a regra permanente dos três harnesses nas Convenções;
+   `README.md` (seção "Plano B" renomeada para os três, pré-requisitos,
+   "Como estender") e `docs/architecture.md` (diagrama, fronteiras de
+   confiança) atualizados para citar o Copilot onde fazia sentido.
+
+`uv run pytest` → 111/111 (85 anteriores + 26 novos), `ruff check`/`format`
+limpos.
+
+### O que esta fase não fez (honestidade)
+
+- **Nenhum destes arquivos foi testado dentro do GitHub Copilot de
+  verdade** — a extensão não está disponível neste ambiente. O formato
+  (`mode: agent`, `${input:variável}` em prompt files; `description`/`tools`
+  em chat modes) segue a documentação pública de customização do Copilot
+  Chat, mas, como o `IARA_MODEL` do ADR-002, só se confirma com a ferramenta
+  real instalada — mesmo princípio de honestidade já aplicado ao longo deste
+  histórico.
+- Não criei testes de integração que simulem o Copilot executando um
+  prompt/chatmode — só testes estruturais (frontmatter, paridade, conteúdo).

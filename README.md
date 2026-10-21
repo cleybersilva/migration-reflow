@@ -200,6 +200,7 @@ por `arquivo:linha`.
 | Git | Versionamento e o hook de pre-commit | https://git-scm.com/downloads |
 | opencode (harness principal) | Rodar skills/agents com um LLM | https://opencode.ai |
 | Claude Code (harness alternativo/plano B) | Mesmas skills/agents, outro harness | https://docs.claude.com/en/docs/claude-code/overview |
+| GitHub Copilot Chat (harness alternativo/plano C, opcional) | Mesmos agents via `.github/prompts/`/`.github/chatmodes/` | https://docs.github.com/copilot |
 | Power Automate Desktop | Colar e rodar o `Main.robin` gerado | https://learn.microsoft.com/power-automate/desktop-flows/introduction |
 | Microsoft Edge + extensão Power Automate | O PAD depende do Edge para automação web | https://www.microsoft.com/edge |
 | Acesso à IAra (ou outro provider compatível OpenAI) | LLM usado pelos agents | solicitar ao time responsável — sem URL pública |
@@ -316,21 +317,37 @@ bash e sem rede; `input/` fica fora do Git; chave de LLM só por variável de
 ambiente. O hook de pre-commit roda `scan` e `lint-robin` de verdade — não é
 decorativo.
 
-## 🛟 Plano B: opencode e Claude Code
+## 🛟 Plano B: opencode, Claude Code e Copilot
 
-As mesmas skills (`.claude/skills/`) são lidas nativamente pelos dois
-harnesses. Os agents têm formato diferente: `.opencode/agents/*.md` é a
-fonte da verdade; `.claude/agents/*.md` é **gerado** — nunca editar à mão.
-Depois de mudar um agent:
+Três harnesses, uma só evolução: o que entra num, entra nos outros dois na
+mesma sessão de trabalho — nunca um fica para trás. As mesmas skills
+(`.claude/skills/`) são lidas nativamente por Claude Code e opencode; o
+Copilot as acessa via `.github/prompts/<nome>.prompt.md`, um ponteiro de uma
+linha para a `SKILL.md` correspondente (escrito à mão, já que é só um
+redirecionamento).
+
+Os agents têm formato diferente por harness, mas uma única fonte da
+verdade: `.opencode/agents/*.md`. `.claude/agents/*.md` e
+`.github/chatmodes/*.chatmode.md` são **gerados** — nunca editar à mão.
+Depois de mudar (ou criar) um agent:
 
 ```powershell
 uv run python scripts/sync_agents.py
-uv run pytest tests/unit/test_sync_agents.py
+uv run python scripts/sync_copilot.py
+uv run pytest tests/unit/test_sync_agents.py tests/unit/test_copilot.py
 ```
 
+**Limite honesto do Copilot**: diferente do OpenCode, o Copilot Chat não tem
+motor de permissão por recurso — um chatmode não tem como *impor* tecnicamente
+que o modelo só grave o `review.md` da própria fase, só *instruir* isso (por
+isso todo `.chatmode.md` gerado carrega um aviso explícito disso, ver
+ADR-016). Nenhum destes arquivos foi testado dentro do Copilot de verdade (a
+extensão não está disponível neste ambiente); o formato segue a documentação
+pública de prompt files/chat modes do Copilot Chat.
+
 Isso existe porque o risco principal apontado na reunião foi perder o acesso
-ao Claude Code no ambiente do Itaú — o pipeline continua funcionando no
-opencode sem reescrever nada.
+a um harness específico no ambiente do Itaú — o pipeline continua funcionando
+em qualquer um dos três sem reescrever nada.
 
 ## 🧱 Como estender
 
@@ -339,11 +356,14 @@ opencode sem reescrever nada.
   `extractors/__init__.py` (ordem de prioridade), adicione fixture em
   `tests/fixtures/` e golden em `tests/regression/golden/`.
 - **Nova skill**: `.claude/skills/<nome>/SKILL.md`, frontmatter `name` igual
-  à pasta (regex `^[a-z0-9]+(-[a-z0-9]+)*$`) e `description`; rode
-  `uv run pytest tests/unit/test_skills.py`.
+  à pasta (regex `^[a-z0-9]+(-[a-z0-9]+)*$`) e `description`; crie também
+  `.opencode/commands/<nome>.md` (wrapper fino) e
+  `.github/prompts/<nome>.prompt.md` (ponteiro para a `SKILL.md`); rode
+  `uv run pytest tests/unit/test_skills.py tests/unit/test_commands.py tests/unit/test_copilot.py`.
 - **Novo agent**: `.opencode/agents/<nome>.md` com permissão mínima (edit só
   na própria subpasta de saída, bash/web/task negados), depois
-  `uv run python scripts/sync_agents.py`.
+  `uv run python scripts/sync_agents.py && uv run python scripts/sync_copilot.py`
+  — os três harnesses saem sincronizados de uma vez.
 - **Nova ação Robin**: adicione em `reference/robin-actions.md` como
   `[não validado]` primeiro; só promova depois de rodar no PAD de verdade.
 

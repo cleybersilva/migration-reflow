@@ -22,7 +22,7 @@ flowchart LR
         DET --> EXT --> INV["01-inventory/inventory.json<br/>+ 00-manifest.json"]
     end
 
-    subgraph HARNESS["Harness com LLM — opencode ou Claude Code"]
+    subgraph HARNESS["Harness com LLM — opencode, Claude Code ou GitHub Copilot"]
         ORC["/reflow (skill orquestradora)"]
         DOC[reflow-documenter]
         CLS[reflow-classifier]
@@ -117,13 +117,17 @@ flowchart LR
   inventário mascarado cruza essa fronteira como contexto de negócio.
 - **agents → `output/`**: fronteira de permissão. Cada agent só edita a
   própria subpasta (`permissions` no frontmatter, não é convenção informal).
+  **Exceto no Copilot**: `.github/chatmodes/*.chatmode.md` não tem motor de
+  permissão por recurso — a restrição ali é só instrução, nunca bloqueio
+  técnico (ADR-016). Trate o Copilot como tendo a fronteira mais fraca dos
+  três harnesses.
 - **`output/` → PAD**: fronteira de automação → execução real. Tudo antes
   dela é "gerado"; só depois dela existe "executado" (ver `docs/runbook.md`).
 
 ## Onde o LLM entra (e onde não entra)
 
 O LLM (IAra via proxy, ou outro provider compatível com OpenAI) só é chamado
-pelo harness — opencode ou Claude Code — dentro dos agents `reflow-documenter`,
+pelo harness — opencode, Claude Code ou GitHub Copilot — dentro dos agents `reflow-documenter`,
 `reflow-classifier`, `reflow-classification-reviewer`, `reflow-pad-converter`,
 `reflow-robin-reviewer`, `reflow-pad-tester` e `reflow-truth-table-curator`.
 Os dois agents de revisão (`reflow-classification-reviewer` e

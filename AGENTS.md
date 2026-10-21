@@ -37,9 +37,20 @@ continua sendo o checkpoint humano.
 
 ## Convenções
 
-- Regras aqui são a fonte da verdade; `CLAUDE.md` apenas aponta para este arquivo.
+- Regras aqui são a fonte da verdade; `CLAUDE.md` e `.github/copilot-instructions.md`
+  apenas apontam para este arquivo.
 - Skills compartilhadas: `.claude/skills/<name>/SKILL.md`.
-- Agents canônicos: `.opencode/agents/`; espelhos Claude gerados por script.
+- Agents canônicos: `.opencode/agents/`; espelhos Claude gerados por script
+  (`scripts/sync_agents.py` → `.claude/agents/`).
+- **Três harnesses, uma só evolução**: Claude Code, OpenCode e GitHub Copilot
+  têm que andar juntos. Toda skill nova precisa de um `.github/prompts/<nome>.prompt.md`
+  (aponta para a skill, nunca duplica o conteúdo). Todo agent novo precisa de
+  `uv run python scripts/sync_copilot.py` rodado depois de
+  `scripts/sync_agents.py`, gerando `.github/chatmodes/<nome>.chatmode.md`. O
+  Copilot Chat **não tem** motor de permissão por recurso como o OpenCode —
+  todo chatmode gerado carrega um aviso disso; nunca prometer ao usuário uma
+  garantia técnica que esse harness não oferece. `tests/unit/test_copilot.py`
+  falha fechado se qualquer um dos três ficar para trás.
 - Todo fato e artefato de negócio deve citar evidência `arquivo:linha`.
 - Inventários estáveis e ordenados; manifestos registram hashes, versão e datas.
 - Não sobrescrever mudanças ou materiais existentes sem autorização.

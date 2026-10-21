@@ -134,3 +134,41 @@ exatamente essa lacuna, como um segundo agent depois do lint, nunca no lugar
 dele. Mesmas restrições do ADR-014: só grava o próprio `04-pad/<flow>/review.md`,
 nunca `Main.robin`/`README.md`/`notas-conversao.md`, e não aprova nem bloqueia
 sozinho — só informa o checkpoint humano antes de `reflow-test`.
+
+## ADR-016 — Copilot como terceiro harness espelhado
+
+O usuário pediu explicitamente que toda evolução de skill/agent apareça nos
+três harnesses (Claude Code, OpenCode, GitHub Copilot) — nunca só em um.
+Antes desta decisão, `.github/` nem existia. Desenho adotado, caso a caso:
+
+- **Instruções de raiz**: `.github/copilot-instructions.md` é um ponteiro
+  para `AGENTS.md`, idêntico em espírito ao `CLAUDE.md` — mesma fonte única
+  de verdade, três arquivos finos.
+- **Skills → prompt files**: `.github/prompts/<nome>.prompt.md`, um por
+  skill (mais `reflow-report.prompt.md`, que espelha o command do OpenCode
+  que só roda `reflow report`, sem skill dedicada). Escrito **à mão**, não
+  gerado — porque o corpo é só um ponteiro de uma linha para
+  `.claude/skills/<nome>/SKILL.md` (que o Copilot, em modo agent, consegue
+  abrir e seguir), igual ao padrão já usado em `.opencode/commands/*.md`.
+  Isso evita duplicar o conteúdo da skill numa terceira cópia.
+- **Agents → chat modes**: `.github/chatmodes/<nome>.chatmode.md`, **gerado**
+  por `scripts/sync_copilot.py` a partir de `.opencode/agents/` — mesma fonte
+  dos espelhos Claude, mesmo motivo (o corpo de um agent é instrução
+  completa, não um ponteiro; copiar manualmente divergiria com o tempo).
+- **Honestidade sobre o que o Copilot não impõe**: o Copilot Chat não tem
+  `permissions`/`tools` com bloqueio por recurso como o OpenCode — um
+  chatmode pode, tecnicamente, editar qualquer arquivo se o modelo decidir
+  ignorar a instrução. Por isso `render_chatmode()` **sempre** acrescenta um
+  aviso explícito disso no fim de cada arquivo gerado — nunca sugerir ao
+  usuário que os três harnesses têm o mesmo nível de imposição técnica.
+- `tests/unit/test_copilot.py` trava a paridade (todo skill tem prompt, todo
+  agent tem chatmode, todo chatmode carrega o aviso) do mesmo jeito que
+  `test_sync_agents.py`/`test_skills.py` já travavam Claude/OpenCode — a
+  omissão de um dos três harnesses numa mudança futura vira teste vermelho,
+  não um lembrete em documentação que alguém pode esquecer de ler.
+
+Não validado: nenhum destes arquivos foi testado dentro do GitHub Copilot de
+verdade (a extensão não está disponível neste ambiente) — o formato segue a
+documentação pública de customização do Copilot Chat (prompt files, chat
+modes), mas, como o `IARA_MODEL` do ADR-002, o comportamento exato só se
+confirma com a ferramenta real instalada.
