@@ -1,0 +1,26 @@
+{
+  "checkpoint": null,
+  "extracted_at": "2026-10-21T15:02:59.141143+00:00",
+  "inputs": [
+    {
+      "file": ".gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "main.py",
+      "sha256": "cc8e3754816a6b1e7033963bf1d5c47704b4ac39c8c741eb9192c84cd2881030"
+    }
+  ],
+  "project": "quote-scraper",
+  "reflow_version": "0.1.0",
+  "schema_version": "1.0",
+  "source_type": "python",
+  "stale_phases": [
+    "02-docs",
+    "03-classification",
+    "04-pad",
+    "05-test"
+  ],
+  "status": "extracted",
+  "verdict": null
+}

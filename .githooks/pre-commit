@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+# Falhar de forma restritiva até a implementação dos gates nas próximas fases.
+if ! uv run python -m reflow scan; then
+    echo 'Commit bloqueado: scan falhou ou ainda não está disponível.' >&2
+    exit 1
+fi
+if ! uv run python -m reflow lint-robin --all; then
+    echo 'Commit bloqueado: validação Robin falhou ou ainda não está disponível.' >&2
+    exit 1
+fi

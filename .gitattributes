@@ -1,0 +1,12 @@
+* text=auto
+*.py text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.lock text eol=lf
+*.robin text eol=crlf
+*.md text eol=lf
+.githooks/* text eol=lf
+*.drawio text eol=lf
+*.mp4 binary
+*.xlsx binary
+*.docx binary

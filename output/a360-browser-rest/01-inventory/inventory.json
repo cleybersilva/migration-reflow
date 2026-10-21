@@ -1,0 +1,69 @@
+{
+  "credentials": [
+    {
+      "attribute_names": [
+        "credential"
+      ],
+      "commandName": "getCredential",
+      "file": "main.json",
+      "line": 3,
+      "packageName": "CredentialVault",
+      "reference": "main.json:3:credential-vault"
+    }
+  ],
+  "data_sources": [
+    {
+      "attribute_names": [
+        "worksheet"
+      ],
+      "commandName": "read",
+      "file": "child.json",
+      "line": 1,
+      "packageName": "Excel"
+    }
+  ],
+  "dependencies": [
+    {
+      "attribute_names": [
+        "botName"
+      ],
+      "commandName": "run",
+      "file": "main.json",
+      "line": 4,
+      "packageName": "TaskBot",
+      "resolution": "resolvida",
+      "target": "child.json"
+    }
+  ],
+  "files": [
+    "child.json",
+    "main.json"
+  ],
+  "http_calls": [
+    {
+      "attribute_names": [
+        "url"
+      ],
+      "commandName": "get",
+      "file": "main.json",
+      "line": 2,
+      "packageName": "REST"
+    }
+  ],
+  "project": "a360-browser-rest",
+  "schema_version": "1.0",
+  "source_type": "a360",
+  "ui_interactions": [
+    {
+      "attribute_names": [
+        "url"
+      ],
+      "commandName": "open",
+      "file": "main.json",
+      "line": 1,
+      "packageName": "Browser"
+    }
+  ],
+  "unknown_commands": [],
+  "warnings": []
+}

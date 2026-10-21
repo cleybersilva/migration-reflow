@@ -1,0 +1,15 @@
+{
+  "name": "main",
+  "nodes": [
+    {
+      "packageName": "Browser",
+      "commandName": "open",
+      "attributes": {"url": "https://example.invalid"},
+      "children": [
+        {"packageName": "REST", "commandName": "get", "attributes": {"url": "https://example.invalid/api"}},
+        {"packageName": "CredentialVault", "commandName": "getCredential", "attributes": {"credential": "synthetic-vault-reference"}}
+      ]
+    },
+    {"packageName": "TaskBot", "commandName": "run", "attributes": {"botName": "child"}}
+  ]
+}

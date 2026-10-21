@@ -1,0 +1,32 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md", "reference/robin-conventions.md"],
+  "skills": ["./.claude/skills"],
+  "providers": {
+    "iara": {
+      "package": "@opencode/ai/providers/openai-compatible",
+      "name": "IAra (LLM interno)",
+      "env": ["IARA_API_KEY"],
+      "settings": {
+        "baseURL": "{env:IARA_BASE_URL}",
+        "apiKey": "{env:IARA_API_KEY}"
+      },
+      "models": {
+        "iara-default": {
+          "name": "IAra padrão (a confirmar)",
+          "modelID": "{env:IARA_MODEL}"
+        }
+      }
+    }
+  },
+  "permissions": [
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "read", "resource": "*.env", "effect": "deny" },
+    { "action": "read", "resource": "*.env.*", "effect": "deny" },
+    { "action": "read", "resource": "*.env.example", "effect": "allow" },
+    { "action": "shell", "resource": "*", "effect": "ask" },
+    { "action": "webfetch", "resource": "*", "effect": "deny" },
+    { "action": "websearch", "resource": "*", "effect": "deny" },
+    { "action": "external_directory", "resource": "*", "effect": "deny" }
+  ]
+}

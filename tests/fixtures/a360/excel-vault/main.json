@@ -1,0 +1,10 @@
+{
+  "nodes": [
+    {"packageName": "Excel", "commandName": "open", "attributes": [{"name": "file", "value": "synthetic.xlsx"}]},
+    {"packageName": "Excel", "commandName": "read", "attributes": {"range": "A1:B3"}},
+    {"packageName": "REST", "commandName": "post", "attributes": {"body": "synthetic", "authorization": "not-a-real-credential"}},
+    {"packageName": "CredentialVault", "commandName": "get", "attributes": {"credential": "synthetic-reference"}},
+    {"packageName": "CustomPackage", "commandName": "transform", "attributes": {}},
+    {"packageName": "Browser", "commandName": "unmappedAction", "attributes": {}}
+  ]
+}

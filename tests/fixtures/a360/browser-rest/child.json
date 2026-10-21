@@ -1,0 +1,5 @@
+{
+  "nodes": [
+    {"packageName": "Excel", "commandName": "read", "attributes": {"worksheet": "Synthetic"}}
+  ]
+}

@@ -1,0 +1,25 @@
+# Legados confidenciais; somente o exemplo sintético será versionado.
+/input/*
+!/input/quote-scraper/
+
+.venv/
+__pycache__/
+*.py[cod]
+.env
+*.env
+.env.*
+!*.env.example
+!.env.example
+.pytest_cache/
+.ruff_cache/
+*.zip
+!/tests/fixtures/**/*.zip
+
+# Materiais preexistentes da reunião: preservar localmente, não compartilhar.
+/arquitetura-reflow.drawio
+/diagram - FINAL com AGENTS.drawio
+/diagram - HOJE.drawio
+/Gravando 2026-10-16 130517 - Reunião Augusto.mp4
+/prerequisitos-reflow.xlsx
+/prompt-opencode-reflow.md
+/Relatório — Reunião com Augusto (16 10 2026).docx
