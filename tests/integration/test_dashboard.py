@@ -5,6 +5,7 @@ from __future__ import annotations
 import http.client
 import json
 import shutil
+import socket
 import threading
 import time
 from contextlib import contextmanager
@@ -13,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from dashboard.server import STEPS, Dashboard, create_server
+from dashboard.server import STEPS, Dashboard, Handler, create_server
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -251,6 +252,140 @@ def test_invalid_origin_missing_token_bad_selection_and_static_traversal_are_rej
             "Traversal de asset estático não deve expor arquivo.",
         )
         require(app.snapshot()["run_id"] is None, "Nenhuma dessas tentativas inicia um teste.")
+
+
+def test_rejected_post_drains_the_body_before_answering(tmp_path):
+    """A rejeição tem que consumir o corpo antes de escrever a resposta.
+
+    É o call site que mata a corrida de RST descrita no teste do corpo
+    atrasado ao lado: sem este descarte, o Winsock fecha com bytes não lidos
+    e derruba a própria resposta. Aqui se fixa o acoplamento (só a rejeição
+    drena); a lógica do descarte está no teste unitário correspondente.
+    """
+    drained: list[str] = []
+    original = Handler._drain_body
+
+    def spy(self):
+        drained.append(self.path)
+        return original(self)
+
+    Handler._drain_body = spy
+    try:
+        with running_server(tmp_path) as (server, app, _):
+            require(
+                request(server, "/api/run", {"all": True})[0] == 403,
+                "Sem token tem que ser rejeitado.",
+            )
+            require(
+                request(server, "/api/status")[0] == 200,
+                "O GET de status continua funcionando durante o spy.",
+            )
+    finally:
+        Handler._drain_body = original
+    require(
+        drained == ["/api/run"],
+        f"Só a rejeição drena o corpo; veio {drained}.",
+    )
+
+
+def test_rejected_post_whose_body_arrives_late_still_gets_its_403(tmp_path):
+    """Regressão do flake: rejeição com corpo que chega em seguida não aborta.
+
+    O `http.client` manda cabeçalho e corpo em **dois `send()`**. Se o corpo
+    chega depois de o handler já ter lido os cabeçalhos, o handler rejeitava,
+    escrevia o 403 e fechava sem nunca ter lido o corpo — e o envio do corpo
+    batia em socket fechado, fazendo o Winsock responder **RST**, que destrói
+    o 403 que estava no buffer de recepção do cliente. O cliente via
+    `ConnectionAbortedError` no lugar da rejeição esperada: era o flake de
+    `test_invalid_origin_...`, que só aparecia sob carga porque a carga é o
+    que atrasa o corpo.
+
+    Medido antes do fix, sem sorte nenhuma no sorteio: com 2 ms de atraso o
+    resultado era **RST em 40 de 40** tentativas; com o descarte do corpo, o
+    handler passa a esperar o corpo (até 1 s) e fecha com FIN — 40 de 40.
+    """
+    with running_server(tmp_path) as (server, app, _):
+        body = json.dumps({"all": True}).encode()
+        connection = socket.create_connection(("127.0.0.1", server.server_port), timeout=3)
+        try:
+            connection.sendall(
+                b"POST /api/run HTTP/1.1\r\n"
+                b"Host: 127.0.0.1:" + str(server.server_port).encode() + b"\r\n"
+                b"Content-Type: application/json\r\n"
+                b"Content-Length: " + str(len(body)).encode() + b"\r\n"
+                b"Connection: close\r\n"
+                b"\r\n"
+            )
+            time.sleep(0.010)  # cabeçalho processado; corpo só chega agora
+            connection.sendall(body)
+            received = b""
+            try:
+                while True:
+                    chunk = connection.recv(4096)
+                    if not chunk:
+                        break
+                    received += chunk
+            except (ConnectionAbortedError, ConnectionResetError):
+                pytest.fail(
+                    "RST no meio da resposta: a rejeição respondeu e fechou "
+                    "sem consumir o corpo que estava a caminho."
+                )
+        finally:
+            connection.close()
+        require(
+            received.split(b"\r\n", 1)[0].endswith(b" 403 Forbidden"),
+            f"Corpo atrasado não pode custar a resposta; veio: {received[:40]!r}.",
+        )
+        require(
+            "Requisição não autorizada" in received.decode("utf-8"),
+            "O 403 tem que chegar inteiro, não só o status.",
+        )
+        require(app.snapshot()["run_id"] is None, "Rejeição nunca inicia um teste.")
+
+
+def test_rejected_post_is_answered_and_closed_with_fin_not_rst(tmp_path):
+    """A rejeição tem que devolver o 403 inteiro e fechar com FIN.
+
+    Confirma, no caminho real de socket, o resultado do descarte do corpo: o
+    403 chega inteiro e o fechamento é FIN (`b""` no `recv`), não RST. A
+    corrida que isso evita — e que a lógica do descarte mata — está fixada
+    deterministicamente no teste do corpo atrasado ao lado; a lógica em si
+    está no teste unitário correspondente.
+    """
+    with running_server(tmp_path) as (server, app, _):
+        body = json.dumps({"all": True}).encode()
+        connection = socket.create_connection(("127.0.0.1", server.server_port), timeout=3)
+        try:
+            connection.sendall(
+                b"POST /api/run HTTP/1.1\r\n"
+                b"Host: 127.0.0.1:" + str(server.server_port).encode() + b"\r\n"
+                b"Content-Type: application/json\r\n"
+                b"Content-Length: " + str(len(body)).encode() + b"\r\n"
+                b"Connection: close\r\n"
+                b"\r\n" + body
+            )
+            received = b""
+            while b"\r\n\r\n" not in received:
+                received += connection.recv(4096)
+            status_line = received.split(b"\r\n", 1)[0]
+            require(
+                status_line.endswith(b" 403 Forbidden"),
+                f"Resposta de rejeição esperada, veio: {received[:40]!r}.",
+            )
+            while True:
+                chunk = connection.recv(4096)
+                if not chunk:
+                    break  # FIN: fechamento gracioso, sem RST.
+                received += chunk
+        except ConnectionResetError:
+            pytest.fail("RST no fechamento: a rejeição respondeu sem consumir o corpo.")
+        finally:
+            connection.close()
+        require(
+            "Requisição não autorizada" in received.decode("utf-8"),
+            "O corpo do 403 tem que chegar inteiro, não só o status.",
+        )
+        require(app.snapshot()["run_id"] is None, "Rejeição nunca inicia um teste.")
 
 
 def test_cancel_only_targets_the_current_run(tmp_path):

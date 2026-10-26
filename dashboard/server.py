@@ -32,6 +32,11 @@ STEPS = (
     ("report", "Relatório", "Resultados deste teste"),
 )
 
+# Corpo máximo de um POST: o dashboard só recebe seleção de projeto, então o
+# teto é minúsculo de propósito. Usado tanto na validação quanto no descarte
+# do corpo de requisições rejeitadas (Handler._drain_body).
+MAX_BODY_BYTES = 4096
+
 
 class Dashboard:
     # Teste local de um usuário só: uma aba normal mantém 1 SSE (2 durante um
@@ -213,6 +218,48 @@ class Handler(BaseHTTPRequestHandler):
         self._headers(status, "application/json; charset=utf-8", len(content))
         self.wfile.write(content)
 
+    def _drain_body(self) -> None:
+        """Descarta o corpo de uma requisição que vai ser rejeitada.
+
+        O `http.client` manda cabeçalho e corpo em **dois `send()`**. Se o
+        corpo chega depois de o handler já ter lido os cabeçalhos, ele
+        rejeitava, escrevia a resposta e fechava sem nunca ter lido o corpo:
+        o Winsock responde **RST** a um envio que bate em socket fechado, e o
+        RST destrói a resposta que estava no buffer de recepção do cliente —
+        o cliente via `ConnectionAbortedError` no lugar do 403, e o próprio
+        servidor via WinError 10053 no `wfile.write`. Consumir o corpo antes
+        de responder transforma essa corrida, que só aparecia sob carga, em
+        FIN limpo.
+
+        O teto é o mesmo do corpo aceito e o timeout é curto de propósito: um
+        `Content-Length` mentiroso não pode prender a thread do handler. Isso
+        **não** resolve a pendência do `POST` sem deadline de leitura (ADR-021)
+        — só evita repetir, nesta leitura nova, a mesma fraqueza. Quando o
+        corpo declarado passa do teto, sobra byte no socket mesmo depois do
+        descarte e a conexão é marcada para fechar, nunca reutilizar.
+        """
+        try:
+            declared = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            return
+        if declared <= 0:
+            return
+        if declared > MAX_BODY_BYTES:
+            self.close_connection = True
+        remaining = min(declared, MAX_BODY_BYTES)
+        try:
+            self.connection.settimeout(1.0)
+            while remaining > 0:
+                chunk = self.rfile.read1(remaining)
+                if not chunk:
+                    self.close_connection = True
+                    return
+                remaining -= len(chunk)
+        except (TimeoutError, OSError):
+            self.close_connection = True
+        finally:
+            self.connection.settimeout(None)
+
     def do_GET(self) -> None:  # noqa: N802
         if not self._valid_host():
             self._json(HTTPStatus.FORBIDDEN, {"error": "Host não autorizado."})
@@ -254,13 +301,18 @@ class Handler(BaseHTTPRequestHandler):
             or origin not in {None, f"http://{self.headers.get('Host')}"}
             or not secrets.compare_digest(self.headers.get("X-Reflow-Token", ""), self.app.csrf)
         ):
+            self._drain_body()
             self._json(
                 HTTPStatus.FORBIDDEN, {"error": "Requisição não autorizada. Recarregue o painel."}
             )
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 4096 or self.headers.get("Content-Type") != "application/json":
+            if (
+                not 0 < length <= MAX_BODY_BYTES
+                or self.headers.get("Content-Type") != "application/json"
+            ):
+                self._drain_body()
                 raise ValueError("Corpo inválido.")
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict):
