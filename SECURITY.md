@@ -86,9 +86,13 @@ se desamarre do que foi extraído.
   não existe `notas-conversao.md` nenhum para testar fora dos testes automatizados.
 - Fases 1 a 4 de segurança estão aplicadas. `reject_unsafe_links` recusa o
   projeto inteiro quando acha um link — não tenta "podar" só a parte insegura; isso é
-  deliberadamente grosseiro (ver ADR-019). Seguem abertos e **fora** destas quatro
-  fases: CI versionada (`.github/workflows` não existe — só o hook local) e o
-  deadline de leitura do `POST` no dashboard.
+  deliberadamente grosseiro (ver ADR-019). Segue aberto e **fora** destas quatro
+  fases: o deadline de leitura do `POST` no dashboard.
+- A CI versionada (`.github/workflows/ci.yml`) roda os **mesmos** gates do hook
+  local — `pytest`, `ruff`, `reflow scan` (working tree) e `lint-robin` — em
+  Linux e Windows, Python 3.12 e 3.14. O `scan --staged` continua sendo gate
+  local do pre-commit: depende do índice do Git, que um checkout da CI não tem.
+  CI verde **não** significa que nada foi validado no PAD.
 - O orçamento do `dashboard/` (500 arquivos / 12 níveis / 20 MB) segue
   **mais apertado** que o da CLI real (`reflow/limits.py`: 5000 / 30 níveis /
   64 MB por arquivo / 512 MB) de propósito: é um smoke test local, não a

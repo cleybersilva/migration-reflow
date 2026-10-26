@@ -696,11 +696,72 @@ novos: 5 em `tests/unit/test_limits.py`, 3 de A360 em
 
 ### O que esta fase não fez (honestidade)
 
-- **CI continua não existindo** (`.github/workflows`) — fora do escopo
-  destas quatro fases de segurança, segue como pendência aberta.
+- **CI continua não existindo** (nesta fase) — fora do escopo destas quatro
+  fases de segurança; é fechada na Fase 17.
 - Não ampliei a leitura A360 para JSON aninhado: decidi avisar em vez de
   inventar cobertura sem fixture real que mostre o formato do export.
 - Os tetos de orçamento são **genéricos, não calibrados em robô real**
   (nenhum export verdadeiro passou por aqui ainda); se um export legítimo
   estourar, o ajuste é consciente e documentado, não um chute disfarçado.
 - Nada foi validado num PAD real; a whitelist segue 100% `[não validado]`.
+
+## Fase 17 — CI versionada em `.github/workflows/ci.yml`
+
+Fecha a última pendência de infra do diagnóstico de 24/10: os gates (pytest,
+ruff, scan, lint-robin) existiam só localmente, e só rodavam se alguém
+configurasse `git config core.hooksPath .githooks`. Documentado no ADR-022
+em [`docs/decisions.md`](decisions.md).
+
+### O que foi criado
+
+`.github/workflows/ci.yml` com dois jobs:
+
+- **`checks`** — matriz 2×2: `ubuntu-latest` + `windows-latest` × Python
+  3.12 + 3.14. Passos: `uv sync --frozen` → `ruff check .` →
+  `ruff format --check .` → `python -m pytest` (suíte inteira, que já
+  inclui a paridade dos três harnesses — `test_copilot.py`,
+  `test_sync_agents.py`, `test_skills.py`, `test_commands.py`) →
+  `reflow scan` → `reflow lint-robin --all`.
+- **`frontend`** — `ubuntu-latest`, Node 24:
+  `node --test tests/frontend/dashboard.test.cjs`.
+
+Gatilhos: `push` em `main`, `pull_request` e `workflow_dispatch` manual.
+`permissions: contents: read` (nenhum secret), `fail-fast: false` (os quatro
+jobs da matriz rodam todos, para comparar SO/versão), `concurrency` por ref
+cancelando a execução anterior.
+
+### Decisões que merecem registro (ADR-022)
+
+- **`reflow scan`, não `scan --staged`**: o `--staged` lê o índice Git
+  (`git show :<path>`), que não existe num checkout da CI — rodaria vazio e
+  daria falso senso de cobertura. O `--staged` segue local, no hook.
+- **`uv sync --frozen`**: usa o lock como está, sem reescrever; CI nunca
+  altera artefato versionado.
+- **Linux na matriz** cobre o caminho POSIX do `fcntl` do `reflow/fs.py`;
+  Windows é o alvo real (PAD, `msvcrt.locking`, `mklink /J` no teste de
+  junction, que se pula sozinho quando o comando não existe).
+
+### Verificação
+
+- YAML validado com `pyyaml` (carga efêmera via `uv run --with pyyaml`, sem
+  tocar no projeto/lock): `on` com `push`/`pull_request`/`workflow_dispatch`,
+  jobs `checks` e `frontend`, matriz 2×2, 8 + 3 steps.
+- Todos os comandos da CI foram executados localmente antes de commitar:
+  `uv sync --frozen` → ok; `ruff check`/`format --check` → ok; `pytest` →
+  **199 passed**; `reflow scan` e `reflow lint-robin --all` → ok;
+  `node --test tests/frontend/dashboard.test.cjs` (Node v24.15.0) → **3/3**.
+- Badge de CI adicionada no topo do README, apontando para o workflow.
+
+### O que esta fase não fez (honestidade)
+
+- **O workflow não rodou de verdade ainda** — ele só executa depois do
+  push para o GitHub. A verificação aqui foi a dos comandos, um a um, na
+  máquina local (Windows, Python 3.14, Node 24) e a validação de sintaxe
+  do YAML. Se algo falhar na primeira execução real, é isso que se
+  corrige.
+- CI verde **não** significa nada validado no PAD: a whitelist segue 100%
+  `[não validado]`, e a CI não executa legado, não chama LLM e não tem
+  segredo algum — só os gates determinísticos.
+- A suíte roda em Linux, mas o alvo de migração é Windows; a CI cobre
+  comportamento do Python, não do Power Automate.
+- Continua aberto o deadline de leitura do `POST` no dashboard.

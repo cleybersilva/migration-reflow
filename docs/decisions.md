@@ -535,3 +535,52 @@ módulo `reflow/limits.py` com `check_input_budget()`:
 Não corrigido nesta fase (seguem abertos, ver `SECURITY.md`): CI em
 `.github/workflows`, POST sem deadline de leitura no dashboard, e tudo que
 depende de execução real no PAD.
+
+## ADR-022 — CI versionada: os mesmos gates do hook local, espelhados no GitHub
+
+O diagnóstico de 24/10 apontava que os gates existiam só localmente (hook
+`.githooks/pre-commit`, que só roda se alguém lembrar de configurar
+`core.hooksPath`). `.github/workflows/ci.yml` espelha essa linha no GitHub.
+
+### O que a CI roda
+
+| Job | Runner | Comandos |
+| --- | --- | --- |
+| `checks` (matriz: ubuntu-latest + windows-latest × Python 3.12 + 3.14) | Linux e Windows | `uv sync --frozen` → `ruff check .` → `ruff format --check .` → `python -m pytest` (suíte inteira) → `reflow scan` → `reflow lint-robin --all` |
+| `frontend` | ubuntu-latest | `node --test tests/frontend/dashboard.test.cjs` |
+
+### Decisões
+
+- **Matriz com os dois sistemas**: Linux cobre o caminho POSIX do lock
+  (`fcntl` em `reflow/fs.py`) e Windows é a plataforma-alvo real (PAD,
+  `msvcrt.locking`, `mklink /J` no teste de junction — que se autoescreve
+  para fora quando o comando não existe). Python 3.12 é o piso declarado em
+  `requires-python`; 3.14 é o que a máquina de desenvolvimento usa.
+- **`scan`, não `scan --staged`**: o `scan_staged()` lê o índice Git
+  (`git show :<path>`), que um checkout da CI não tem — rodaria vazio e
+  daria falso senso de cobertura. O gate equivalente é o `scan` da working
+  tree completa. O `--staged` segue sendo exclusivo do pre-commit local.
+- **`uv sync --frozen`**: usa o `uv.lock` como está, sem reescrever nada —
+  CI nunca altera artefato versionado. (`--locked` falharia se o lock
+  estivesse defasado; escolhido `--frozen` para o CI não depender de
+  resolução de rede além da instalação em si.)
+- **Permissões mínimas**: `permissions: contents: read`. Nenhum secret é
+  usado; nenhuma action de terceiros além das oficiais da GitHub
+  (`checkout`, `setup-node`) e da Astral (`setup-uv`) — nada de actions de
+  comunidade com permissão de escrita.
+- **`fail-fast: false`**: os 4 jobs da matriz rodam todos, mesmo um
+  falhando — a matriz serve justamente para comparar comportamento entre
+  SO/versão, e falhar no primeiro esconde a comparação.
+- **Triggers**: `push` em `main`, `pull_request` e `workflow_dispatch`
+  manual. `concurrency` por ref cancelando execução anterior (commit novo
+  no PR não precisa das duas rodando).
+
+### O que a CI **não** é
+
+- Não executa legado, não chama LLM e não tem segredo algum — só os gates
+  determinísticos.
+- **CI verde não significa nada validado no PAD**: a whitelist de ações
+  Robin segue 100% `[não validado]` até alguém rodar um `Main.robin` de
+  verdade. Isso continua fora do repositório.
+- A suíte roda em Linux, mas o alvo de migração é Windows; a CI cobre
+  comportamento do Python, não do Power Automate.

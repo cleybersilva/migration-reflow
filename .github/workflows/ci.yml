@@ -1,0 +1,65 @@
+# CI — só gates determinísticos. Nenhum agent, nenhum LLM, nenhum legado
+# executado: é a mesma linha dos hooks locais (AGENTS.md), espelhada no
+# GitHub para quem clonar sem configurar nada.
+#
+# `scan --staged` é o gate local do pre-commit e depende do índice do Git;
+# num checkout da CI não existe staged, então o gate equivalente aqui é o
+# `scan` da working tree completa (o `scan_repository`).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: checks (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux cobre o caminho POSIX (fcntl no lock do fs.py); Windows é a
+        # plataforma-alvo real (PAD, mklink no teste de junction, msvcrt).
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Instala dependências (sem reescrever o lock)
+        run: uv sync --frozen
+      - name: Lint (ruff check)
+        run: uv run ruff check .
+      - name: Formatação (ruff format)
+        run: uv run ruff format --check .
+      # A suíte inteira inclui a paridade dos três harnesses (sync_agents,
+      # copilot, skills, commands) — não precisa de job separado.
+      - name: Suíte completa (unit + regression + integration)
+        run: uv run python -m pytest
+      - name: Scan de segredo/PII (working tree)
+        run: uv run python -m reflow scan
+      - name: Lint Robin (estrutura dos .robin)
+        run: uv run python -m reflow lint-robin --all
+
+  frontend:
+    name: frontend (dashboard)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Testes do frontend do dashboard
+        run: node --test tests/frontend/dashboard.test.cjs

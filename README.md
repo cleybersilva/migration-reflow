@@ -10,6 +10,7 @@
 [![opencode](https://img.shields.io/badge/opencode-harness_principal-2b7fff)](https://opencode.ai)
 [![Power Automate Desktop](https://img.shields.io/badge/Power_Automate-Desktop-0066FF)](https://learn.microsoft.com/power-automate/desktop-flows/introduction)
 
+[![CI](https://github.com/cleybersilva/migration-reflow/actions/workflows/ci.yml/badge.svg)](https://github.com/cleybersilva/migration-reflow/actions/workflows/ci.yml)
 [![Fases](https://img.shields.io/badge/fases-5%20%2B%20checkpoint-a3e635.svg)](#-arquitetura)
 [![Agents](https://img.shields.io/badge/agents-5-blue.svg)](#-arquitetura)
 [![Zero LLM na extração](https://img.shields.io/badge/extra%C3%A7%C3%A3o-determin%C3%ADstica%2C_zero_LLM-brightgreen.svg)](#-arquitetura)
@@ -338,7 +339,9 @@ desde a extração. A extração tem **teto de entrada** (`reflow/limits.py`:
 arquivos, profundidade e bytes — medido antes de ler qualquer coisa) e o
 lote `extract --all` **não é derrubado** por um projeto estragado: ele é
 reportado, citado no resumo e os demais seguem. O hook de pre-commit roda
-`scan --staged` e `lint-robin` de verdade — não é decorativo.
+`scan --staged` e `lint-robin` de verdade — não é decorativo — e a mesma
+linha roda na CI versionada (`.github/workflows/ci.yml`, Linux + Windows,
+Python 3.12 e 3.14).
 
 ## 🛟 Plano B: opencode, Claude Code e Copilot
 
