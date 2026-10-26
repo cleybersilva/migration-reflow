@@ -616,3 +616,76 @@ Run 2 (`40365830911`): **success**, 5/5 jobs — verde desde 26/10/2026.
   verdade. Isso continua fora do repositório.
 - A suíte roda em Linux, mas o alvo de migração é Windows; a CI cobre
   comportamento do Python, não do Power Automate.
+
+## ADR-023: descarte do corpo antes de rejeitar POST no dashboard
+
+**Data:** 2026-10-26 · **Status:** aceito
+
+### Problema
+
+`test_dashboard.py::test_invalid_origin_...` caía de forma intermitente com
+`ConnectionAbortedError` no primeiro request — só em execução de suíte
+completa, nunca isolado. Com CI a cada push, isso virava vermelha aleatória.
+
+### Causa raiz
+
+O `http.client` envia cabeçalho e corpo em **dois `send()`** distintos. O
+`do_POST` rejeitava (403 sem token, 400 com corpo inválido) escrevendo a
+resposta **sem nunca ler o corpo**. Quando o corpo chegava depois de o
+handler já ter lido os cabeçalhos, ele respondia e fechava o socket com bytes
+não lidos no buffer de recepção — o Winsock responde **RST** a um envio que
+bate em socket fechado, e o RST destrói a resposta que já estava em trânsito:
+
+- o cliente via `ConnectionAbortedError` no `getresponse()`;
+- o servidor via `WinError 10053` no próprio `wfile.write`.
+
+A carga é o que atrasa o corpo entre os dois `send()` — por isso o flake só
+aparecia em suíte completa.
+
+### Evidência da reprodução
+
+Medido com socket bruto, variando o atraso entre o cabeçalho e o corpo, com o
+servidor **sem** o fix:
+
+| Atraso do corpo | Resultado (40 tentativas cada) |
+| --- | --- |
+| 0 ms | FIN 40/40 |
+| 2 ms | **RST 40/40** |
+| 10 ms | **RST 40/40** |
+| 50 ms | **RST 40/40** |
+
+Com o fix: **FIN 40/40 em todos os atrasos**; 400 POSTs sob 22 threads de
+carga e 300 POSTs com a suíte completa em paralelo, sem exceção alguma no
+servidor.
+
+### Decisão
+
+`Handler._drain_body()` consome o corpo (teto `MAX_BODY_BYTES`, 4096, o mesmo
+do corpo aceito; timeout de 1 s) **antes** de escrever a resposta de
+rejeição. Chamado nos dois caminhos que respondem sem ler: falha de
+token/origin/host e corpo inválido.
+
+- **Teto e timeout são obrigatorios**: um `Content-Length` mentiroso não pode
+  prender a thread do handler. Isso **não** resolve a pendência do `POST` sem
+  deadline de leitura (ADR-021) — só evita repetir, nesta leitura nova, a
+  mesma fraqueza.
+- **Corpo acima do teto**: sobra byte no socket mesmo depois do descarte, então
+  a conexão é marcada `close_connection = True` — nunca reutilizar. Só atinge
+  quem já mentiu no tamanho.
+- **Sem corpo não se toca no socket**: o descarte é no-op para requisições
+  sem `Content-Length`, então o GET segue intacto.
+
+### Cobertura
+
+A corrida está fixada **deterministicamente** no teste de integração
+`test_rejected_post_whose_body_arrives_late_still_gets_its_403`, que envia
+cabeçalho, espera 10 ms e só então manda o corpo — sem o fix ele falha com o
+mesmo `WinError 10053` do flake original. O call site tem teste com spy, e a
+lógica em si tem 5 testes unitários sem rede. O teste de socket bruto com
+corpo junto continua cobrindo o caminho normal.
+
+### O que não se fez
+
+Não se mexeu no `Content-Length` mentiroso além do teto, não se adicionou
+keep-alive ao dashboard e não se alterou o deadline de leitura do `POST`
+(ADR-021 segue aberto).

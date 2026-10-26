@@ -627,6 +627,8 @@ Numa das execuções a suíte falhou em
 rodando o arquivo sozinho (9/9) e na re-execução da suíte completa
 (189/189). Fica registrado aqui em vez de varrer para debaixo do tapete;
 se repetir, merece investigação própria.
+*(Resolvido na Fase 18: a causa raiz era o `POST` rejeitado respondendo sem
+consumir o corpo, e o RST do Winsock destruindo a resposta em trânsito.)*
 
 ### O que esta fase não fez (honestidade)
 
@@ -795,16 +797,74 @@ Os 4 jobs de `checks` morreram no step 1 (o job `frontend` passou, porque
 
 ### O que esta fase não fez (honestidade)
 
-- **A CI pode ficar vermelha por um flake conhecido do dashboard** — não é
-  desta fase, é pré-existente: `test_dashboard.py::test_invalid_origin_...`
-  caiu 3 vezes em execuções locais de suíte completa com
-  `ConnectionAbortedError` no primeiro request (passa sempre isolado, 9/9).
-  Está registrado desde a Fase 14; com CI rodando a cada push, a exposição
-  aumentou e **merece investigação própria** — provavelmente o handler do
-  servidor fechando o socket no caminho do 403.
+- ~~**A CI pode ficar vermelha por um flake conhecido do dashboard**~~ —
+  resolvido na Fase 18: a causa raiz era o `POST` rejeitado respondendo sem
+  consumir o corpo; o RST do Winsock destruía a resposta em trânsito. O
+  detalhe está no ADR-023.
 - CI verde **não** significa nada validado no PAD: a whitelist segue 100%
   `[não validado]`, e a CI não executa legado, não chama LLM e não tem
   segredo algum — só os gates determinísticos.
 - A suíte roda em Linux, mas o alvo de migração é Windows; a CI cobre
   comportamento do Python, não do Power Automate.
 - Continua aberto o deadline de leitura do `POST` no dashboard.
+
+## Fase 18 — Corrigido o flake do dashboard: rejeição de POST respondia com RST
+
+Peguei a pendência que eu mesmo deixei escrita na Fase 17: o flake de
+`test_dashboard.py::test_invalid_origin_...`, que caía com
+`ConnectionAbortedError` em execução de suíte completa. Documentado no ADR-023
+em [`docs/decisions.md`](decisions.md).
+
+### A causa raiz
+
+O `http.client` envia cabeçalho e corpo em **dois `send()`**. O `do_POST` do
+dashboard rejeitava (403 sem token, 400 com corpo inválido) escrevendo a
+resposta **sem nunca ler o corpo**. Se o corpo chegava depois de o handler já
+ter lido os cabeçalhos, ele respondia e fechava o socket com bytes não lidos —
+o Winsock responde **RST** a um envio que bate em socket fechado, e o RST
+destrói a resposta que já estava em trânsito. O cliente via
+`ConnectionAbortedError` no `getresponse()`; o servidor via `WinError 10053`
+no próprio `wfile.write`. A carga é o que atrasa o corpo entre os dois
+`send()`, por isso só aparecia em suíte completa.
+
+### Como eu sei que essa é a causa (e não chute)
+
+Reproduzi a corrida de forma **determinística** com socket bruto, variando o
+atraso entre cabeçalho e corpo, com o servidor **sem** o fix:
+
+| Atraso do corpo | Resultado (40 tentativas cada) |
+| --- | --- |
+| 0 ms | FIN 40/40 |
+| 2 ms | **RST 40/40** |
+| 10 ms | **RST 40/40** |
+| 50 ms | **RST 40/40** |
+
+Com o fix: FIN 40/40 em todos os atrasos; 400 POSTs sob 22 threads de carga e
+300 POSTs com a suíte completa em paralelo, sem exceção alguma no servidor.
+
+### O que mudou
+
+- `dashboard/server.py`: `Handler._drain_body()` consome o corpo (teto
+  `MAX_BODY_BYTES` = 4096, timeout de 1 s) antes de responder a rejeição, nos
+  dois caminhos que respondem sem ler. Acima do teto, a conexão é marcada
+  para fechar e nunca reutilizar; sem corpo, o descarte não toca no socket.
+- `tests/unit/test_dashboard_server.py` (novo): 5 testes da lógica, sem rede.
+- `tests/integration/test_dashboard.py`: +3 testes — a regressão com corpo
+  atrasado (falha com o mesmo `WinError 10053` sem o fix), spy no call site e
+  o caminho normal de socket.
+
+### Verificação
+
+`ruff check`/`format --check` → ok; `pytest` → **207 passed** (eram 199);
+`reflow scan`, `reflow lint-robin --all` → ok; `node --test` frontend → 3/3.
+
+### O que esta fase não fez (honestidade)
+
+- O teste de socket bruto com corpo junto **não** pega a corrida sozinho —
+  dentro do teto, o `readline` do handler engole corpo e cabeçalho juntos e a
+  janela não se abre. Ele continua ali como teste do caminho normal; quem
+  fixa a regressão é o teste com corpo atrasado.
+- O teto e o timeout do descarte são arbitrários (4096 e 1 s), calibrados no
+  que o dashboard aceita hoje, não em carga real de navegador.
+- **A pendência do `POST` sem deadline de leitura (ADR-021) segue aberta**:
+  o descarte novo só cobre o caminho de rejeição e não resolve o caso geral.
