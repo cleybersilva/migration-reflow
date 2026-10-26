@@ -468,3 +468,90 @@ e `reflow scan`/`lint-robin` limpos.
   `scripts/orchestrate_llm.py` do projeto irmão (o driver headless do
   `opencode` CLI) — ficam fora de escopo desta fase, que tratou só do
   dashboard de teste textual, não de disparar a pipeline real.
+
+## Fase 14 — segurança: mascaramento/scan (Fase 1) e contenção de caminho, ZIP e limites (Fase 2)
+
+A análise de automação e cibersegurança de 24/10/2026 apontou 11 lacunas
+reais sem caracterizar nenhuma delas como vazamento já explorado. O usuário
+pediu para evoluir por fases pequenas, com aprovação entre cada uma. Esta
+etapa fecha as duas primeiras — ADR-018 e ADR-019 em
+[`docs/decisions.md`](decisions.md) documentam cada mudança e o que ela
+quebra de propósito.
+
+### Fase 1 — mascaramento por chave e scan do índice
+
+1. `mask_data()` (`reflow/security/masking.py`) passou a mascarar pelo
+   **nome da chave** (`password`, `token`, `api_key`, `authorization`,
+   `connection_string`) em estrutura aninhada: antes só a regex de texto
+   livre era aplicada por string-folha, que nunca via a associação
+   chave→valor do JSON.
+2. `SECRET_ASSIGNMENT_RE` — fonte única em `masking.py`, reusada por
+   `scan.py` e `robin/lint.py` — reconhece chave JSON entre aspas seguida
+   de `:` e valor entre aspas (antes a aspa que fechava a chave vinha antes
+   do `:` e não casava). Aspas exatamente ao redor da palavra-chave, para
+   não casar o sufixo de uma chave maior.
+3. Novo `BEARER_TOKEN_RE`, aplicado antes de `SECRET_ASSIGNMENT_RE`, consome
+   o par `Authorization` + token `Bearer` inteiro — antes o regex capturava
+   a palavra do esquema como se fosse o valor e o token real seguia
+   intacto.
+4. Excertos de achado (`scan.py`, `robin/lint.py`) são mascarados **antes**
+   de truncar em 120 caracteres: uma credencial maior que o trecho podia ter
+   o corte caindo no meio da chave e escapar.
+5. `reflow:allow-secret` deixou de silenciar qualquer arquivo: só vale em
+   `tests/` ou nos próprios módulos do detector. Ignorado fora disso —
+   inclusive em `scan_bytes()` (saída isolada de LLM do dashboard), que
+   nunca pode se autoexcluir pelo conteúdo que está checando.
+6. Novo `scan_staged()` em `reflow/security/scan.py` lê o blob preparado
+   (stage 0, `git show :<path>`) de cada arquivo listado por
+   `git diff --cached --name-only -z` — nunca a working tree. O hook
+   `.githooks/pre-commit` passou a rodar `reflow scan --staged`;
+   `StagedScanError` é levantada em vez de voltar `[]` silencioso.
+
+### Fase 2 — contenção de caminho, ZIP e limites do dashboard
+
+1. Novo `reflow/security/paths.py`: `reject_unsafe_links(root)` recusa o
+   projeto **inteiro** se `root` ou qualquer entrada abaixo dele for
+   symlink ou junction (`is_symlink() or is_junction()` — no Windows nenhum
+   dos dois sozinho cobre as duas formas). Deliberadamente grosseiro, ver
+   ADR-019.
+2. `reflow/cli.py`: `_build_manifest()` e `extract_to()` chamam
+   `reject_unsafe_links` antes de ler qualquer conteúdo — um projeto com
+   link escondido nunca tem conteúdo fora do sandbox lido ou hasheado.
+   `dashboard/pipeline.py` aplica o mesmo critério por subpasta, mas
+   falha por projeto (um link some da lista, os outros seguem).
+3. `reflow/robin/lint.py`: `_is_allowed_output_path()` resolve `..` com
+   `ntpath.normpath` **texto** (nunca toca o filesystem) antes de comparar
+   com `C:\Users\Public\Documents\` — antes era prefixo de string bruta,
+   então `...\Documents\..\..\Windows\...` passava. Novo `UNC_PATH_RE`
+   varre caminho UNC, que antes nem era avaliado.
+4. `reflow/security/safe_zip.py`: `_is_safe_member()` rejeita `:` em
+   qualquer posição (letra de unidade e Alternate Data Stream), nome
+   reservado do Windows (`CON`/`PRN`/`AUX`/`NUL`/`COM1-9`/`LPT1-9`, com ou
+   sem extensão), componente com espaço/ponto final, e
+   `_windows_collision_key()` detecta dois nomes que o Windows trataria
+   como o mesmo arquivo — tudo **antes** de extrair qualquer membro.
+5. `dashboard/pipeline.py`: `_check_input_budget()` recusa o projeto se
+   passar de 500 arquivos, 12 níveis ou 20 MB. `dashboard/server.py`:
+   `Dashboard.MAX_SSE_CLIENTS = 6` devolve `429` acima do teto. Os
+   controles que já existiam (loopback, Host/Origin, CSRF, CSP, isolamento
+   de `output/`) não foram tocados.
+
+### Verificação
+
+`uv run -- python -m pytest -q` → **179 passed** (162 da Fase 13 + 17 novos),
+`ruff check .` e `ruff format --check .` limpos (147 arquivos),
+`reflow scan`, `reflow scan --staged` e `reflow lint-robin` todos `ok`.
+Também foi a primeira vez que `scan --staged` rodou de verdade no ambiente.
+
+### O que esta fase não fez (honestidade)
+
+- **Fase 3 e 4 seguem abertas**: escrita atômica, lock por projeto,
+  checkpoint vinculado a hash com comando de CLI, resiliência de lote e
+  priorização determinística A360 (JSON/ZIP). O `checkpoint` em
+  `00-manifest.json` continua sempre `null` (`reflow/cli.py:62`).
+- Orçamento de entrada e teto de conexões SSE existem só no `dashboard/`;
+  `reflow extract` / `--all` (a CLI real) não têm esse teto.
+- Nenhum cenário foi validado contra segredo ou ZIP real de terceiros —
+  todos os testes novos usam dados sintéticos gerados no próprio teste.
+- Nada disto muda o fato de que **nenhuma ação da whitelist foi validada
+  num PAD de verdade**; isso continua fora deste repositório.

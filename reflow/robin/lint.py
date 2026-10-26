@@ -4,12 +4,17 @@ Robin, que não está validada (ver AGENTS.md: "nunca inventar sintaxe Robin").
 As checagens olham só o que o próprio pipeline controla:
 - `notas-conversao.md` (lista as ações usadas) cruzado contra a whitelist;
 - `README.md` do flow (precisa de um cabeçalho `# <nome do flow>`);
-- o texto puro do `Main.robin`, para segredo atribuído e caminho absoluto fora
-  de `C:\\Users\\Public\\Documents\\`.
+- o texto puro do `Main.robin`, para segredo atribuído, caminho UNC (nunca
+  permitido) e caminho absoluto fora de `C:\\Users\\Public\\Documents\\`
+  depois de resolver `..` **textualmente** (sem tocar o filesystem real —
+  é só o texto do flow sendo lido, nunca um caminho sendo acessado), para
+  que `C:\\Users\\Public\\Documents\\..\\..\\Windows\\...` não escape o
+  prefixo permitido só porque a string começa com ele.
 """
 
 from __future__ import annotations
 
+import ntpath
 import re
 from pathlib import Path
 
@@ -20,6 +25,7 @@ from .whitelist import RobinAction, load_whitelist
 WHITELIST_PATH = Path("reference") / "robin-actions.md"
 ALLOWED_OUTPUT_PREFIX = "c:\\users\\public\\documents\\"
 ABSOLUTE_PATH_RE = re.compile(r"[A-Za-z]:\\[^\s\"'<>]*")
+UNC_PATH_RE = re.compile(r"\\\\[^\s\"'<>\\]+\\[^\s\"'<>]*")
 ACTION_REFERENCE_RE = re.compile(r"^-\s*`([^`]+)`", re.MULTILINE)
 HEADER_RE = re.compile(r"^#\s+\S")
 
@@ -34,19 +40,31 @@ def _check_secrets(relative: str, text: str) -> list[Finding]:
         for match in SECRET_ASSIGNMENT_RE.finditer(line):
             if not is_placeholder_value(match.group("value")):
                 findings.append(
-                    Finding(relative, lineno, "segredo_no_robin", mask(line.strip()[:120]))
+                    Finding(relative, lineno, "segredo_no_robin", mask(line.strip())[:120])
                 )
     return findings
+
+
+def _is_allowed_output_path(raw: str) -> bool:
+    """True só se `raw`, depois de resolver `..` textualmente, continuar
+    dentro de `C:\\Users\\Public\\Documents\\`. Comparação por componente de
+    caminho (via `ntpath.normpath`), nunca por prefixo de string bruta —
+    senão `...Documents\\..\\..\\Windows\\...` passava, porque a string
+    começa com o prefixo permitido antes de o `..` ser interpretado."""
+    normalized = ntpath.normpath(raw).lower()
+    return (normalized + "\\").startswith(ALLOWED_OUTPUT_PREFIX)
 
 
 def _check_absolute_paths(relative: str, text: str) -> list[Finding]:
     findings: list[Finding] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
         for match in ABSOLUTE_PATH_RE.finditer(line):
-            if not match.group(0).lower().startswith(ALLOWED_OUTPUT_PREFIX):
+            if not _is_allowed_output_path(match.group(0)):
                 findings.append(
                     Finding(relative, lineno, "caminho_fora_do_permitido", match.group(0))
                 )
+        for match in UNC_PATH_RE.finditer(line):
+            findings.append(Finding(relative, lineno, "caminho_unc_nao_permitido", match.group(0)))
     return findings
 
 

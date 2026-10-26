@@ -6,6 +6,7 @@ import http.client
 import json
 import shutil
 import threading
+import time
 from contextlib import contextmanager
 from html.parser import HTMLParser
 from pathlib import Path
@@ -150,6 +151,40 @@ def test_open_sse_does_not_block_start_or_assets_and_broadcasts_to_both_clients(
         finally:
             first.close()
             second.close()
+
+
+def test_sse_connection_cap_rejects_beyond_the_limit_and_recovers_after_close(tmp_path):
+    with running_server(tmp_path) as (server, _app, _runner):
+        connections = []
+        try:
+            for _ in range(Dashboard.MAX_SSE_CLIENTS):
+                connection, response = stream(server)
+                frame(response)  # consome o snapshot inicial
+                connections.append((connection, response))
+            status, body, _ = request(server, "/api/events")
+            require(status == 429, "Conexão acima do limite tem que ser rejeitada.")
+            require("error" in json.loads(body), "Resposta de rejeição tem que ser JSON com erro.")
+
+            connections.pop()[0].close()
+            # O servidor só nota a conexão fechada na próxima tentativa de
+            # escrita (heartbeat a cada ~2s dentro do loop do SSE) — dar
+            # folga generosa em vez de um número exato de tentativas rígido.
+            recovered = None
+            deadline = time.monotonic() + 8
+            while time.monotonic() < deadline and recovered is None:
+                connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+                connection.request("GET", "/api/events")
+                response = connection.getresponse()
+                if response.status == 200:
+                    recovered = (connection, response)
+                    break
+                connection.close()
+                time.sleep(0.2)
+            require(recovered is not None, "Depois de liberar uma conexão, uma nova tem que caber.")
+            connections.append(recovered)
+        finally:
+            for connection, _response in connections:
+                connection.close()
 
 
 def test_failure_is_terminal_and_not_published_as_success_or_with_exception_values(tmp_path):

@@ -13,9 +13,46 @@ from pathlib import Path
 
 from reflow.cli import extract_to
 from reflow.security.masking import mask_data
+from reflow.security.paths import is_unsafe_link, reject_unsafe_links
 from reflow.security.scan import scan_bytes
 
 PROJECT_NAME_RE = re.compile(r"[a-z0-9]+(?:[-_][a-z0-9]+)*")
+
+# Orçamento do teste local isolado — não é o limite da extração real
+# (`reflow extract`), só do que o dashboard aceita processar numa rodada de
+# smoke test. Acima disso, o teste recusa o projeto em vez de travar ou
+# gastar minutos num diretório fora do esperado para "alguns arquivos de
+# exemplo".
+MAX_INPUT_FILE_COUNT = 500
+MAX_INPUT_TOTAL_BYTES = 20_000_000
+MAX_INPUT_DEPTH = 12
+
+
+def _check_input_budget(project_dir: Path) -> None:
+    reject_unsafe_links(project_dir)
+    file_count = 0
+    total_bytes = 0
+    for path in project_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        file_count += 1
+        if file_count > MAX_INPUT_FILE_COUNT:
+            raise ValueError(
+                f"Projeto tem mais de {MAX_INPUT_FILE_COUNT} arquivos; "
+                "fora do orçamento deste teste local."
+            )
+        depth = len(path.relative_to(project_dir).parts)
+        if depth > MAX_INPUT_DEPTH:
+            raise ValueError(
+                f"Projeto tem pastas mais profundas que {MAX_INPUT_DEPTH} níveis; "
+                "fora do orçamento deste teste local."
+            )
+        total_bytes += path.stat().st_size
+        if total_bytes > MAX_INPUT_TOTAL_BYTES:
+            raise ValueError(
+                f"Projeto excede {MAX_INPUT_TOTAL_BYTES} bytes; "
+                "fora do orçamento deste teste local."
+            )
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -38,12 +75,15 @@ class DashboardRunner:
         source = self.root / "input"
         if not source.exists():
             return []
-        if source.is_symlink() or source.is_junction():
+        if is_unsafe_link(source):
             raise ValueError("Diretório de entrada inseguro.")
+        # Uma subpasta de projeto que seja symlink/junction nunca aparece como
+        # disponível (não é a mesma coisa que o `input/` em si ser inseguro:
+        # os outros projetos legítimos continuam listados).
         names = sorted(
             path.name
             for path in source.iterdir()
-            if path.is_dir() and PROJECT_NAME_RE.fullmatch(path.name)
+            if path.is_dir() and PROJECT_NAME_RE.fullmatch(path.name) and not is_unsafe_link(path)
         )
         if selection is not None:
             if selection not in names:
@@ -246,7 +286,9 @@ class DashboardRunner:
                 raise ValueError("Modelo indisponível.")
             return {"detail": "Ollama disponível; nenhum modelo será baixado automaticamente."}
         if step == "extract":
-            extract_to(self.root / "input" / project, folder)
+            project_dir = self.root / "input" / project
+            _check_input_budget(project_dir)
+            extract_to(project_dir, folder)
             return {"detail": "Inventário mascarado criado na área isolada deste teste."}
         if step in {"document", "classify"}:
             path = folder / "01-inventory" / "inventory.json"

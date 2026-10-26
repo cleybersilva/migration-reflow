@@ -311,13 +311,19 @@ Comando desconhecido na extração (`unknown_commands`) entra em
 ## 🔒 Segurança
 
 Resumo — detalhe completo em [`SECURITY.md`](SECURITY.md): secrets e PII são
-mascarados antes de qualquer saída (`security/masking.py`); `reflow scan`
-varre o que seria versionado e nunca ecoa o valor real; ZIP é extraído membro
-a membro com limite de tamanho e quantidade (`security/safe_zip.py`); o
-legado nunca é executado; cada agent só edita a própria subpasta de fase, sem
-bash e sem rede; `input/` fica fora do Git; chave de LLM só por variável de
-ambiente. O hook de pre-commit roda `scan` e `lint-robin` de verdade — não é
-decorativo.
+mascarados antes de qualquer saída (`security/masking.py`), inclusive por
+nome de chave em estrutura (JSON) e cabeçalho HTTP de portador (`Authorization`
+com token `Bearer`);
+`reflow scan` varre a working tree, `reflow scan --staged` varre o índice do
+Git (o que o hook usa), e nenhum dos dois ecoa o valor real; ZIP é extraído
+membro a membro com limite de tamanho e quantidade, e também recusa nome
+reservado do Windows, Alternate Data Stream e colisão case-insensitive
+(`security/safe_zip.py`); um projeto em `input/` com symlink/junction é
+recusado por inteiro (`security/paths.py`), nunca seguido; o legado nunca é
+executado; cada agent só edita a própria subpasta de fase, sem bash e sem
+rede; `input/` fica fora do Git; chave de LLM só por variável de ambiente.
+O hook de pre-commit roda `scan --staged` e `lint-robin` de
+verdade — não é decorativo.
 
 ## 🛟 Plano B: opencode, Claude Code e Copilot
 
@@ -382,8 +388,8 @@ uv run ruff format --check .
 schema do inventário, frontmatter das skills e paridade dos agents.
 `tests/regression/` compara a extração contra golden files — só muda com
 `--update-golden` explícito. `tests/integration/` roda a CLI ponta a ponta
-sobre as fixtures. O hook de pre-commit roda `scan` e `lint-robin` de verdade
-antes de qualquer commit.
+sobre as fixtures. O hook de pre-commit roda `scan --staged` (índice do Git,
+não a working tree) e `lint-robin` de verdade antes de qualquer commit.
 
 ## 🖥️ Dashboard local (opcional)
 

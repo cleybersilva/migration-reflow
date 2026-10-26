@@ -12,13 +12,32 @@ from __future__ import annotations
 import re
 from typing import Any
 
-SECRET_KEY_RE = re.compile(
-    r"(?i)\b(password|passwd|pwd|secret|api[_-]?key|access[_-]?key|private[_-]?key"
-    r"|token|bearer|authorization|connection[_-]?string)\b"
+_SENSITIVE_KEY_WORDS = (
+    r"password|passwd|pwd|secret|api[_-]?key|access[_-]?key|private[_-]?key"
+    r"|token|bearer|authorization|connection[_-]?string"
 )
+SECRET_KEY_RE = re.compile(rf"(?i)\b(?:{_SENSITIVE_KEY_WORDS})\b")
 SECRET_ASSIGNMENT_RE = re.compile(
-    SECRET_KEY_RE.pattern + r"\s*[:=]\s*(?P<quote>['\"]?)(?P<value>[^'\"\s]+)(?P=quote)"
+    # Duas formas de "chave", a mesma cauda `[:=] valor` para as duas:
+    # - chave nua (estilo env/Python, ex. variável igual valor);  # reflow:allow-secret
+    # - chave JSON com aspas exatamente ao redor da palavra.
+    # Sem a segunda forma, o padrão nunca batia com uma chave JSON entre
+    # aspas seguida de `: "valor"`  # reflow:allow-secret
+    # (a aspa que fecha a chave vem antes do `:`, e a primeira forma não
+    # admite nada entre a chave e `[:=]`). A aspa exata (não um `['"]?`
+    # solto depois da chave) evita casar o sufixo de uma chave JSON maior
+    # como `X-Reflow-Token` (que contém a palavra "Token" mas não é, ela
+    # mesma, uma chave sensível isolada).
+    rf"(?i)(?:\b(?:{_SENSITIVE_KEY_WORDS})\b|[\"'](?:{_SENSITIVE_KEY_WORDS})[\"'])"
+    r"\s*[:=]\s*(?P<quote>['\"]?)(?P<value>[^'\"\s]+)(?P=quote)"
 )
+
+# Cabeçalho de autorização por token (ou a mesma palavra solta em texto livre):
+# sem isto, SECRET_ASSIGNMENT_RE captura a palavra-chave do esquema como se
+# fosse o valor (porque é o primeiro token sem espaço após o `:`) e deixa o
+# token real intacto depois dela. Aplicado antes de SECRET_ASSIGNMENT_RE em
+# mask_secrets() para consumir o par "palavra-chave + token" inteiro.
+BEARER_TOKEN_RE = re.compile(r"(?i)\bbearer\s+[^'\"\s]+")
 
 CPF_RE = re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b")
 CNPJ_RE = re.compile(r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b")
@@ -46,7 +65,11 @@ def mask_secrets(text: str) -> str:
     def _redact(match: re.Match[str]) -> str:
         return match.group(0).replace(match.group("value"), "***")
 
-    return SECRET_ASSIGNMENT_RE.sub(_redact, text)
+    # Bearer primeiro: remove "bearer <token>" por inteiro para que a passada de
+    # SECRET_ASSIGNMENT_RE (que roda depois) só veja "Authorization: ***" e não
+    # tente capturar a palavra "Bearer" como valor.
+    masked = BEARER_TOKEN_RE.sub("***", text)
+    return SECRET_ASSIGNMENT_RE.sub(_redact, masked)
 
 
 def mask_pii(text: str) -> str:
@@ -69,14 +92,31 @@ def mask_data(value: Any) -> Any:
 
     Usado pelo dashboard local antes de gravar ou emitir qualquer evento/log
     que tenha passado por um JSON do legado ou de um modelo de linguagem.
+
+    Além de mascarar segredo/PII dentro do próprio texto de uma string (via
+    `mask()`), também mascara pelo nome da chave: numa estrutura JSON a chave
+    sensível (`password`, `token`, `api_key`, `authorization`,
+    `connection_string`, ...) e o valor são strings separadas, então
+    `mask_secrets` sozinho (que só reconhece `chave: valor` dentro do mesmo
+    texto) nunca veria a associação — um dict com essa chave e um valor real
+    passava intacto.
     """
+    return _mask_data(value, key_is_sensitive=False)
+
+
+def _mask_data(value: Any, *, key_is_sensitive: bool) -> Any:
     if isinstance(value, str):
+        if key_is_sensitive and not is_placeholder_value(value):
+            return "***"
         return mask(value)
     if isinstance(value, list):
-        return [mask_data(item) for item in value]
+        return [_mask_data(item, key_is_sensitive=key_is_sensitive) for item in value]
     if isinstance(value, dict):
         return {
-            (mask(key) if isinstance(key, str) else key): mask_data(item)
+            (mask(key) if isinstance(key, str) else key): _mask_data(
+                item,
+                key_is_sensitive=isinstance(key, str) and bool(SECRET_KEY_RE.search(key)),
+            )
             for key, item in value.items()
         }
     return value

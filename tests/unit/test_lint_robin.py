@@ -106,6 +106,44 @@ def test_path_inside_the_allowed_prefix_does_not_fail(tmp_path: Path) -> None:
     )
 
 
+def test_fails_when_allowed_prefix_is_followed_by_dotdot_escape(tmp_path: Path) -> None:
+    """A string começa com o prefixo permitido, mas `..\\..\\` sai dele — a
+    checagem tem que resolver o caminho, não só comparar o começo da string."""
+    root = _make_flow(
+        tmp_path,
+        robin_text=(r"out_path = C:\Users\Public\Documents\..\..\Windows\System32\cmd.exe" + "\n"),
+    )
+    findings = lint_robin_files(root, project="quote-scraper")
+    require(
+        any(f.pattern == "caminho_fora_do_permitido" for f in findings),
+        "Escape por .. depois do prefixo permitido deveria reprovar.",
+    )
+
+
+def test_relative_dotdot_that_stays_inside_the_allowed_prefix_does_not_fail(
+    tmp_path: Path,
+) -> None:
+    """`..` legítimo que não sai do prefixo permitido não deveria reprovar."""
+    root = _make_flow(
+        tmp_path,
+        robin_text=(r"out_path = C:\Users\Public\Documents\Sub\..\OtherSub\saida.csv" + "\n"),
+    )
+    findings = lint_robin_files(root, project="quote-scraper")
+    require(
+        not any(f.pattern == "caminho_fora_do_permitido" for f in findings),
+        "O .. fica dentro do prefixo permitido; não deveria reprovar.",
+    )
+
+
+def test_fails_when_path_is_unc(tmp_path: Path) -> None:
+    root = _make_flow(tmp_path, robin_text=r"out_path = \\fileserver\share\saida.csv" + "\n")
+    findings = lint_robin_files(root, project="quote-scraper")
+    require(
+        any(f.pattern == "caminho_unc_nao_permitido" for f in findings),
+        "Caminho UNC nunca é permitido e tem que reprovar o lint.",
+    )
+
+
 def test_fails_when_notas_conversao_is_missing(tmp_path: Path) -> None:
     root = _make_flow(tmp_path, with_notes=False)
     findings = lint_robin_files(root, project="quote-scraper")

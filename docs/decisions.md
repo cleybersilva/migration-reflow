@@ -216,3 +216,152 @@ Decisão: portar a estrutura madura como estava, em `dashboard/` (irmão de
 `tests/integration/test_dashboard.py` e `tests/frontend/dashboard.test.cjs`
 portam a suíte de regressão do projeto irmão (SSE real, `FakeRunner` sem
 rede, isolamento de `output/`, retry de inferência, validação de HTML/CSS).
+
+## ADR-018 — Fase 1 de segurança: mascaramento por chave e scan do índice, não da working tree
+
+Diagnóstico anterior apontou lacunas reais em `security/masking.py` e
+`security/scan.py` sem caracterizá-las como vazamento comprovado. Fase 1
+corrigiu as que cabiam numa mudança pequena, preservando assinaturas
+públicas:
+
+- `mask_data()` agora mascara pelo **nome da chave** (`password`, `token`,
+  `api_key`, `authorization`, `connection_string`) mesmo quando chave e
+  valor são strings separadas numa estrutura (dict/list aninhados) — antes
+  só `mask()` por regex de texto livre era aplicado por string-folha, que
+  nunca via a associação chave→valor do JSON.
+- `SECRET_ASSIGNMENT_RE` (fonte única em `masking.py`, reusada por
+  `scan.py` e `robin/lint.py`) passou a reconhecer chave JSON entre aspas
+  seguida de dois-pontos e valor entre aspas, que antes não batia (a aspa
+  que fecha a chave vinha antes do `:`). A nova forma exige aspas
+  exatamente ao redor da palavra-chave — não um `['"]?` solto — para não
+  casar o sufixo de uma chave maior como `X-Reflow-Token` (continha
+  "Token" mas não é, ela mesma, uma chave sensível).
+- Cabeçalho HTTP de portador (`Authorization` seguido de token `Bearer`):
+  `BEARER_TOKEN_RE`, novo e aplicado antes de `SECRET_ASSIGNMENT_RE` em
+  `mask_secrets()`, consome o par palavra-chave+token inteiro; antes
+  `SECRET_ASSIGNMENT_RE` sozinho capturava a palavra do esquema como se
+  fosse o valor e deixava o token real intacto depois dela.
+- Excertos de achado (`scan.py`, `robin/lint.py`) agora mascaram **antes**
+  de truncar para 120 caracteres, não depois — uma credencial maior que o
+  trecho podia ter o corte caindo no meio da chave e escapar do regex de
+  máscara.
+- `reflow:allow-secret` deixou de silenciar uma linha em qualquer arquivo.
+  Só é honrado dentro de `tests/` (fixture/teste sintético) ou nos próprios
+  módulos do detector (`reflow/security/scan.py`,
+  `reflow/security/masking.py`, onde o padrão cita a própria palavra que
+  detecta). Fora disso é ignorado — inclusive para `scan_bytes()` (saída
+  isolada de LLM usada pelo `dashboard/`), que nunca poderia confiar no
+  próprio conteúdo que está checando para se autoexcluir.
+- Novo `scan_staged()` em `security/scan.py`: lê o blob preparado (stage 0,
+  via `git show :<path>`) de cada arquivo com `git diff --cached
+  --name-only -z`, nunca a working tree. `scan_repository()` (working
+  tree) continua existindo sem mudança de comportamento, para os fluxos
+  que já dependem dela. O hook (`.githooks/pre-commit`) passou a chamar
+  `reflow scan --staged` em vez de `reflow scan`: um segredo preparado
+  bloqueia mesmo que a working tree tenha sido editada depois do `git
+  add`; um segredo só na working tree (nunca `git add`) não bloqueia mais
+  o commit por engano. `_staged_file_names()` usa `-z` (NUL) e
+  `_read_staged_blob()` lê por `:<path>` (nunca começa com `-`, então um
+  nome de arquivo começando com hífen não é interpretado como opção do
+  `git show`) — nenhum nome de arquivo é passado a um shell.
+  `StagedScanError` é levantada (nunca `[]` silencioso) se o índice não
+  puder ser lido.
+
+**Mudança de comportamento que pode afetar compatibilidade:** dentro de
+`scan_staged()` (só o hook de pre-commit), conteúdo preparado que não
+decodifica como UTF-8 gera achado `conteudo_nao_utf8` e **bloqueia o
+commit** — nunca alega ter inspecionado algo que não leu. Isso é diferente
+de `scan_repository()` (working tree), que continua pulando esse conteúdo
+em silêncio, comportamento preservado para não quebrar quem já depende
+dele. Na prática: comitar ou reescrever um arquivo binário (ex.: a imagem
+`diagram - FINAL com AGENTS.jpg` já versionada) agora passa pelo gate sem
+problema enquanto ele não for staged de novo; se for re-`git add`-ado, o
+hook bloqueia e pede decisão humana em vez de deixar passar sem ter lido.
+Repositório hoje não tem nenhum arquivo binário staged, então nada quebra
+nesta sessão — mas qualquer fluxo futuro que precise commitar binário
+precisará de uma decisão explícita (ex.: hook rodar sem `--staged` para
+esse caso, ou uma exceção dedicada) antes de ampliar esse hábito.
+
+Não corrigido nesta fase (ver `AGENTS.md`/Fase 2 e seguintes, propositalmente
+fora de escopo): contenção de caminho de entrada/saída, symlink/junction,
+`..`, UNC, nomes reservados/ADS em ZIP, limites de lote/bytes/conexão do
+dashboard, escrita atômica/lock por projeto, checkpoint vinculado a hash.
+
+## ADR-019 — Fase 2 de segurança: contenção de caminho, ZIP e limites do dashboard
+
+Diagnóstico anterior apontou lacunas em caminho/symlink/ZIP/limites sem
+caracterizá-las como exploradas. Fase 2 corrigiu o que cabia numa mudança
+pequena, preservando loopback/CSRF/CSP/isolamento das saídas do dashboard:
+
+- Novo `reflow/security/paths.py`: `reject_unsafe_links(root)` recusa o
+  projeto **inteiro** (nunca só "poda" a parte insegura) se `root`, ou
+  qualquer entrada abaixo dele, for symlink ou junction (`Path.is_symlink()
+  or Path.is_junction()` — nenhum dos dois sozinho cobre as duas formas de
+  link no Windows). Deliberadamente grosseiro: um projeto com um link
+  escondido não é "parcialmente confiável", e podar só o link exigiria
+  decidir caso a caso o que mais pode depender dele. `is_unc_path()` é a
+  mesma checagem de prefixo UNC (`\\servidor\...` / `//servidor/...`)
+  usada tanto aqui quanto em `robin/lint.py`.
+- `reflow/cli.py`: `_build_manifest()` (hash SHA256 das entradas) e
+  `extract_to()` (ponto de entrada único do CLI real **e** do dashboard,
+  via `reflow.cli.extract_to`) chamam `reject_unsafe_links` antes de ler
+  qualquer conteúdo — um projeto com link escondido nunca tem conteúdo
+  fora do sandbox lido, hasheado ou incluído no inventário.
+- `dashboard/pipeline.py`: `DashboardRunner.projects()` agora recusa
+  também cada subpasta de projeto (antes só `input/` em si era checado) —
+  mas aqui a falha é por projeto, não em lote: um projeto-link some da
+  lista, os outros continuam disponíveis (ao contrário de
+  `reject_unsafe_links`, que é tudo-ou-nada para um único projeto já
+  escolhido).
+- `reflow/robin/lint.py`: `_is_allowed_output_path()` resolve `..`
+  **textualmente** via `ntpath.normpath` (nunca toca o filesystem — é só o
+  texto do `Main.robin` sendo lido) antes de comparar com
+  `C:\Users\Public\Documents\`; antes a comparação era por prefixo de
+  string bruta, então `...Documents\..\..\Windows\...` passava porque a
+  string começava com o prefixo permitido antes do `..` ser interpretado.
+  Novo `UNC_PATH_RE` varre caminho UNC separadamente — antes nem era
+  reconhecido como "caminho a checar" (a regex de caminho absoluto exigia
+  letra de unidade), então um caminho UNC no meio do flow passava
+  despercebido, não por estar na lista de permitidos, mas por nunca ter
+  sido avaliado.
+- `reflow/security/safe_zip.py`: `_is_safe_member()` agora rejeita `:` em
+  qualquer posição (cobre letra de unidade E Alternate Data Stream do NTFS,
+  tipo `arquivo.txt:oculto`), nome reservado do Windows (`CON`, `PRN`,
+  `AUX`, `NUL`, `COM1-9`, `LPT1-9`, com ou sem extensão, por componente de
+  caminho) e componente com espaço/ponto final (o Windows ignora na hora de
+  criar o arquivo). Novo `_windows_collision_key()` detecta, antes de
+  extrair qualquer membro, dois nomes do ZIP que o Windows trataria como o
+  mesmo arquivo (case-insensitive ou por espaço/ponto final) — duas
+  entradas com o nome exatamente igual continuam permitidas (a segunda
+  sobrescreve a primeira, como sempre foi).
+- `dashboard/pipeline.py`: `_check_input_budget()` recusa um projeto antes
+  de extrair se tiver mais de 500 arquivos, mais de 12 níveis de
+  profundidade ou mais de 20 MB — orçamento do teste local isolado, não da
+  extração real (`reflow extract`/`--all`, que não tem esse teto).
+- `dashboard/server.py`: `Dashboard.MAX_SSE_CLIENTS = 6` limita conexões
+  simultâneas a `/api/events`; acima disso, `429` em vez de abrir mais uma
+  thread sem limite. Loopback-only, checagem de Host/Origin, CSRF por
+  sessão e CSP não foram alterados.
+
+**Mudança de comportamento que pode afetar compatibilidade:**
+- Um projeto em `input/<nome>` com qualquer symlink/junction (mesmo em
+  subpasta, mesmo não relacionado ao que seria extraído) passa a ser
+  recusado por inteiro, tanto por `reflow extract` quanto pelo teste local
+  do dashboard. Nenhum projeto hoje em `input/` tem link algum, então nada
+  quebra nesta sessão.
+- Um `Main.robin` com caminho UNC agora reprova o lint sempre (antes não
+  era nem avaliado). Um `Main.robin` com `..` que escapa de
+  `C:\Users\Public\Documents\` reprova mesmo que a string comece com o
+  prefixo permitido (antes passava).
+- Um ZIP com nome reservado do Windows, `:` no nome (ADS/letra de unidade)
+  ou colisão case-insensitive agora é recusado por inteiro na validação
+  (antes de extrair qualquer membro), em vez de extrair e deixar o Windows
+  decidir o que acontece depois.
+- Um teste local do dashboard sobre um projeto maior que o orçamento
+  (>500 arquivos, >12 níveis, >20 MB) agora é recusado explicitamente em
+  vez de rodar (possivelmente lento ou travando num projeto grande demais
+  para um "smoke test"). Não afeta `reflow extract`.
+
+Não corrigido nesta fase (Fase 3 e seguintes, propositalmente fora de
+escopo): escrita atômica, lock por projeto, checkpoint vinculado a hash,
+resiliência de lote, priorização determinística entre JSON/ZIP do A360.

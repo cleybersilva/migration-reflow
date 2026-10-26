@@ -2,8 +2,8 @@
 set -eu
 
 # Falhar de forma restritiva até a implementação dos gates nas próximas fases.
-if ! uv run python -m reflow scan; then
-    echo 'Commit bloqueado: scan falhou ou ainda não está disponível.' >&2
+if ! uv run python -m reflow scan --staged; then
+    echo 'Commit bloqueado: scan do indice (staged) falhou ou achou segredo/PII.' >&2
     exit 1
 fi
 if ! uv run python -m reflow lint-robin --all; then

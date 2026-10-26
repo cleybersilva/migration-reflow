@@ -34,6 +34,12 @@ STEPS = (
 
 
 class Dashboard:
+    # Teste local de um usuário só: uma aba normal mantém 1 SSE (2 durante um
+    # reconnect). O teto existe para um script/aba perdida não acumular
+    # threads sem limite — não é defesa contra um atacante com acesso
+    # loopback, que já teria controle do processo de qualquer forma.
+    MAX_SSE_CLIENTS = 6
+
     def __init__(self, root: Path = ROOT, runner: DashboardRunner | None = None) -> None:
         self.root = root
         self.runner = runner or DashboardRunner(root)
@@ -42,6 +48,7 @@ class Dashboard:
         self.sequence = 0
         self.csrf = secrets.token_urlsafe(32)
         self.cancel = threading.Event()
+        self.sse_clients = 0
         self.state: dict = {
             "run_id": None,
             "status": "idle",
@@ -284,37 +291,53 @@ class Handler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.BAD_REQUEST, {"error": "Seleção ou corpo inválido."})
 
     def _events(self) -> None:
-        self.connection.settimeout(10)
-        self._headers(HTTPStatus.OK, "text/event-stream; charset=utf-8")
-        try:
-            cursor = int(self.headers.get("Last-Event-ID", "0"))
-        except ValueError:
-            cursor = 0
-        try:
-            # Each client has its own cursor: clients do not consume one shared queue.
-            with self.app.condition:
-                current = self.app.sequence
-                backlog = [item for item in self.app.events if cursor < item[0] <= current]
-                snapshot = self.app.snapshot()
-            if cursor and backlog:
-                for number, kind, data in backlog:
-                    self._send_event(number, kind, data)
-            self._send_event(current, "snapshot", {"snapshot": snapshot})
-            cursor = current
-            while True:
-                with self.app.condition:
-                    available = [item for item in self.app.events if item[0] > cursor]
-                    if not available:
-                        self.app.condition.wait(timeout=2)
-                        available = [item for item in self.app.events if item[0] > cursor]
-                for number, kind, data in available:
-                    self._send_event(number, kind, data)
-                    cursor = number
-                if not available:
-                    self.wfile.write(b": heartbeat\n\n")
-                    self.wfile.flush()
-        except (BrokenPipeError, ConnectionResetError, TimeoutError, OSError):
+        with self.app.condition:
+            if self.app.sse_clients >= Dashboard.MAX_SSE_CLIENTS:
+                over_limit = True
+            else:
+                self.app.sse_clients += 1
+                over_limit = False
+        if over_limit:
+            self._json(
+                HTTPStatus.TOO_MANY_REQUESTS,
+                {"error": "Muitas conexões abertas; recarregue a página."},
+            )
             return
+        try:
+            self.connection.settimeout(10)
+            self._headers(HTTPStatus.OK, "text/event-stream; charset=utf-8")
+            try:
+                cursor = int(self.headers.get("Last-Event-ID", "0"))
+            except ValueError:
+                cursor = 0
+            try:
+                # Each client has its own cursor: clients do not consume one shared queue.
+                with self.app.condition:
+                    current = self.app.sequence
+                    backlog = [item for item in self.app.events if cursor < item[0] <= current]
+                    snapshot = self.app.snapshot()
+                if cursor and backlog:
+                    for number, kind, data in backlog:
+                        self._send_event(number, kind, data)
+                self._send_event(current, "snapshot", {"snapshot": snapshot})
+                cursor = current
+                while True:
+                    with self.app.condition:
+                        available = [item for item in self.app.events if item[0] > cursor]
+                        if not available:
+                            self.app.condition.wait(timeout=2)
+                            available = [item for item in self.app.events if item[0] > cursor]
+                    for number, kind, data in available:
+                        self._send_event(number, kind, data)
+                        cursor = number
+                    if not available:
+                        self.wfile.write(b": heartbeat\n\n")
+                        self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, TimeoutError, OSError):
+                return
+        finally:
+            with self.app.condition:
+                self.app.sse_clients -= 1
 
     def _send_event(self, number: int, kind: str, data: dict) -> None:
         frame = f"id: {number}\nevent: {kind}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"

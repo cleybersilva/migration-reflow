@@ -15,7 +15,8 @@ from .extractors import detect_extractor
 from .inventory import Inventory
 from .report import build_batch_report
 from .robin import lint_robin_files
-from .security.scan import Finding, scan_repository
+from .security.paths import reject_unsafe_links
+from .security.scan import Finding, StagedScanError, scan_repository, scan_staged
 
 PROJECT_NAME_RE = re.compile(r"[a-z0-9_-]+")
 STALE_PHASES = ["02-docs", "03-classification", "04-pad", "05-test"]
@@ -31,7 +32,12 @@ def _build_parser() -> argparse.ArgumentParser:
     extract.add_argument("--all", action="store_true")
 
     sub.add_parser("report")
-    sub.add_parser("scan")
+    scan = sub.add_parser("scan")
+    scan.add_argument(
+        "--staged",
+        action="store_true",
+        help="Varre o índice do Git (conteúdo preparado), não a working tree.",
+    )
 
     lint = sub.add_parser("lint-robin")
     lint.add_argument("project", nargs="?", default=None)
@@ -45,6 +51,7 @@ def _valid_project_name(name: str) -> bool:
 
 
 def _build_manifest(project_dir: Path, name: str, source_type: str) -> dict:
+    reject_unsafe_links(project_dir)
     inputs = []
     for file in sorted(p for p in project_dir.rglob("*") if p.is_file()):
         digest = hashlib.sha256(file.read_bytes()).hexdigest()
@@ -81,6 +88,8 @@ def extract_to(project_dir: Path, out_dir: Path) -> tuple[str, Inventory]:
     teste isolado (`dashboard/pipeline.py`), que escreve em `.dashboard-runs/`
     em vez de `output/`.
     """
+    project_dir = Path(project_dir)
+    reject_unsafe_links(project_dir)
     extractor = detect_extractor(project_dir)
     inventory = extractor.extract(project_dir)
     inventory.project = project_dir.name
@@ -160,11 +169,19 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(0)
 
     if args.command == "scan":
-        findings = scan_repository(Path.cwd())
+        if args.staged:
+            try:
+                findings = scan_staged(Path.cwd())
+            except StagedScanError as exc:
+                print(f"scan --staged falhou: {exc}", file=sys.stderr)
+                raise SystemExit(2) from None
+        else:
+            findings = scan_repository(Path.cwd())
         if findings:
             _report_findings(findings, "scan")
             raise SystemExit(2)
-        print("scan ok: nenhum padrão sensível encontrado.")
+        scope = "índice (staged)" if args.staged else "working tree"
+        print(f"scan ok: nenhum padrão sensível encontrado ({scope}).")
         raise SystemExit(0)
 
     if args.command == "lint-robin":

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -57,3 +58,34 @@ def test_lint_robin_passes_without_any_robin_file(workspace: Path) -> None:
     with pytest.raises(SystemExit) as result:
         main(["lint-robin", "--all"])
     require(result.value.code == 0, "Sem nenhum Main.robin, lint-robin não tem nada a reprovar.")
+
+
+def test_extract_rejects_project_with_a_junction_escaping_the_sandbox(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Um projeto em `input/` com uma junction escondida apontando para fora
+    do sandbox tem que ser recusado por inteiro — nunca ler o que está do
+    outro lado do link nem gravar output parcial."""
+    monkeypatch.chdir(tmp_path)
+    project = tmp_path / "input" / "leaky-project"
+    project.mkdir(parents=True)
+    (project / "legit.json").write_text("{}", encoding="utf-8")
+    outside = tmp_path / "outside-sandbox"
+    outside.mkdir()
+    (outside / "secret.txt").write_text("conteudo fora do sandbox", encoding="utf-8")
+    link = project / "escape"
+    result = subprocess.run(  # noqa: S603
+        ["cmd", "/c", "mklink", "/J", str(link), str(outside)],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        pytest.skip(f"não foi possível criar junction neste ambiente: {result.stderr.strip()}")
+
+    exit_code = main(["extract", "leaky-project"])
+    require(exit_code == 1, "extract deveria recusar o projeto com junction, não travar.")
+    require(
+        not (tmp_path / "output" / "leaky-project").exists(),
+        "Nenhum output parcial deveria ser gravado para um projeto recusado.",
+    )
