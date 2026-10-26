@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,26 @@ def _preorder(nodes: list[dict]) -> Iterator[dict]:
         yield from _preorder(node.get("children") or [])
 
 
+def _warn_unread_files(directory: Path, files: list[str], json_files: list[str]) -> None:
+    """Avisa, em stderr, o que a extração A360 **não** leu.
+
+    A leitura é só de `*.json` no topo do diretório (ver ADR-021): JSON
+    aninhado, `.zip` e qualquer outro arquivo entram no inventário como
+    arquivo, mas não viram fato. O aviso existe para isso nunca passar
+    despercebido — é mais honesto dizer "não li" do que entregar um
+    inventário que parece completo.
+    """
+    unread = [name for name in files if "/" in name or not name.lower().endswith(".json")]
+    if not unread:
+        return
+    shown = ", ".join(unread[:5])
+    extra = f" (+{len(unread) - 5} outros)" if len(unread) > 5 else ""
+    print(
+        f"aviso A360: {len(unread)} arquivo(s) fora da leitura em {directory}: {shown}{extra}",
+        file=sys.stderr,
+    )
+
+
 class A360Extractor:
     name: str = "a360"
 
@@ -59,6 +80,12 @@ class A360Extractor:
             if any(path.glob("*.json")):
                 return self._extract_dir(path)
             zips = sorted(path.glob("*.zip"))
+            if len(zips) > 1:
+                names = ", ".join(item.name for item in zips)
+                raise ValueError(
+                    f"{len(zips)} arquivos .zip em {path} ({names}): sem como saber qual é o "
+                    "export certo — deixe só um .zip no projeto, um export por projeto."
+                )
             if zips:
                 with safe_zip(zips[0], path) as extracted:
                     return self._extract_dir(extracted)
@@ -69,6 +96,7 @@ class A360Extractor:
         inventory = Inventory(source_type="a360")
         inventory.files = all_files(directory)
         json_files = sorted(path.name for path in directory.glob("*.json"))
+        _warn_unread_files(directory, inventory.files, json_files)
 
         for filename in json_files:
             document = json.loads((directory / filename).read_text(encoding="utf-8"))

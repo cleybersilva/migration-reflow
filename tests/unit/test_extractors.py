@@ -150,3 +150,42 @@ def test_extract_to_writes_inventory_without_manifest(tmp_path: Path) -> None:
     require(inventory.project == "quote-scraper", "Nome do projeto vem do diretório.")
     require((out_dir / "01-inventory" / "inventory.json").is_file(), "Inventário tem que existir.")
     require(not (out_dir / "00-manifest.json").is_file(), "extract_to não grava manifesto.")
+
+
+def test_a360_multiple_zips_are_refused_instead_of_guessed(tmp_path: Path) -> None:
+    """Dois exports na mesma pasta: recusar é melhor que escolher o primeiro."""
+    for name in ("bot-a.zip", "bot-b.zip"):
+        with zipfile.ZipFile(tmp_path / name, "w") as bundle:
+            bundle.writestr("main.json", "{}")
+    with pytest.raises(ValueError, match="deixe só um"):
+        A360Extractor().extract(tmp_path)
+    require(A360Extractor().detect(tmp_path), "A detecção continua aceitando a pasta.")
+
+
+def test_a360_reports_files_it_did_not_read(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    shutil.copy(FIXTURES / "a360" / "excel-vault" / "main.json", tmp_path)
+    (tmp_path / "README.md").write_text("# export", encoding="utf-8")
+    package = tmp_path / "pkg"
+    package.mkdir()
+    (package / "extra.json").write_text('{"nodes": []}', encoding="utf-8")
+
+    inventory = A360Extractor().extract(tmp_path)
+
+    err = capsys.readouterr().err
+    require("aviso A360" in err, "Tem que avisar o que não foi lido.")
+    require("README.md" in err, "Arquivo não-JSON citado pelo nome.")
+    require("pkg/extra.json" in err, "JSON aninhado citado pelo nome.")
+    require(
+        inventory.files == ["README.md", "main.json", "pkg/extra.json"],
+        "O inventário segue listando tudo, mesmo o que não virou fato.",
+    )
+
+
+def test_a360_stays_quiet_on_a_flat_export(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    shutil.copytree(FIXTURES / "a360" / "excel-vault", tmp_path / "flat")
+    A360Extractor().extract(tmp_path / "flat")
+    require(capsys.readouterr().err == "", "Export limpo e plano não gera aviso.")

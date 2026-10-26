@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from reflow import limits
 from reflow.cli import main
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -88,4 +89,49 @@ def test_extract_rejects_project_with_a_junction_escaping_the_sandbox(
     require(
         not (tmp_path / "output" / "leaky-project").exists(),
         "Nenhum output parcial deveria ser gravado para um projeto recusado.",
+    )
+
+
+def test_batch_survives_one_project_that_fails_unexpectedly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Um projeto que estoura fora de ValueError não pode derrubar o lote."""
+    monkeypatch.chdir(tmp_path)
+    inputs = tmp_path / "input"
+    broken = inputs / "aaa-quebrado"
+    broken.mkdir(parents=True)
+    (broken / "main.json").write_text("[]", encoding="utf-8")  # lista: estoura AttributeError
+    shutil.copytree(ROOT / "input" / "quote-scraper", inputs / "bbb-python")
+    shutil.copytree(FIXTURES / "a360" / "browser-rest", inputs / "ccc-a360")
+
+    require(main(["extract", "--all"]) == 1, "O lote tem que sinalizar a falha com exit 1.")
+    err = capsys.readouterr().err
+    require("aaa-quebrado" in err, "O projeto que falhou tem que ser citado.")
+    require("abortou de forma inesperada" in err, "A falha inesperada tem que ser explicada.")
+    require("2/3 projeto(s)" in err, "Resumo do lote: 1 falhou, 2 extraídos.")
+    for name in ("bbb-python", "ccc-a360"):
+        manifest = tmp_path / "output" / name / "00-manifest.json"
+        require(manifest.is_file(), f"{name}: um vizinho quebrado não pode derrubar a extração.")
+    require(
+        not (tmp_path / "output" / "aaa-quebrado" / "00-manifest.json").exists(),
+        "O projeto que falhou não pode ter manifesto.",
+    )
+
+
+def test_extract_refuses_a_project_above_the_input_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A CLI real também tem teto de entrada — não só o dashboard."""
+    monkeypatch.chdir(tmp_path)
+    project = tmp_path / "input" / "grande"
+    project.mkdir(parents=True)
+    for index in range(5):
+        (project / f"f{index}.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(limits, "MAX_INPUT_FILE_COUNT", 3)
+
+    require(main(["extract", "grande"]) == 1, "Acima do orçamento tem que recusar.")
+    require("orçamento" in capsys.readouterr().err, "A mensagem tem que citar o orçamento.")
+    require(
+        not (tmp_path / "output" / "grande" / "01-inventory").exists(),
+        "Nada é extraído acima do orçamento.",
     )

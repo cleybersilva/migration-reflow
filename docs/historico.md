@@ -641,3 +641,66 @@ se repetir, merece investigação própria.
   o comando novo — a conversão do `a360-browser-rest` (Fase 10) foi feita
   antes dele existir.
 - Nada foi validado num PAD real; a whitelist segue 100% `[não validado]`.
+
+## Fase 16 — segurança: resiliência de lote, escolha A360 explícita e orçamento de entrada na CLI
+
+Fechou os três itens que o ADR-020 deixou registrados como pendentes —
+mantida a régua de fases pequenas com aprovação entre cada uma. Tudo
+documentado no ADR-021 em [`docs/decisions.md`](decisions.md).
+
+### 1. `extract --all` não é mais derrubado por um projeto estragado
+
+`_extract_all()` capturava só o retorno de `_extract_one()`, mas esse
+método tratava **só** `ValueError`: qualquer outra exceção (JSON cujo
+top-level é lista, `AttributeError` na estrutura, `RecursionError` em
+árvore profunda, `zipfile.BadZipFile`, disco cheio) abortava o lote
+inteiro e nem tentava os projetos seguintes. Agora é `except Exception`
+por projeto — reporta `<nome>: extração abortou de forma inesperada:
+<repr>` em stderr, continua, imprime `lote: N/M projeto(s) extraído(s);
+falharam: <nomes>` e sai com código 1. `KeyboardInterrupt` e
+`SystemExit` não são `Exception`, então Ctrl+C continua interrompendo.
+
+### 2. A360: escolha explícita e aviso do que não foi lido
+
+- Vários `.zip` no topo do projeto: antes `sorted(...)[0]`, ou seja,
+  escolha silenciosa em ordem alfabética — dava para extrair o robô errado
+  sem perceber. Agora `ValueError` citando todos os nomes, pedindo um
+  export por projeto.
+- JSON aninhado, `.zip` e o mais nunca foram lidos (leitura continua só
+  `*.json` no topo — decisão mantida e agora escrita no ADR-021: sem
+  fixture real de subpasta, ampliar inventaria fato de arquivo errado).
+  O que mudou: o extractor agora avisa em stderr
+  `aviso A360: N arquivo(s) fora da leitura em <dir>: <nomes>` — até 5
+  nomes.
+
+### 3. `reflow/limits.py` — orçamento da extração real
+
+Novo módulo com `check_input_budget()`: 5000 arquivos, 30 níveis,
+64 MB por arquivo e 512 MB no total, medidos só com `stat` (nunca lendo
+conteúdo) e **depois** de `reject_unsafe_links()`. Chamado em
+`extract_to()` (antes de extrair, CLI e dashboard) e em
+`_current_inputs()` (manifesto e `checkpoint`). Valores lidos dos nomes do
+módulo em tempo de chamada — o teste rebaixa o teto com `monkeypatch` em
+vez de criar arquivo de 64 MB. O `dashboard/` seguiu com o orçamento
+próprio mais apertado (500/12/20 MB, ADR-019): duas camadas, não
+duplicação.
+
+### Verificação
+
+`uv run -- python -m pytest -q` → **199 passed** (189 da Fase 15 + 10
+novos: 5 em `tests/unit/test_limits.py`, 3 de A360 em
+`tests/unit/test_extractors.py`, 2 de integração lote/orçamento em
+`tests/integration/test_cli_end_to_end.py`), `ruff check .`,
+`ruff format --check .` (152 arquivos), `reflow scan`,
+`reflow scan --staged` e `reflow lint-robin` todos `ok`.
+
+### O que esta fase não fez (honestidade)
+
+- **CI continua não existindo** (`.github/workflows`) — fora do escopo
+  destas quatro fases de segurança, segue como pendência aberta.
+- Não ampliei a leitura A360 para JSON aninhado: decidi avisar em vez de
+  inventar cobertura sem fixture real que mostre o formato do export.
+- Os tetos de orçamento são **genéricos, não calibrados em robô real**
+  (nenhum export verdadeiro passou por aqui ainda); se um export legítimo
+  estourar, o ajuste é consciente e documentado, não um chute disfarçado.
+- Nada foi validado num PAD real; a whitelist segue 100% `[não validado]`.

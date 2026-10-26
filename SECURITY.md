@@ -23,6 +23,9 @@ comentário ou string do legado.
 | Manifesto/inventário gravado pela metade (processo morto no meio da escrita) | `fs.write_json_atomic()` grava num temporário do mesmo diretório e troca com `os.replace` (atômico no Windows e no POSIX); se falhar, o arquivo anterior fica íntegro e o temporário é removido | `reflow/fs.py` | `uv run pytest tests/unit/test_fs.py -k atomic` |
 | Dois processos escrevendo o mesmo projeto ao mesmo tempo (`extract` × `checkpoint`, dois terminais) | `fs.project_lock()` trava um arquivo irmão do diretório de saída (`<nome>.lock`) com lock retido pelo SO — processo morto libera sozinho; reentrante no mesmo processo; acima do timeout, `LockError` e nada é escrito | `reflow/fs.py`, `reflow/cli.py` | `uv run pytest tests/unit/test_fs.py` |
 | Aprovação humana registrada sem bater com o que foi extraído | `reflow checkpoint` recalcula o SHA256 de `input/<projeto>/` e recusa a gravação (e o `--status`) se difere do manifesto; exige `03-classification/`; reprova `--approve` com veredito `NOT_PAD`; reextração regrava o manifesto e zera a decisão | `reflow/cli.py` (`_cmd_checkpoint`) | `uv run pytest tests/integration/test_checkpoint.py` |
+| Um projeto estragado derrubando o lote `extract --all` inteiro | `_extract_all()` captura `Exception` por projeto (nunca `KeyboardInterrupt`/`SystemExit`), reporta em stderr, segue com os demais, imprime o resumo `lote: N/M extraído(s); falharam: …` e sai com código 1 | `reflow/cli.py` (`_extract_all`) | `uv run pytest tests/integration/test_cli_end_to_end.py -k batch` |
+| Export A360 ambíguo (vários `.zip` no topo) ou arquivo não lido passando despercebido | Mais de um `.zip` no topo → `ValueError` citando todos (um export por projeto, em vez de "primeiro em ordem alfabética"); JSON aninhado/`.zip`/outros não lidos geram `aviso A360: N arquivo(s) fora da leitura: <nomes>` em stderr | `reflow/extractors/a360.py` | `uv run pytest tests/unit/test_extractors.py -k a360` |
+| Entrada sem teto (memória: `read_bytes` por arquivo, árvore inteira) | `limits.check_input_budget()` mede só `stat` e recusa acima de 5000 arquivos, 30 níveis, 64 MB por arquivo ou 512 MB no total — antes de ler conteúdo, depois de `reject_unsafe_links`; vale para `extract`, `extract --all` e `checkpoint` (o `dashboard/` mantém teto próprio mais apertado) | `reflow/limits.py`, `reflow/cli.py` | `uv run pytest tests/unit/test_limits.py`; `uv run pytest tests/integration/test_cli_end_to_end.py -k budget` |
 | Cadeia de suprimentos | Runtime 100% stdlib (zero dependências de produção); dependências de desenvolvimento (`pytest`, `ruff`) travadas em `uv.lock` | `pyproject.toml`, `uv.lock` | `uv run pytest tests/unit/test_scaffold.py -k runtime_dependencies` |
 
 ### `reflow scan` × `reflow scan --staged`
@@ -81,14 +84,15 @@ se desamarre do que foi extraído.
 - O lint cruza `notas-conversao.md` contra a whitelist, mas quem escreve esse arquivo
   hoje é o agent `reflow-pad-converter`/`reflow-pad-tester`; sem uma sessão real deles,
   não existe `notas-conversao.md` nenhum para testar fora dos testes automatizados.
-- Fases 1 a 3 de segurança resolveram o que está descrito acima. `reject_unsafe_links`
-  recusa o projeto inteiro quando acha um link — não tenta "podar" só a parte
-  insegura; isso é deliberadamente grosseiro (ver ADR-019). Resiliência de lote e
-  priorização A360/JSON-ZIP (Fase 4) seguem pendentes — não tratar como resolvido.
-- O orçamento de entrada do dashboard (`MAX_INPUT_FILE_COUNT`/`_DEPTH`/`_TOTAL_BYTES`)
-  e o teto de conexões SSE (`MAX_SSE_CLIENTS`) existem só no `dashboard/` (teste local
-  isolado); `reflow extract`/`reflow extract --all` (CLI real) não têm esse teto — não
-  estava no escopo pedido para estas fases.
+- Fases 1 a 4 de segurança estão aplicadas. `reject_unsafe_links` recusa o
+  projeto inteiro quando acha um link — não tenta "podar" só a parte insegura; isso é
+  deliberadamente grosseiro (ver ADR-019). Seguem abertos e **fora** destas quatro
+  fases: CI versionada (`.github/workflows` não existe — só o hook local) e o
+  deadline de leitura do `POST` no dashboard.
+- O orçamento do `dashboard/` (500 arquivos / 12 níveis / 20 MB) segue
+  **mais apertado** que o da CLI real (`reflow/limits.py`: 5000 / 30 níveis /
+  64 MB por arquivo / 512 MB) de propósito: é um smoke test local, não a
+  extração.
 
 Este projeto ainda não deve processar código confidencial real enquanto os itens acima
 não estiverem concluídos.

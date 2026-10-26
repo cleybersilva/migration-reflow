@@ -450,3 +450,88 @@ Não corrigido nesta fase (Fase 4, propositalmente fora de escopo):
 resiliência de lote (`extract --all` ainda aborta com exceção fora de
 `ValueError`), priorização determinística entre JSON e ZIP no A360,
 orçamento de entrada na CLI real (hoje só no dashboard) e CI.
+
+## ADR-021 — Fase 4 de segurança: resiliência de lote, escolha A360 explícita e orçamento de entrada na CLI
+
+Fecha os três itens que o ADR-020 deixou registrados como pendentes.
+Mesma régua: stdlib, sem rede, falha restritiva na dúvida, e nenhuma
+promessa do que não foi testado.
+
+### 1. Resiliência de lote (`extract --all`)
+
+Antes, só `ValueError` era tratado por projeto: qualquer outra exceção
+(JSON inesperado, `AttributeError` em estrutura que não é objeto, disco
+cheio, `RecursionError` em árvore profunda, `zipfile.BadZipFile`)
+abortava **o lote inteiro** e deixava os projetos seguintes sem serem
+tentados — um export estragado no começo do alfabeto travava tudo. Agora
+`_extract_all()` captura `Exception` por projeto, reporta
+`<nome>: extração abortou de forma inesperada: <repr>` em stderr, segue
+em frente e imprime o resumo
+`lote: 2/3 projeto(s) extraído(s); falharam: <nomes>`, com exit code 1.
+
+- `KeyboardInterrupt`/`SystemExit` não são `Exception`: interromper o lote
+  continua funcionando (não engole Ctrl+C).
+- Não está sendo escondido erro nenhum: tudo que falha aparece no stderr,
+  é citado no resumo e derruba o exit code.
+
+### 2. Escolha A360 explícita e aviso do que não foi lido
+
+Dois problemas de "silêncio" no `extractors/a360.py`:
+
+- **Vários `.zip` no topo do projeto**: antes pegava `sorted(...)[0]`,
+  ou seja, escolhia o export pelo nome em ordem alfabética, sem dizer
+  nada — era possível extrair o robô errado e nem perceber. Agora é
+  `ValueError` citando todos os nomes e pedindo um export por projeto.
+  Restritivo de propósito: não existe critério determinístico honesto para
+  saber qual de dois exports é o certo.
+- **Arquivo que a extração não lê**: a leitura continua sendo só
+  `*.json` **no topo** do diretório (JSON aninhado, `.zip` e o mais
+  entram no inventário como arquivo, mas não viram fato). Isso não mudou —
+  o que mudou é que agora o extractor imprime em stderr
+  `aviso A360: N arquivo(s) fora da leitura em <dir>: <nomes>` (até 5
+  nomes). Um inventário que parece completo mas deixou algo de fora é
+  pior que um aviso.
+
+Decisão deliberada: **não** ampliamos a leitura para JSON aninhado sem uma
+fixture real que mostre como o A360 exporta subpastas — inventaria fato de
+arquivo errado com a mesma facilidade. Se um export real mostrar estrutura
+aninhada, é isso que muda, com fixture e golden novos.
+
+### 3. Orçamento de entrada na CLI real (`reflow/limits.py`)
+
+O diagnóstico apontava `read_bytes()` sem teto nenhum: extractor e hash do
+manifesto liam cada arquivo em memória e somavam tudo, sem limite. Novo
+módulo `reflow/limits.py` com `check_input_budget()`:
+
+| Teto | Valor | Por quê |
+| --- | --- | --- |
+| `MAX_INPUT_FILE_COUNT` | 5000 | export A360 legítimo está muito abaixo |
+| `MAX_INPUT_DEPTH` | 30 | profundidade absurda = erro/ataque |
+| `MAX_INPUT_TOTAL_BYTES` | 512 MB | `read_bytes` por arquivo somado |
+| `MAX_INPUT_FILE_BYTES` | 64 MB | arquivo único já lido inteiro em memória |
+
+- Mede só metadados (`stat`), nunca lê conteúdo; roda **depois** de
+  `reject_unsafe_links()` — decide *quanto* ler, não *o que* é seguro.
+- Chamado em `extract_to()` (antes de qualquer extração, CLI e dashboard)
+  e em `_current_inputs()` (manifesto e `checkpoint`).
+- Os valores são lidos dos nomes do módulo em tempo de chamada, então
+  teste nenhum precisa criar arquivo de 64 MB para rebaixar o teto.
+- O `dashboard/` mantém o orçamento próprio mais apertado (500/12/20 MB,
+  ADR-019) porque é smoke test local — roda antes deste aqui. Duas
+  camadas, não duplicação de regra.
+
+### Mudança de comportamento que pode afetar compatibilidade
+
+- `extract --all` com projeto quebrado agora **termina** (exit 1, com
+  resumo) em vez de levantar traceback no meio — projetos seguintes passam
+  a ser extraídos.
+- Projeto A360 com dois `.zip` no topo passa a ser recusado em vez de
+  extrair o primeiro; com arquivo não-lido no topo, passa a ter aviso em
+  stderr (os testes existentes usam fixtures planas, então nada quebrou).
+- Projeto acima de 5000 arquivos / 30 níveis / 64 MB por arquivo / 512 MB
+  no total é recusado pela CLI (antes era lido inteiro). Os tetos altos de
+  propósito: nenhum projeto existente chega perto.
+
+Não corrigido nesta fase (seguem abertos, ver `SECURITY.md`): CI em
+`.github/workflows`, POST sem deadline de leitura no dashboard, e tudo que
+depende de execução real no PAD.

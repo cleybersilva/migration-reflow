@@ -14,6 +14,7 @@ from . import __version__
 from .extractors import detect_extractor
 from .fs import LockError, project_lock, write_json_atomic
 from .inventory import Inventory
+from .limits import check_input_budget
 from .report import build_batch_report, read_verdict
 from .robin import lint_robin_files
 from .security.paths import reject_unsafe_links
@@ -84,6 +85,7 @@ def _current_inputs(project_dir: Path) -> list[dict]:
     depois da extração: decisão humana só vale sobre o que foi extraído.
     """
     reject_unsafe_links(project_dir)
+    check_input_budget(project_dir)
     inputs = []
     for file in sorted(p for p in project_dir.rglob("*") if p.is_file()):
         digest = hashlib.sha256(file.read_bytes()).hexdigest()
@@ -119,6 +121,7 @@ def extract_to(project_dir: Path, out_dir: Path) -> tuple[str, Inventory]:
     project_dir = Path(project_dir)
     out_dir = Path(out_dir)
     reject_unsafe_links(project_dir)
+    check_input_budget(project_dir)
     extractor = detect_extractor(project_dir)
     with project_lock(out_dir):
         inventory = extractor.extract(project_dir)
@@ -155,15 +158,36 @@ def _extract_one(root: Path, name: str) -> int:
 
 
 def _extract_all(root: Path) -> int:
+    """Extrai todos os projetos de `input/`, um falhando não derruba os outros.
+
+    Um projeto que lance algo fora de `ValueError` (JSON malformado de forma
+    inesperada, disco cheio, `RecursionError` em árvore profunda) é reportado
+    e pulado — o lote continua e o exit code fica 1. `KeyboardInterrupt`/`SystemExit`
+    não são `Exception`, então interromper o lote continua funcionando.
+    """
     input_dir = root / "input"
     if not input_dir.is_dir():
         print("pasta input/ não encontrada", file=sys.stderr)
         return 1
     names = sorted(p.name for p in input_dir.iterdir() if p.is_dir())
     exit_code = 0
+    failures: list[str] = []
     for name in names:
-        if _extract_one(root, name) != 0:
+        try:
+            failed = _extract_one(root, name) != 0
+        # resiliência de lote: a falha é reportada e o lote segue (ADR-021)
+        except Exception as exc:
+            print(f"{name}: extração abortou de forma inesperada: {exc!r}", file=sys.stderr)
+            failed = True
+        if failed:
             exit_code = 1
+            failures.append(name)
+    if failures:
+        print(
+            f"lote: {len(names) - len(failures)}/{len(names)} projeto(s) extraído(s); "
+            f"falharam: {', '.join(failures)}",
+            file=sys.stderr,
+        )
     return exit_code
 
 

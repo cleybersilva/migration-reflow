@@ -242,6 +242,13 @@ operação do Itaú (que já está separando os repositórios a migrar) um expor
 de um robô simples. Coloque o resultado — pasta ou `.zip` — em
 `input/<projeto>/`, com nome em minúsculas, números, hífen ou underscore.
 
+**Um export por projeto**: com mais de um `.zip` no topo da pasta, o
+`extract` recusa e lista os nomes — não existe critério honesto para
+adivinhar qual é o certo. E a leitura é só de `*.json` no topo: subpastas,
+imagens e o próprio `.zip` ficam no inventário como arquivo, sem virar
+fato, e aparecem num `aviso A360` em stderr — leia o aviso antes de
+confiar no inventário.
+
 ## ▶️ Uso
 
 ```powershell
@@ -327,8 +334,11 @@ rede; `input/` fica fora do Git; chave de LLM só por variável de ambiente.
 A gravação de manifesto/inventário é **atômica e sob lock por projeto**
 (`reflow/fs.py`), e a decisão humana só entra pela CLI
 (`reflow checkpoint`), que recusa gravar se os hashes das entradas mudaram
-desde a extração. O hook de pre-commit roda `scan --staged` e
-`lint-robin` de verdade — não é decorativo.
+desde a extração. A extração tem **teto de entrada** (`reflow/limits.py`:
+arquivos, profundidade e bytes — medido antes de ler qualquer coisa) e o
+lote `extract --all` **não é derrubado** por um projeto estragado: ele é
+reportado, citado no resumo e os demais seguem. O hook de pre-commit roda
+`scan --staged` e `lint-robin` de verdade — não é decorativo.
 
 ## 🛟 Plano B: opencode, Claude Code e Copilot
 
