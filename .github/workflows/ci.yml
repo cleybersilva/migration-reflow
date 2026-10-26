@@ -33,7 +33,11 @@ jobs:
         python-version: ["3.12", "3.14"]
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      # Travado no SHA da v10.3.2: essa action **não publica tag major**
+      # (`v10` não existe, só `v10.x.y`) — usar `@v10` quebra o job no
+      # "Set up job" com `Unable to resolve action`. SHA + comentário da
+      # versão é também a prática segura de supply chain.
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true

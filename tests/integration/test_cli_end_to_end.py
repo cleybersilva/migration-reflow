@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
 
 from reflow import limits
 from reflow.cli import main
+from tests.link_support import make_unsafe_link
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures"
@@ -64,9 +64,10 @@ def test_lint_robin_passes_without_any_robin_file(workspace: Path) -> None:
 def test_extract_rejects_project_with_a_junction_escaping_the_sandbox(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Um projeto em `input/` com uma junction escondida apontando para fora
-    do sandbox tem que ser recusado por inteiro — nunca ler o que está do
-    outro lado do link nem gravar output parcial."""
+    """Um projeto em `input/` com um link escondido (junction no Windows,
+    symlink em POSIX) apontando para fora do sandbox tem que ser recusado
+    por inteiro — nunca ler o que está do outro lado do link nem gravar
+    output parcial."""
     monkeypatch.chdir(tmp_path)
     project = tmp_path / "input" / "leaky-project"
     project.mkdir(parents=True)
@@ -75,14 +76,7 @@ def test_extract_rejects_project_with_a_junction_escaping_the_sandbox(
     outside.mkdir()
     (outside / "secret.txt").write_text("conteudo fora do sandbox", encoding="utf-8")
     link = project / "escape"
-    result = subprocess.run(  # noqa: S603
-        ["cmd", "/c", "mklink", "/J", str(link), str(outside)],  # noqa: S607
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"não foi possível criar junction neste ambiente: {result.stderr.strip()}")
+    make_unsafe_link(link, outside)  # junction no Windows, symlink em POSIX
 
     exit_code = main(["extract", "leaky-project"])
     require(exit_code == 1, "extract deveria recusar o projeto com junction, não travar.")

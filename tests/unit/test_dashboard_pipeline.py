@@ -2,29 +2,18 @@
 
 from __future__ import annotations
 
-import subprocess
 import threading
 from pathlib import Path
 
 import pytest
 
 from dashboard.pipeline import MAX_INPUT_DEPTH, MAX_INPUT_FILE_COUNT, DashboardRunner
+from tests.link_support import make_unsafe_link
 
 
 def require(condition: bool, message: str) -> None:
     if not condition:
         pytest.fail(message)
-
-
-def _make_junction(link: Path, target: Path) -> None:
-    result = subprocess.run(  # noqa: S603
-        ["cmd", "/c", "mklink", "/J", str(link), str(target)],  # noqa: S607
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"não foi possível criar junction neste ambiente: {result.stderr.strip()}")
 
 
 def test_projects_lists_only_valid_directories(tmp_path: Path) -> None:
@@ -48,7 +37,7 @@ def test_projects_rejects_input_dir_that_is_itself_a_junction(tmp_path: Path) ->
     target.mkdir()
     (target / "robot-one").mkdir()
     link = tmp_path / "input"
-    _make_junction(link, target)
+    make_unsafe_link(link, target)
     runner = DashboardRunner(tmp_path)
     with pytest.raises(ValueError, match="inseguro"):
         runner.projects(None)
@@ -63,7 +52,7 @@ def test_projects_excludes_a_project_directory_that_is_a_junction(tmp_path: Path
     outside = tmp_path / "outside-sandbox"
     outside.mkdir()
     link = tmp_path / "input" / "robot-leaky"
-    _make_junction(link, outside)
+    make_unsafe_link(link, outside)
 
     runner = DashboardRunner(tmp_path)
     names = runner.projects(None)
@@ -126,7 +115,7 @@ def test_execute_extract_rejects_junction_inside_the_project(tmp_path: Path) -> 
     (project / "main.json").write_text('{"nodes": []}', encoding="utf-8")
     outside = tmp_path / "outside-sandbox"
     outside.mkdir()
-    _make_junction(project / "escape", outside)
+    make_unsafe_link(project / "escape", outside)
     runner = DashboardRunner(tmp_path)
     with pytest.raises(ValueError, match="inseguro"):
         runner.execute("run1", "robot-leaky-inside", "extract", threading.Event())

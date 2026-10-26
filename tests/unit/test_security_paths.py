@@ -2,32 +2,17 @@
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import pytest
 
 from reflow.security.paths import UnsafePathError, is_unc_path, is_unsafe_link, reject_unsafe_links
+from tests.link_support import make_unsafe_link
 
 
 def require(condition: bool, message: str) -> None:
     if not condition:
         pytest.fail(message)
-
-
-def _make_junction(link: Path, target: Path) -> None:
-    """Cria uma junction (não exige privilégio elevado no Windows, ao
-    contrário de `os.symlink` para diretório). Pula o teste se o ambiente
-    não permitir criar nem isso, em vez de falhar por motivo alheio ao
-    código testado."""
-    result = subprocess.run(  # noqa: S603
-        ["cmd", "/c", "mklink", "/J", str(link), str(target)],  # noqa: S607
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"não foi possível criar junction neste ambiente: {result.stderr.strip()}")
 
 
 @pytest.mark.parametrize(
@@ -80,7 +65,7 @@ def test_reject_unsafe_links_raises_when_root_is_a_junction(tmp_path: Path) -> N
     target = tmp_path / "real-target"
     target.mkdir()
     link = tmp_path / "project"
-    _make_junction(link, target)
+    make_unsafe_link(link, target)
     with pytest.raises(UnsafePathError):
         reject_unsafe_links(link)
 
@@ -95,6 +80,6 @@ def test_reject_unsafe_links_raises_for_nested_junction(tmp_path: Path) -> None:
     target.mkdir()
     (target / "secret.txt").write_text("conteudo fora do sandbox", encoding="utf-8")
     nested_link = project / "nested"
-    _make_junction(nested_link, target)
+    make_unsafe_link(nested_link, target)
     with pytest.raises(UnsafePathError):
         reject_unsafe_links(project)
