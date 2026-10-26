@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from reflow.cli import extract_to
+from reflow.fs import write_json_atomic
 from reflow.security.masking import mask_data
 from reflow.security.paths import is_unsafe_link, reject_unsafe_links
 from reflow.security.scan import scan_bytes
@@ -53,14 +54,6 @@ def _check_input_budget(project_dir: Path) -> None:
                 f"Projeto excede {MAX_INPUT_TOTAL_BYTES} bytes; "
                 "fora do orçamento deste teste local."
             )
-
-
-def _write_json(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
 
 
 class DashboardRunner:
@@ -335,7 +328,7 @@ class DashboardRunner:
                     if cancel.is_set():
                         raise ValueError("Teste cancelado.") from None
                     if attempt == 1:
-                        _write_json(
+                        write_json_atomic(
                             folder / f"failure-{step}.json",
                             {"step": step, "attempts": failures},
                         )
@@ -343,7 +336,7 @@ class DashboardRunner:
                             "O modelo não retornou prévia válida após duas tentativas."
                         ) from None
                     time.sleep(1)
-            _write_json(folder / f"preview-{step}.json", safe)
+            write_json_atomic(folder / f"preview-{step}.json", safe)
             suffix = f" Sugestão: {safe['verdict']}." if step == "classify" else ""
             return {
                 "detail": (
@@ -363,7 +356,7 @@ class DashboardRunner:
                 "detail": "Não aplicável: este teste não converte nem executa flows PAD.",
             }
         if step == "report":
-            _write_json(
+            write_json_atomic(
                 folder / "test-report.json",
                 {
                     "project": project,

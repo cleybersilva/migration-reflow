@@ -15,6 +15,10 @@ __pycache__/
 
 # Dashboard local: saídas de teste isoladas, fora de output/ e fora do Git.
 .dashboard-runs/
+
+# Lock por projeto do reflow (reflow.fs.project_lock): arquivo irmão do
+# diretório de saída, criado durante a execução — não é artefato.
+/output/*.lock
 *.zip
 !/tests/fixtures/**/*.zip
 

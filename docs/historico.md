@@ -555,3 +555,89 @@ Também foi a primeira vez que `scan --staged` rodou de verdade no ambiente.
   todos os testes novos usam dados sintéticos gerados no próprio teste.
 - Nada disto muda o fato de que **nenhuma ação da whitelist foi validada
   num PAD de verdade**; isso continua fora deste repositório.
+
+## Fase 15 — segurança: escrita atômica, lock por projeto e checkpoint vinculado a hash
+
+Seguindo a régua de fases pequenas com aprovação entre cada uma, esta etapa
+fecha o item 3 do plano (`SECURITY.md` → "Fase 3"), documentado no
+ADR-020 em [`docs/decisions.md`](decisions.md). Eram três lacunas do
+diagnóstico de 24/10/2026: gravação direta sem atômica (item 8), ausência
+de lock por projeto (item 8) e um `checkpoint` que só existia porque o
+campo foi editado à mão depois de uma aprovação na conversa, sem nenhum
+comando para registrar ou verificar (item 6).
+
+### 1. `reflow/fs.py` — módulo novo
+
+- `write_json_atomic()`: grava no temporário `.<nome>.<pid>.tmp` do mesmo
+  diretório e troca com `os.replace` (atômico no Windows e no POSIX); em
+  falha, remove o temporário e preserva o arquivo anterior. Substituiu o
+  `_write_json` de `reflow/cli.py` e a cópia duplicada em
+  `dashboard/pipeline.py` — uma implementação só.
+- `project_lock()`: lock de 1 byte num arquivo irmão do diretório de saída
+  (`output/<nome>.lock`), retido pelo SO (`msvcrt.locking`/`fcntl.flock`),
+  portanto liberado sozinho se o processo morrer. Timeout de 10 s →
+  `LockError`. **Reentrante no mesmo processo**: `extract_to()` segura para
+  o inventário e `_extract_one()` de novo para o manifesto, sem deadlock.
+- `/output/*.lock` no `.gitignore` — artefato de execução, não resultado.
+- O lock ficou fora do projeto de propósito: dentro dele, o teste
+  "nenhum output parcial para projeto recusado" (junction) teria passado a
+  falhar, porque `output/<projeto>/` nasceria antes da validação.
+
+### 2. `reflow checkpoint` — subcomando novo na CLI
+
+- `--status` (padrão), `--approve` e `--reject`, mutuamente exclusivos.
+- Antes de decidir qualquer coisa, **recalcula** o SHA256 de
+  `input/<projeto>/` (rotina fatorada em `_current_inputs()`, a mesma do
+  `_build_manifest`) e compara com `manifest.inputs`; diferente → código 1
+  e nada gravado. `--status` também acusa manifesto velho.
+- `--approve`/`--reject` exigem `03-classification/classification.md`;
+  `--approve` é recusado com veredito `NOT_PAD`.
+- Objeto gravado: `decision`, `recorded_at`, `inputs_fingerprint`
+  (SHA256 canônico da lista de entradas) e `classification_sha256` — sob
+  lock e de forma atômica.
+- Reextração regrava o manifesto → `checkpoint` volta a `null`: decisão
+  velha não sobrevive a entrada nova.
+- `report.py` ganhou `read_verdict()` (era `_read_verdict`, privado) — o
+  checkpoint reusa o leitor de frontmatter do relatório em vez de
+  reimplementar.
+
+### 3. Documentação e skill atualizadas
+
+`SECURITY.md` (três linhas novas na tabela de ameaças, seção própria sobre
+`reflow checkpoint` e "o que ainda não está pronto" corrigido),
+`docs/decisions.md` (ADR-020), `docs/architecture.md` (nó `fs.py` no
+diagrama, comando no nó do checkpoint), `README.md` (uso, saídas, tabela de
+fases, segurança), `AGENTS.md` (linha do checkpoint na tabela da pipeline e
+lista de comandos — que também corrigia o texto desatualizado dizendo que
+scan/lint-robin estavam indisponíveis, quando já são gates de verdade) e a
+skill `.claude/skills/reflow-convert/SKILL.md` (o checkpoint agora se grava
+pela CLI, não editando JSON à mão).
+
+### Verificação
+
+`uv run -- python -m pytest -q` → **189 passed** (179 da Fase 14 + 10
+novos: 3 em `tests/unit/test_fs.py`, 7 em
+`tests/integration/test_checkpoint.py`), `ruff check .`,
+`ruff format --check .` (150 arquivos), `reflow scan`,
+`reflow scan --staged` e `reflow lint-robin` todos `ok`.
+
+Numa das execuções a suíte falhou em
+`tests/integration/test_dashboard.py::test_invalid_origin_...` com
+`ConnectionAbortedError` do servidor de teste — **flake de carga**: passou
+rodando o arquivo sozinho (9/9) e na re-execução da suíte completa
+(189/189). Fica registrado aqui em vez de varrer para debaixo do tapete;
+se repetir, merece investigação própria.
+
+### O que esta fase não fez (honestidade)
+
+- **Fase 4 segue aberta**: resiliência de lote (`extract --all` ainda
+  aborta com exceção fora de `ValueError`), priorização determinística
+  A360 entre JSON e ZIP, orçamento de entrada na CLI real (hoje só no
+  dashboard) e CI em `.github/workflows`.
+- O checkpoint é rastreabilidade determinística, **não autenticação**: o
+  JSON não prova *quem* decidiu, só o que estava na mão e se ainda é o
+  que foi extraído.
+- Nenhuma sessão real do agent `reflow-convert` rodou seguindo a skill com
+  o comando novo — a conversão do `a360-browser-rest` (Fase 10) foi feita
+  antes dele existir.
+- Nada foi validado num PAD real; a whitelist segue 100% `[não validado]`.

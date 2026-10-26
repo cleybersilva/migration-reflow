@@ -25,8 +25,18 @@ metadata:
 
 Mostre o veredito, o escopo que vai para o PAD (`pad_use_cases`) e os `alerts`
 da classificação, e peça confirmação explícita antes de gerar qualquer
-`Main.robin`. Grave a decisão (aprovado/rejeitado) em `00-manifest.json` →
-`checkpoint`. Sem "ok" do analista, não converta.
+`Main.robin`. A gravação é feita **por quem decide**, na CLI, nunca editando
+o JSON à mão:
+
+```text
+uv run python -m reflow checkpoint <projeto> --approve   # ou --reject
+uv run python -m reflow checkpoint <projeto> --status    # confirma o que está gravado
+```
+
+O comando recusa a gravação se `input/<projeto>/` mudou desde o `extract`,
+se ainda não existe `03-classification/` ou se o veredito é `NOT_PAD`.
+Sem esse registro aprovado no `00-manifest.json` → `checkpoint`, não
+converta.
 
 ## O que faz
 

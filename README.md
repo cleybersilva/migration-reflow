@@ -168,7 +168,7 @@ entra): [`docs/architecture.md`](docs/architecture.md).
 | 2 | `reflow-document` | `reflow-documenter` | `02-docs/` (inclui `architecture.md`) |
 | 3 | `reflow-classify` | `reflow-classifier` | `03-classification/classification.md` |
 | 3b · QA | `reflow-classify-review` | `reflow-classification-reviewer` | `03-classification/review.md` |
-| checkpoint | — | — | `00-manifest.json` → `checkpoint` |
+| checkpoint | — | — | `reflow checkpoint --approve` → `00-manifest.json` → `checkpoint` |
 | 4 | `reflow-convert` | `reflow-pad-converter` | `04-pad/<flow>/Main.robin` |
 | 4b · QA | `reflow-convert-review` | `reflow-robin-reviewer` | `04-pad/<flow>/review.md` |
 | 5 | `reflow-test` | `reflow-pad-tester` | `05-test/test_<flow>/` |
@@ -247,6 +247,8 @@ de um robô simples. Coloque o resultado — pasta ou `.zip` — em
 ```powershell
 uv run python -m reflow extract <projeto>   # ou --all
 uv run python -m reflow report
+uv run python -m reflow checkpoint <projeto> --status   # pendente / aprovado / rejeitado
+uv run python -m reflow checkpoint <projeto> --approve  # grava a decisão humana (--reject para rejeitar)
 ```
 
 Dentro do opencode ou do Claude Code (mesmas skills, mesmos comandos):
@@ -272,7 +274,7 @@ projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
 
 | Pasta | Conteúdo |
 | --- | --- |
-| `00-manifest.json` | hashes SHA256 das entradas, versão do reflow, data, `checkpoint`, `stale_phases` |
+| `00-manifest.json` | hashes SHA256 das entradas, versão do reflow, data, `checkpoint` (gravado por `reflow checkpoint`, amarrado aos hashes), `stale_phases` |
 | `01-inventory/inventory.json` | fatos mascarados, com `arquivo:linha` |
 | `02-docs/` | documentação de negócio/técnica + `architecture.md` (Mermaid) |
 | `03-classification/classification.md` | veredito `PAD`/`PARTIAL`/`NOT_PAD`, casos de uso, alertas |
@@ -322,8 +324,11 @@ reservado do Windows, Alternate Data Stream e colisão case-insensitive
 recusado por inteiro (`security/paths.py`), nunca seguido; o legado nunca é
 executado; cada agent só edita a própria subpasta de fase, sem bash e sem
 rede; `input/` fica fora do Git; chave de LLM só por variável de ambiente.
-O hook de pre-commit roda `scan --staged` e `lint-robin` de
-verdade — não é decorativo.
+A gravação de manifesto/inventário é **atômica e sob lock por projeto**
+(`reflow/fs.py`), e a decisão humana só entra pela CLI
+(`reflow checkpoint`), que recusa gravar se os hashes das entradas mudaram
+desde a extração. O hook de pre-commit roda `scan --staged` e
+`lint-robin` de verdade — não é decorativo.
 
 ## 🛟 Plano B: opencode, Claude Code e Copilot
 

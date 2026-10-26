@@ -37,7 +37,7 @@ def _read_unknown_commands_count(project_dir: Path) -> int:
     return len(inventory.get("unknown_commands", []))
 
 
-def _read_verdict(project_dir: Path) -> str:
+def read_verdict(project_dir: Path) -> str:
     path = project_dir / "03-classification" / "classification.md"
     if not path.is_file():
         return "—"
@@ -91,7 +91,7 @@ def build_batch_report(root: Path) -> str:
             )
             rows.append(
                 f"| {manifest['project']} | {manifest['source_type']} | {estado} | "
-                f"{_read_verdict(project_dir)} | {flows} | {todos} | "
+                f"{read_verdict(project_dir)} | {flows} | {todos} | "
                 f"{_count_unvalidated_actions_used(root, project_dir)} | "
                 f"{_read_unknown_commands_count(project_dir)} |"
             )

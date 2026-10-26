@@ -27,7 +27,7 @@ servidor. Zero dependência de runtime nova; ver ADR em `docs/decisions.md`.
 | Documentação | reflow-documenter | `02-docs/`, incluindo arquitetura Mermaid |
 | Classificação | reflow-classifier | `03-classification/classification.md` |
 | Segunda opinião da classificação | reflow-classification-reviewer | `03-classification/review.md` |
-| Checkpoint | Analista | Decisão explícita no manifesto |
+| Checkpoint | Analista | `reflow checkpoint --approve/--reject` → `00-manifest.json` → `checkpoint` |
 | Conversão | reflow-pad-converter | `04-pad/<flow>/Main.robin` |
 | Revisão semântica do Robin | reflow-robin-reviewer | `04-pad/<flow>/review.md` |
 | Testes PAD | reflow-pad-tester | `05-test/test_<flow>/Main.robin` |
@@ -73,8 +73,11 @@ git config core.hooksPath .githooks
 ```
 
 Disponíveis também: `uv run python -m reflow extract <projeto>`,
-`uv run python -m reflow extract --all` e `uv run python -m reflow report`.
-Scan e lint Robin ainda estão indisponíveis e falham de forma restritiva.
+`uv run python -m reflow extract --all`, `uv run python -m reflow report`,
+`uv run python -m reflow checkpoint <projeto> [--status|--approve|--reject]`,
+`uv run python -m reflow scan [--staged]` e `uv run python -m reflow
+lint-robin [<projeto>|--all]` — os dois últimos são gates: falham de forma
+restritiva e o hook de pre-commit os roda antes de qualquer commit.
 Consulte o estado real em `README.md`; não declare funcionalidades futuras prontas.
 
 ## Segurança

@@ -18,8 +18,10 @@ flowchart LR
     subgraph FASE1["Fase 1 — Python determinístico (reflow/), sem LLM, sem rede"]
         DET[cli.py extract]
         EXT[extractors/ a360 · python · dotnet]
-        SEC[security/ safe_zip · scan · masking]
+        SEC[security/ safe_zip · scan · masking · paths]
+        FS[fs.py escrita atômica + lock por projeto]
         DET --> EXT --> INV["01-inventory/inventory.json<br/>+ 00-manifest.json"]
+        FS -. grava .-> INV
     end
 
     subgraph HARNESS["Harness com LLM — opencode, Claude Code ou GitHub Copilot"]
@@ -27,7 +29,7 @@ flowchart LR
         DOC[reflow-documenter]
         CLS[reflow-classifier]
         CLSR["reflow-classification-reviewer<br/>(segunda opinião)"]
-        CHK{Checkpoint humano}
+        CHK{Checkpoint humano<br/>reflow checkpoint --approve}
         CONV[reflow-pad-converter]
         CONVR["reflow-robin-reviewer<br/>(auditoria semântica)"]
         TEST[reflow-pad-tester]
@@ -94,7 +96,11 @@ flowchart LR
 4. Cada agent escreve só na sua própria subpasta de fase (permissão imposta,
    não só documentada — ver `.opencode/agents/*.md`).
 5. Antes da conversão, o checkpoint humano é obrigatório; a decisão fica em
-   `00-manifest.json` → `checkpoint`. `reflow-classification-reviewer`
+   `00-manifest.json` → `checkpoint`, gravada por
+   `uv run python -m reflow checkpoint <projeto> --approve` (ou `--reject`),
+   que recalcula os hashes das entradas e recusa gravar se mudaram desde o
+   `extract` — ver [`SECURITY.md`](../SECURITY.md).
+   `reflow-classification-reviewer`
    reclassifica de forma independente antes desse checkpoint e grava
    `03-classification/review.md`, só para dar ao analista uma segunda
    leitura — nunca substitui a decisão humana nem sobrescreve

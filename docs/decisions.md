@@ -365,3 +365,88 @@ pequena, preservando loopback/CSRF/CSP/isolamento das saídas do dashboard:
 Não corrigido nesta fase (Fase 3 e seguintes, propositalmente fora de
 escopo): escrita atômica, lock por projeto, checkpoint vinculado a hash,
 resiliência de lote, priorização determinística entre JSON/ZIP do A360.
+
+## ADR-020 — Fase 3 de segurança: escrita atômica, lock por projeto e checkpoint vinculado a hash
+
+O diagnóstico de 24/10/2026 apontou três lacunas que não eram vazamento
+simulado, e sim integridade de dado (itens 6 e 8): gravação direta sem
+atômica, ausência de lock por projeto, e um `checkpoint` que só existia
+porque alguém editou o JSON à mão depois de uma aprovação na conversa — a
+CLI não tinha nenhum comando para registrar nem para verificar a decisão.
+Esta fase fecha as três, sempre dentro da régua do projeto (stdlib, sem
+rede, sem LLM, falha restritiva na dúvida).
+
+### 1. `reflow/fs.py` — escrita atômica e lock
+
+- `write_json_atomic()` grava num temporário do mesmo diretório
+  (`.<nome>.<pid>.tmp`) e troca com `os.replace` — atômico no Windows e no
+  POSIX. Se qualquer etapa falhar, o temporário é removido e o arquivo
+  anterior fica íntegro; nunca sobra manifesto pela metade (que, em
+  `output/` versionado, viraria commit de arquivo truncado). Substitui o
+  `_write_json` antigo de `reflow/cli.py` **e** o duplicado em
+  `dashboard/pipeline.py` — uma só implementação, não duas.
+- `project_lock(out_dir)` trava um arquivo **irmão** do diretório de saída
+  (`output/<nome>.lock`) com lock de 1 byte retido pelo sistema
+  operacional (`msvcrt.locking` no Windows, `fcntl.flock` no POSIX). O
+  lock é liberado pelo SO se o processo morrer — nenhum lock velho trava o
+  projeto para sempre, e nenhum lock precisa de limpeza manual. Acima do
+  timeout (10 s), `LockError` e nada é escrito.
+- **Reentrante no mesmo processo**: `extract_to()` segura o lock para o
+  inventário e `_extract_one()` o segura de novo para o manifesto; a
+  segunda chamada só cede a vez em vez de se travar. O dashboard
+  reaproveita `extract_to()` e ganha o mesmo proteção sem mudar nada.
+- O lock fica **fora** do projeto (`output/<nome>.lock`, não
+  `output/<nome>/.lock`) para não criar `output/<nome>/` antes da validação
+  — o teste que exige "nenhum output parcial para projeto recusado" seguiu
+  passando. `/output/*.lock` entrou no `.gitignore`: é artefato de
+  execução, não resultado.
+
+### 2. `reflow checkpoint` — decisão humana amarrada ao hash das entradas
+
+Novo subcomando da CLI (`reflow checkpoint <projeto>` com `--status`
+(padrão), `--approve`, `--reject` — mutuamente exclusivos):
+
+- **Antes de qualquer coisa**, recalcula o SHA256 de cada entrada de
+  `input/<projeto>/` (mesma rotina do `_build_manifest`, agora fatorada em
+  `_current_inputs`) e compara com `manifest.inputs`. Diferiu → código 1 e
+  nada gravado: a decisão não pode valer sobre entradas que não foram
+  extraídas. `--status` também acusa o manifesto velho.
+- `--approve`/`--reject` exigem `03-classification/classification.md`
+  (só existe decisão a tomar depois da classificação) e `--approve` é
+  recusado com veredito `NOT_PAD` — não há conversão para aprovar.
+- O objeto gravado em `manifest.checkpoint` carrega `decision`,
+  `recorded_at` (UTC ISO), `inputs_fingerprint` (SHA256 canônico da lista
+  de entradas) e `classification_sha256` (a classificação usada na
+  decisão). A gravação acontece sob o lock do projeto e de forma atômica.
+- Reextração regrava o manifesto inteiro → `checkpoint` volta a `null`.
+  É o vínculo de hash funcionando nos dois sentidos: decisão velha não
+  sobrevive a entrada nova, e decisão nova não é possível sem extração
+  nova.
+- `report.py` ganhou `read_verdict()` (antes `_read_verdict`, privado) —
+  o checkpoint reusa o mesmo leitor de frontmatter do relatório em vez de
+  reimplementar.
+
+**O que isto não é:** autenticação forte. O JSON não prova *quem* decidiu,
+só *o que* estava na mão e se ainda é o que foi extraído. Continua
+sendo o analista humano quem decide no checkpoint (AGENTS.md); o comando
+só elimina o caminho fraco de "editar o manifesto à mão" e o risco de uma
+aprovação sobreviver a uma reextração.
+
+### Mudança de comportamento que pode afetar compatibilidade
+
+- Dois processos escrevendo o mesmo `output/<projeto>/` ao mesmo tempo
+  agora esperam até 10 s e depois falham com `LockError` (exit 1) em vez
+  de se intercalar. Nenhum teste existente dependia de escrita concorrente.
+- `output/<nome>.lock` passa a aparecer (gitignored). `reflow report` só
+  olha diretórios, então não entra na tabela.
+- Escrever `00-manifest.json` à mão continua possível, mas
+  `reflow checkpoint` passa a recusar gravação quando as entradas mudaram —
+  a skill `reflow-convert` foi atualizada para apontar o comando.
+- As prévias do dashboard (`.dashboard-runs/`) agora também são gravadas
+  de forma atômica — efeito colateral benéfico da fatoração, sem mudança
+  de formato.
+
+Não corrigido nesta fase (Fase 4, propositalmente fora de escopo):
+resiliência de lote (`extract --all` ainda aborta com exceção fora de
+`ValueError`), priorização determinística entre JSON e ZIP no A360,
+orçamento de entrada na CLI real (hoje só no dashboard) e CI.

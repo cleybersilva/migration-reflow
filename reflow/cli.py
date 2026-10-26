@@ -1,4 +1,4 @@
-"""CLI determinística: extract/report prontos; scan/lint-robin falham de forma restritiva."""
+"""CLI determinística: extract, report e checkpoint; scan e lint-robin como gates."""
 
 from __future__ import annotations
 
@@ -12,14 +12,16 @@ from pathlib import Path
 
 from . import __version__
 from .extractors import detect_extractor
+from .fs import LockError, project_lock, write_json_atomic
 from .inventory import Inventory
-from .report import build_batch_report
+from .report import build_batch_report, read_verdict
 from .robin import lint_robin_files
 from .security.paths import reject_unsafe_links
 from .security.scan import Finding, StagedScanError, scan_repository, scan_staged
 
 PROJECT_NAME_RE = re.compile(r"[a-z0-9_-]+")
 STALE_PHASES = ["02-docs", "03-classification", "04-pad", "05-test"]
+CHECKPOINT_LABELS = {"approved": "aprovado", "rejected": "rejeitado"}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -43,6 +45,31 @@ def _build_parser() -> argparse.ArgumentParser:
     lint.add_argument("project", nargs="?", default=None)
     lint.add_argument("--all", action="store_true")
 
+    checkpoint = sub.add_parser("checkpoint")
+    checkpoint.add_argument("project", help="Projeto em input/<projeto>.")
+    decision = checkpoint.add_mutually_exclusive_group()
+    decision.add_argument(
+        "--approve",
+        dest="decision",
+        action="store_const",
+        const="approved",
+        help="Grava a aprovação humana no manifesto (exige classificação).",
+    )
+    decision.add_argument(
+        "--reject",
+        dest="decision",
+        action="store_const",
+        const="rejected",
+        help="Grava a rejeição humana no manifesto (exige classificação).",
+    )
+    decision.add_argument(
+        "--status",
+        dest="decision",
+        action="store_const",
+        const="status",
+        help="Só mostra a decisão atual (padrão quando nenhum outro é dado).",
+    )
+
     return parser
 
 
@@ -50,7 +77,12 @@ def _valid_project_name(name: str) -> bool:
     return bool(PROJECT_NAME_RE.fullmatch(name))
 
 
-def _build_manifest(project_dir: Path, name: str, source_type: str) -> dict:
+def _current_inputs(project_dir: Path) -> list[dict]:
+    """SHA256 de cada entrada do projeto — mesmo formato gravado no manifesto.
+
+    Recalculado pelo `checkpoint` para detectar que `input/<projeto>/` mudou
+    depois da extração: decisão humana só vale sobre o que foi extraído.
+    """
     reject_unsafe_links(project_dir)
     inputs = []
     for file in sorted(p for p in project_dir.rglob("*") if p.is_file()):
@@ -58,10 +90,14 @@ def _build_manifest(project_dir: Path, name: str, source_type: str) -> dict:
         inputs.append(
             {"file": str(file.relative_to(project_dir)).replace("\\", "/"), "sha256": digest}
         )
+    return inputs
+
+
+def _build_manifest(project_dir: Path, name: str, source_type: str) -> dict:
     return {
         "checkpoint": None,
         "extracted_at": datetime.now(UTC).isoformat(),
-        "inputs": inputs,
+        "inputs": _current_inputs(project_dir),
         "project": name,
         "reflow_version": __version__,
         "schema_version": "1.0",
@@ -72,28 +108,22 @@ def _build_manifest(project_dir: Path, name: str, source_type: str) -> dict:
     }
 
 
-def _write_json(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-
-
 def extract_to(project_dir: Path, out_dir: Path) -> tuple[str, Inventory]:
     """Extrai `project_dir` para `out_dir/01-inventory/inventory.json`.
 
     Só a extração determinística — sem manifesto, sem assumir o layout
     `input/<nome>` → `output/<nome>`. Reaproveitado pelo dashboard local de
     teste isolado (`dashboard/pipeline.py`), que escreve em `.dashboard-runs/`
-    em vez de `output/`.
+    em vez de `output/`. A escrita é atômica e sob lock do projeto.
     """
     project_dir = Path(project_dir)
+    out_dir = Path(out_dir)
     reject_unsafe_links(project_dir)
     extractor = detect_extractor(project_dir)
-    inventory = extractor.extract(project_dir)
-    inventory.project = project_dir.name
-    _write_json(out_dir / "01-inventory" / "inventory.json", inventory.to_dict())
+    with project_lock(out_dir):
+        inventory = extractor.extract(project_dir)
+        inventory.project = project_dir.name
+        write_json_atomic(out_dir / "01-inventory" / "inventory.json", inventory.to_dict())
     return extractor.name, inventory
 
 
@@ -104,12 +134,15 @@ def _extract_one(root: Path, name: str) -> int:
         return 1
     out_dir = root / "output" / name
     try:
-        source_type, inventory = extract_to(project_dir, out_dir)
-    except ValueError as exc:
+        with project_lock(out_dir):
+            source_type, inventory = extract_to(project_dir, out_dir)
+            write_json_atomic(
+                out_dir / "00-manifest.json",
+                _build_manifest(project_dir, name, source_type),
+            )
+    except (ValueError, LockError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
-
-    _write_json(out_dir / "00-manifest.json", _build_manifest(project_dir, name, source_type))
 
     counts = (
         f"ui={len(inventory.ui_interactions)} http={len(inventory.http_calls)} "
@@ -150,6 +183,89 @@ def _cmd_report() -> int:
     output_dir = root / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "_batch-report.md").write_text(build_batch_report(root), encoding="utf-8")
+    return 0
+
+
+def _inputs_fingerprint(inputs: list[dict]) -> str:
+    """Digest único da lista de entradas — é o que amarra a decisão ao extraído."""
+    canonical = json.dumps(inputs, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _cmd_checkpoint(args: argparse.Namespace) -> int:
+    """Checkpoint humano com vínculo de hash: a decisão só vale sobre o que foi extraído.
+
+    Não é autenticação forte — é rastreabilidade determinística (ver ADR-020):
+    a gravação falha se `input/<projeto>/` mudou depois do `extract` ou se
+    ainda não existe classificação para decidir.
+    """
+    root = Path.cwd()
+    name = args.project
+    if not name or not _valid_project_name(name):
+        print(f"nome de projeto inválido: {name}", file=sys.stderr)
+        return 1
+
+    project_dir = root / "input" / name
+    out_dir = root / "output" / name
+    manifest_path = out_dir / "00-manifest.json"
+    if not manifest_path.is_file():
+        print(
+            f"manifesto não encontrado: {manifest_path} — rode `reflow extract {name}` antes.",
+            file=sys.stderr,
+        )
+        return 1
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    try:
+        current_inputs = _current_inputs(project_dir)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if current_inputs != manifest.get("inputs"):
+        print(
+            f"{name}: entradas mudaram desde a extração — rode `reflow extract {name}` "
+            "de novo antes de decidir o checkpoint.",
+            file=sys.stderr,
+        )
+        return 1
+
+    decision = args.decision or "status"
+    checkpoint = manifest.get("checkpoint") or {}
+    if decision == "status":
+        if not checkpoint:
+            print(f"{name}: checkpoint pendente (nenhuma decisão gravada).")
+            return 0
+        label = CHECKPOINT_LABELS.get(checkpoint.get("decision", ""), checkpoint.get("decision"))
+        fingerprint = str(checkpoint.get("inputs_fingerprint", ""))[:12]
+        print(f"{name}: {label} em {checkpoint.get('recorded_at')} (fingerprint {fingerprint}…)")
+        return 0
+
+    classification = out_dir / "03-classification" / "classification.md"
+    if not classification.is_file():
+        print(
+            f"{name}: classificação ausente ({classification}) — o checkpoint exige "
+            "03-classification antes de qualquer decisão.",
+            file=sys.stderr,
+        )
+        return 1
+    verdict = read_verdict(out_dir)
+    if decision == "approved" and verdict == "NOT_PAD":
+        print(f"{name}: veredito NOT_PAD não tem conversão para aprovar.", file=sys.stderr)
+        return 1
+
+    manifest["checkpoint"] = {
+        "classification_sha256": hashlib.sha256(classification.read_bytes()).hexdigest(),
+        "decision": decision,
+        "inputs_fingerprint": _inputs_fingerprint(current_inputs),
+        "recorded_at": datetime.now(UTC).isoformat(),
+    }
+    try:
+        with project_lock(out_dir):
+            write_json_atomic(manifest_path, manifest)
+    except LockError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(f"{name}: checkpoint {CHECKPOINT_LABELS[decision]} gravado em {manifest_path}.")
     return 0
 
 
@@ -194,6 +310,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "extract":
         return _cmd_extract(args)
+
+    if args.command == "checkpoint":
+        return _cmd_checkpoint(args)
 
     if args.command == "report":
         return _cmd_report()

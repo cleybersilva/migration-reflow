@@ -19,7 +19,10 @@ comentário ou string do legado.
 | Agent com poderes demais | Permissões mínimas por agent — `edit` negado por padrão e liberado só na própria subpasta de saída; `bash`/`webfetch`/`websearch`/`external_directory`/`task` sempre negados | `.opencode/agents/*.md` (fonte da verdade), `.claude/agents/*.md` (gerado) | `uv run pytest tests/unit/test_sync_agents.py` |
 | Robin com ação inventada | `robin/lint.py` cruza `notas-conversao.md` (ações usadas) contra a whitelist, exige cabeçalho no `README.md` do flow, e varre o `Main.robin` por segredo/caminho absoluto — nunca interpreta a sintaxe interna do Robin (ver `docs/decisions.md` ADR-012) | `reflow/robin/lint.py`, `reference/robin-actions.md` | `uv run pytest tests/unit/test_lint_robin.py`; `uv run python -m reflow lint-robin <projeto>` |
 | Chave da IAra exposta | Só via variável de ambiente (`{env:IARA_API_KEY}`); `.env`/`*.env` fora do Git; `.env.example` sem valor real; leitura de `.env` negada nas permissões do OpenCode | `.env.example`, `.gitignore`, `opencode.json` | `git check-ignore -v .env`; inspeção visual do `opencode.json` |
-| Rastreabilidade | Todo fato do inventário carrega `arquivo:linha`; cada extração grava hash SHA256 das entradas, versão do reflow e data no manifesto; checkpoint humano fica registrado (hoje sempre `null` até a Fase 5 implementar o checkpoint) | `reflow/cli.py` (`_build_manifest`), `output/<projeto>/00-manifest.json` | `uv run python -m reflow extract --all` e inspeção do manifesto gerado |
+| Rastreabilidade | Todo fato do inventário carrega `arquivo:linha`; cada extração grava hash SHA256 das entradas, versão do reflow e data no manifesto; a decisão humana fica gravada por `reflow checkpoint` (não à mão), amarrada ao fingerprint das entradas usadas na extração | `reflow/cli.py` (`_build_manifest`, `_cmd_checkpoint`), `output/<projeto>/00-manifest.json` | `uv run python -m reflow extract --all`; `uv run python -m reflow checkpoint <projeto> --status` |
+| Manifesto/inventário gravado pela metade (processo morto no meio da escrita) | `fs.write_json_atomic()` grava num temporário do mesmo diretório e troca com `os.replace` (atômico no Windows e no POSIX); se falhar, o arquivo anterior fica íntegro e o temporário é removido | `reflow/fs.py` | `uv run pytest tests/unit/test_fs.py -k atomic` |
+| Dois processos escrevendo o mesmo projeto ao mesmo tempo (`extract` × `checkpoint`, dois terminais) | `fs.project_lock()` trava um arquivo irmão do diretório de saída (`<nome>.lock`) com lock retido pelo SO — processo morto libera sozinho; reentrante no mesmo processo; acima do timeout, `LockError` e nada é escrito | `reflow/fs.py`, `reflow/cli.py` | `uv run pytest tests/unit/test_fs.py` |
+| Aprovação humana registrada sem bater com o que foi extraído | `reflow checkpoint` recalcula o SHA256 de `input/<projeto>/` e recusa a gravação (e o `--status`) se difere do manifesto; exige `03-classification/`; reprova `--approve` com veredito `NOT_PAD`; reextração regrava o manifesto e zera a decisão | `reflow/cli.py` (`_cmd_checkpoint`) | `uv run pytest tests/integration/test_checkpoint.py` |
 | Cadeia de suprimentos | Runtime 100% stdlib (zero dependências de produção); dependências de desenvolvimento (`pytest`, `ruff`) travadas em `uv.lock` | `pyproject.toml`, `uv.lock` | `uv run pytest tests/unit/test_scaffold.py -k runtime_dependencies` |
 
 ### `reflow scan` × `reflow scan --staged`
@@ -43,25 +46,49 @@ padrão cita a própria palavra que detecta). Em qualquer outro arquivo o marcad
 ignorado — não é uma forma livre de esconder um segredo real, nem uma saída isolada de
 LLM (`scan_bytes`, usado pelo `dashboard/`) pode usá-lo para escapar do scan.
 
+### `reflow checkpoint` — a decisão humana com vínculo de hash
+
+```text
+uv run python -m reflow checkpoint <projeto>            # status (padrão)
+uv run python -m reflow checkpoint <projeto> --approve  # grava a aprovação
+uv run python -m reflow checkpoint <projeto> --reject   # grava a rejeição
+```
+
+O comando é a única forma de gravar `00-manifest.json` → `checkpoint` —
+editar o JSON à mão não é mais o caminho esperado. Antes de gravar ele
+**recalcula** o SHA256 de `input/<projeto>/` e compara com `manifest.inputs`;
+se diferir, recusa com código 1 (a decisão não pode valer sobre entradas que
+não foram extraídas). Também exige `03-classification/classification.md`
+(existe decisão a tomar só depois da classificação) e recusa `--approve` com
+veredito `NOT_PAD`. O objeto gravado carrega `decision`, `recorded_at`,
+`inputs_fingerprint` (SHA256 canônico da lista de entradas) e
+`classification_sha256`.
+
+Isso é **rastreabilidade determinística, não autenticação forte**: o
+manifesto JSON não prova *quem* decidiu, só *o que* estava na mão quando a
+decisão foi registrada e se aquilo ainda é o que foi extraído. Quem decide
+continua sendo o analista no checkpoint — o comando só impede que a decisão
+se desamarre do que foi extraído.
+
 ## O que ainda não está pronto
 
-- `checkpoint` no manifesto continua sempre `null` — nenhum código grava a aprovação
-  humana ainda; isso depende de uma sessão real de agent seguindo a skill
-  `reflow-convert`, que ainda não rodou de verdade neste repositório.
+- O comando de checkpoint existe e é testado, mas **nenhuma sessão real do
+  agent `reflow-convert` rodou** seguindo a skill de verdade — a conversão
+  (`a360-browser-rest`, UC-01) foi feita antes do comando existir, com o campo
+  `checkpoint` editado à mão (ver `docs/historico.md`, Fase 10).
 - Nenhuma ação da whitelist foi validada (`[validado PAD: rodou]`) — todas seguem
   `[não validado]` até alguém rodar de verdade no PAD.
 - O lint cruza `notas-conversao.md` contra a whitelist, mas quem escreve esse arquivo
   hoje é o agent `reflow-pad-converter`/`reflow-pad-tester`; sem uma sessão real deles,
   não existe `notas-conversao.md` nenhum para testar fora dos testes automatizados.
-- Fases 1 e 2 resolveram só o que está descrito acima. `reject_unsafe_links` recusa o
-  projeto inteiro quando acha um link — não tenta "podar" só a parte insegura; isso é
-  deliberadamente grosseiro (ver ADR-019). Escrita atômica/lock por projeto e checkpoint
-  vinculado a hash (Fase 3), resiliência de lote e priorização A360/ZIP (Fase 4) seguem
-  como estavam — não tratar como resolvido até as fases seguintes.
+- Fases 1 a 3 de segurança resolveram o que está descrito acima. `reject_unsafe_links`
+  recusa o projeto inteiro quando acha um link — não tenta "podar" só a parte
+  insegura; isso é deliberadamente grosseiro (ver ADR-019). Resiliência de lote e
+  priorização A360/JSON-ZIP (Fase 4) seguem pendentes — não tratar como resolvido.
 - O orçamento de entrada do dashboard (`MAX_INPUT_FILE_COUNT`/`_DEPTH`/`_TOTAL_BYTES`)
   e o teto de conexões SSE (`MAX_SSE_CLIENTS`) existem só no `dashboard/` (teste local
   isolado); `reflow extract`/`reflow extract --all` (CLI real) não têm esse teto — não
-  estava no escopo pedido para esta fase.
+  estava no escopo pedido para estas fases.
 
 Este projeto ainda não deve processar código confidencial real enquanto os itens acima
 não estiverem concluídos.
