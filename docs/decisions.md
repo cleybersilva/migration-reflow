@@ -553,9 +553,20 @@ O diagnóstico de 24/10 apontava que os gates existiam só localmente (hook
 
 - **Matriz com os dois sistemas**: Linux cobre o caminho POSIX do lock
   (`fcntl` em `reflow/fs.py`) e Windows é a plataforma-alvo real (PAD,
-  `msvcrt.locking`, `mklink /J` no teste de junction — que se autoescreve
-  para fora quando o comando não existe). Python 3.12 é o piso declarado em
-  `requires-python`; 3.14 é o que a máquina de desenvolvimento usa.
+  `msvcrt.locking`, junction via `mklink /J`). Os testes de link usam o
+  helper compartilhado `tests/link_support.py` — junction no Windows,
+  **symlink** em POSIX — porque o `cmd /c mklink` embutido em três
+  arquivos faria os testes falharem (não pularem) em Linux. Python 3.12 é
+  o piso declarado em `requires-python`; 3.14 é o que a máquina de
+  desenvolvimento usa.
+- **Action `setup-uv` travada no SHA**: `astral-sh/setup-uv` **não
+  publica tag major** (`refs/tags/v10` não existe; só `v10.x.y`), então
+  `@v10` derruba os jobs no "Set up job" com `Unable to resolve action`.
+  O ref é o SHA exato da v10.3.2 com o comentário da versão ao lado —
+  tag inexistente não pode ser ref, e SHA travado é também a prática segura
+  de supply chain. Antes de usar, os inputs (`python-version`,
+  `enable-cache`, `cache-dependency-glob`) foram conferidos no `action.yml`
+  daquela tag exata.
 - **`scan`, não `scan --staged`**: o `scan_staged()` lê o índice Git
   (`git show :<path>`), que um checkout da CI não tem — rodaria vazio e
   daria falso senso de cobertura. O gate equivalente é o `scan` da working
@@ -574,6 +585,27 @@ O diagnóstico de 24/10 apontava que os gates existiam só localmente (hook
 - **Triggers**: `push` em `main`, `pull_request` e `workflow_dispatch`
   manual. `concurrency` por ref cancelando execução anterior (commit novo
   no PR não precisa das duas rodando).
+
+### A primeira execução real falhou (run 1) e foi corrigida na run 2
+
+Como avisei acima, o workflow só executa de verdade no GitHub — e ele
+falhou na run 1 em 8 segundos. O log (`gh run view --log-failed`) deu a
+causa exata:
+
+```
+##[error]Unable to resolve action `astral-sh/setup-uv@v10`,
+         unable to find version `v10`
+```
+
+Ação corrigida no commit `f712898`, **antes de qualquer análise de
+código**: ref travado no SHA exato da v10.3.2
+(`07a047e608db84b3d8c06cd9a7c7dcc9c355c18e`, tag apontando direto para o
+commit, portanto seguro de fixar) com o comentário da versão ao lado. Os
+inputs usados (`python-version`, `enable-cache`, `cache-dependency-glob`)
+foram conferidos no `action.yml` daquela tag exata, em vez de adivinhar
+de novo.
+
+Run 2 (`40365830911`): **success**, 5/5 jobs — verde desde 26/10/2026.
 
 ### O que a CI **não** é
 

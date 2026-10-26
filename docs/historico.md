@@ -738,27 +738,70 @@ cancelando a execução anterior.
 - **`uv sync --frozen`**: usa o lock como está, sem reescrever; CI nunca
   altera artefato versionado.
 - **Linux na matriz** cobre o caminho POSIX do `fcntl` do `reflow/fs.py`;
-  Windows é o alvo real (PAD, `msvcrt.locking`, `mklink /J` no teste de
-  junction, que se pula sozinho quando o comando não existe).
+  Windows é o alvo real (PAD, `msvcrt.locking`, junction via `mklink /J`).
+  Os testes de link ganharam o helper compartilhado
+  `tests/link_support.py`: junction no Windows, **symlink** em POSIX —
+  antes, o `cmd /c mklink` embutido em três arquivos de teste faria os
+  testes **falharem** (não pulassem) no Linux, porque `cmd` não existe lá.
 
 ### Verificação
 
 - YAML validado com `pyyaml` (carga efêmera via `uv run --with pyyaml`, sem
   tocar no projeto/lock): `on` com `push`/`pull_request`/`workflow_dispatch`,
   jobs `checks` e `frontend`, matriz 2×2, 8 + 3 steps.
-- Todos os comandos da CI foram executados localmente antes de commitar:
-  `uv sync --frozen` → ok; `ruff check`/`format --check` → ok; `pytest` →
-  **199 passed**; `reflow scan` e `reflow lint-robin --all` → ok;
-  `node --test tests/frontend/dashboard.test.cjs` (Node v24.15.0) → **3/3**.
+- Todos os comandos da CI foram executados localmente antes do primeiro
+  commit: `uv sync --frozen` → ok; `ruff check`/`format --check` → ok;
+  `pytest` → **199 passed**; `reflow scan` e `reflow lint-robin --all` →
+  ok; `node --test tests/frontend/dashboard.test.cjs` (Node v24.15.0) →
+  **3/3**.
 - Badge de CI adicionada no topo do README, apontando para o workflow.
+
+### A primeira execução real falhou — e foi corrigida (run 1 → run 2)
+
+Como eu mesmo avisei antes de empurrar, o workflow só roda de verdade no
+GitHub. Ele falhou na **run 1** em 8 segundos, e o diagnóstico saiu do log:
+
+```
+##[error]Unable to resolve action `astral-sh/setup-uv@v10`,
+         unable to find version `v10`
+```
+
+A action **não publica tag major** — só releases `v10.x.y`, sem `refs/tags/v10`.
+Os 4 jobs de `checks` morreram no step 1 (o job `frontend` passou, porque
+`checkout@v7`/`setup-node@v7` existem). Correção (commit `f712898`):
+
+1. `astral-sh/setup-uv` travado no **SHA exato** da v10.3.2
+   (`07a047e608db84b3d8c06cd9a7c7dcc9c355c18e`) com o comentário da versão
+   ao lado — tag major inexistente não pode ser o ref, e SHA travado é
+   também a prática segura de supply chain.
+2. Antes de re-empurrar, conferi no `action.yml` daquela tag exata que os
+   inputs usados (`python-version`, `enable-cache`, `cache-dependency-glob`)
+   existem de fato — em vez de adivinhar de novo.
+3. Refactor dos três arquivos que criavam junction com `cmd /c mklink`
+   embutido (`test_security_paths.py`, `test_dashboard_pipeline.py`,
+   `test_cli_end_to_end.py`) para `tests/link_support.py`, que usa symlink
+   em POSIX. Sem isso, os jobs de Linux teriam **falhado** logo depois — a
+   matriz cumpriu o papel de pegar isso, mesmo que só na segunda rodada.
+
+**Run 2** (`40365830911`) — `success`, 5/5 jobs:
+
+| Job | Resultado | Duração |
+| --- | --- | --- |
+| checks (windows-latest, py3.14) | ✅ | 39 s |
+| checks (windows-latest, py3.12) | ✅ | 33 s |
+| checks (ubuntu-latest, py3.14) | ✅ | 20 s |
+| checks (ubuntu-latest, py3.12) | ✅ | 19 s |
+| frontend (dashboard) | ✅ | 7 s |
 
 ### O que esta fase não fez (honestidade)
 
-- **O workflow não rodou de verdade ainda** — ele só executa depois do
-  push para o GitHub. A verificação aqui foi a dos comandos, um a um, na
-  máquina local (Windows, Python 3.14, Node 24) e a validação de sintaxe
-  do YAML. Se algo falhar na primeira execução real, é isso que se
-  corrige.
+- **A CI pode ficar vermelha por um flake conhecido do dashboard** — não é
+  desta fase, é pré-existente: `test_dashboard.py::test_invalid_origin_...`
+  caiu 3 vezes em execuções locais de suíte completa com
+  `ConnectionAbortedError` no primeiro request (passa sempre isolado, 9/9).
+  Está registrado desde a Fase 14; com CI rodando a cada push, a exposição
+  aumentou e **merece investigação própria** — provavelmente o handler do
+  servidor fechando o socket no caminho do 403.
 - CI verde **não** significa nada validado no PAD: a whitelist segue 100%
   `[não validado]`, e a CI não executa legado, não chama LLM e não tem
   segredo algum — só os gates determinísticos.

@@ -90,9 +90,11 @@ se desamarre do que foi extraído.
   fases: o deadline de leitura do `POST` no dashboard.
 - A CI versionada (`.github/workflows/ci.yml`) roda os **mesmos** gates do hook
   local — `pytest`, `ruff`, `reflow scan` (working tree) e `lint-robin` — em
-  Linux e Windows, Python 3.12 e 3.14. O `scan --staged` continua sendo gate
-  local do pre-commit: depende do índice do Git, que um checkout da CI não tem.
-  CI verde **não** significa que nada foi validado no PAD.
+  Linux e Windows, Python 3.12 e 3.14. Verde verificado em todas as 5 jobs em
+  26/10/2026 (run 2 do workflow); a run 1 falhou e foi corrigida (ver ADR-022).
+  O `scan --staged` continua sendo gate local do pre-commit: depende do índice
+  do Git, que um checkout da CI não tem. CI verde **não** significa que nada
+  foi validado no PAD.
 - O orçamento do `dashboard/` (500 arquivos / 12 níveis / 20 MB) segue
   **mais apertado** que o da CLI real (`reflow/limits.py`: 5000 / 30 níveis /
   64 MB por arquivo / 512 MB) de propósito: é um smoke test local, não a
