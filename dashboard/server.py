@@ -37,6 +37,19 @@ STEPS = (
 # do corpo de requisições rejeitadas (Handler._drain_body).
 MAX_BODY_BYTES = 4096
 
+# Prazo de leitura de uma requisição inteira: linha, cabeçalhos e corpo. Sem
+# ele o socket fica bloqueante para sempre e qualquer conexão que mande só os
+# cabeçalhos e trave o corpo prende a thread do handler até o processo morrer
+# (ver ADR-024). O `StreamRequestHandler.setup()` do stdlib aplica este valor
+# ao socket, e o `handle_one_request()` já captura o `TimeoutError` fechando a
+# conexão sem traceback. 10 s é o mesmo prazo que o SSE já usava, e é folga
+# de ordens de magnitude sobre qualquer requisição legítima em loopback.
+READ_TIMEOUT_SECONDS = 10.0
+
+# Descarte de corpo de requisição rejeitada: curto de propósito, é só tirar o
+# que está no caminho antes de responder, não esperar quem nunca vai mandar.
+DRAIN_TIMEOUT_SECONDS = 1.0
+
 
 class Dashboard:
     # Teste local de um usuário só: uma aba normal mantém 1 SSE (2 durante um
@@ -186,6 +199,12 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
+    # Prazo de leitura por requisição (linha, cabeçalhos e corpo). É o hook
+    # nativo do `StreamRequestHandler.setup()`, que aplica ao socket — e o
+    # `handle_one_request()` do stdlib já trata o `TimeoutError` fechando a
+    # conexão sem traceback. Ver ADR-024.
+    timeout = READ_TIMEOUT_SECONDS
+
     def log_message(self, format, *args):  # noqa: A002
         return
 
@@ -247,8 +266,9 @@ class Handler(BaseHTTPRequestHandler):
         if declared > MAX_BODY_BYTES:
             self.close_connection = True
         remaining = min(declared, MAX_BODY_BYTES)
+        previous = self.connection.gettimeout()
         try:
-            self.connection.settimeout(1.0)
+            self.connection.settimeout(DRAIN_TIMEOUT_SECONDS)
             while remaining > 0:
                 chunk = self.rfile.read1(remaining)
                 if not chunk:
@@ -258,7 +278,10 @@ class Handler(BaseHTTPRequestHandler):
         except (TimeoutError, OSError):
             self.close_connection = True
         finally:
-            self.connection.settimeout(None)
+            # Devolve o prazo que a requisição já tinha, nunca `None`: sem
+            # isso o descarte anularia o deadline da requisição (ADR-024) e
+            # deixaria o resto da leitura bloqueante de novo.
+            self.connection.settimeout(previous)
 
     def do_GET(self) -> None:  # noqa: N802
         if not self._valid_host():
@@ -339,6 +362,17 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.ACCEPTED, {"message": "Cancelamento solicitado."})
             else:
                 self._json(HTTPStatus.NOT_FOUND, {"error": "Rota não encontrada."})
+        except TimeoutError:
+            # Corpo que nunca chegou dentro do prazo (ADR-024). Tem que vir
+            # antes do `except (ValueError, OSError)`, que engoliria o
+            # timeout e responderia um "400 corpo inválido" mentindo sobre o
+            # que aconteceu. O descarte responde à parte: sem ele, fechar com
+            # o corpo parcial no buffer vira RST e o 408 nunca chega (ADR-023).
+            self.close_connection = True
+            self._drain_body()
+            self._json(
+                HTTPStatus.REQUEST_TIMEOUT, {"error": "Corpo não recebido no prazo; tente de novo."}
+            )
         except (ValueError, OSError):
             self._json(HTTPStatus.BAD_REQUEST, {"error": "Seleção ou corpo inválido."})
 
@@ -356,7 +390,9 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         try:
-            self.connection.settimeout(10)
+            # Mesmo prazo da requisição: um cliente SSE que para de ler não
+            # pode prender a thread do handler no write para sempre.
+            self.connection.settimeout(READ_TIMEOUT_SECONDS)
             self._headers(HTTPStatus.OK, "text/event-stream; charset=utf-8")
             try:
                 cursor = int(self.headers.get("Last-Event-ID", "0"))

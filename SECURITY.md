@@ -86,8 +86,10 @@ se desamarre do que foi extraído.
   não existe `notas-conversao.md` nenhum para testar fora dos testes automatizados.
 - Fases 1 a 4 de segurança estão aplicadas. `reject_unsafe_links` recusa o
   projeto inteiro quando acha um link — não tenta "podar" só a parte insegura; isso é
-  deliberadamente grosseiro (ver ADR-019). Segue aberto e **fora** destas quatro
-  fases: o deadline de leitura do `POST` no dashboard.
+  deliberadamente grosseiro (ver ADR-019). O deadline de leitura do `POST` no
+  dashboard, que ficou aberto destas quatro fases, foi fechado depois (ver
+  ADR-024): toda requisição tem 10 s para linha, cabeçalhos e corpo, e um corpo
+  que nunca chega vira 408 em vez de prender a thread do handler.
 - A CI versionada (`.github/workflows/ci.yml`) roda os **mesmos** gates do hook
   local — `pytest`, `ruff`, `reflow scan` (working tree) e `lint-robin` — em
   Linux e Windows, Python 3.12 e 3.14. Verde verificado em todas as 5 jobs em

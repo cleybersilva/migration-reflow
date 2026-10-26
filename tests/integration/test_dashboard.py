@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from dashboard.server import STEPS, Dashboard, Handler, create_server
+from dashboard.server import READ_TIMEOUT_SECONDS, STEPS, Dashboard, Handler, create_server
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -386,6 +386,103 @@ def test_rejected_post_is_answered_and_closed_with_fin_not_rst(tmp_path):
             "O corpo do 403 tem que chegar inteiro, não só o status.",
         )
         require(app.snapshot()["run_id"] is None, "Rejeição nunca inicia um teste.")
+
+
+def test_post_body_that_never_arrives_gets_408_not_a_hung_thread(tmp_path, monkeypatch):
+    """Regressão de ADR-024: corpo que nunca chega não pode prender a thread.
+
+    `Content-Length: 32` com a linha de requisição e os cabeçalhos enviados e
+    **nenhum byte de corpo**: sem prazo de leitura, o `self.rfile.read(length)`
+    do `do_POST` ficaria bloqueando para sempre e a thread do handler morreria
+    presa na conexão — cada conexão dessas vaza uma thread, até derrubar o
+    dashboard. Com o prazo, o handler responde 408 e **fecha a conexão** (recv
+    devolvendo `b""`): fechar é o que prova que a thread foi liberada, já que
+    o `ThreadingHTTPServer` atende conexão seguinte em thread nova mesmo com a
+    antiga ainda presa.
+
+    Medido com o `server.py` anterior, o prazo já podia existir no socket e o
+    teste ainda falhava: o `TimeoutError` caía no `except (ValueError, OSError)`
+    do `do_POST`, que respondia **400 "Seleção ou corpo inválido"** mentindo
+    sobre o que houve. Fixa-se aqui o 408 e a drenagem que evita o RST.
+
+    O prazo é encurtado por aqui só para o teste não esperar 10 s; o mecanismo
+    é o mesmo.
+    """
+    monkeypatch.setattr(Handler, "timeout", 0.3)
+    with running_server(tmp_path) as (server, app, _):
+        connection = socket.create_connection(("127.0.0.1", server.server_port), timeout=5)
+        try:
+            connection.sendall(
+                b"POST /api/run HTTP/1.1\r\n"
+                b"Host: 127.0.0.1:" + str(server.server_port).encode() + b"\r\n"
+                b"Content-Type: application/json\r\n"
+                b"X-Reflow-Token: " + app.csrf.encode() + b"\r\n"
+                b"Content-Length: 32\r\n"
+                b"Connection: close\r\n"
+                b"\r\n"
+            )
+            received = b""
+            try:
+                while True:
+                    chunk = connection.recv(4096)
+                    if not chunk:
+                        break
+                    received += chunk
+            except ConnectionResetError:
+                pytest.fail(
+                    "RST antes do 408: o handler fechou com o corpo parcial "
+                    "no buffer em vez de drenar e responder."
+                )
+        finally:
+            connection.close()
+        require(
+            received.split(b"\r\n", 1)[0].endswith(b" 408 Request Timeout"),
+            f"Corpo que nunca chega tem que virar 408; veio: {received[:60]!r}.",
+        )
+        require(
+            b"recebido no prazo" in received,
+            f"O 408 tem que explicar o que houve; veio: {received[:200]!r}.",
+        )
+        require(
+            request(server, "/api/status")[0] == 200,
+            "O servidor tem que continuar de pé depois de perder uma conexão travada.",
+        )
+        require(app.snapshot()["run_id"] is None, "Corpo incompleto nunca inicia um teste.")
+
+
+def test_idle_connection_is_dropped_by_the_read_deadline(tmp_path, monkeypatch):
+    """Conexão que nem manda a linha de requisição tem que morrer sozinha.
+
+    O outro lado do mesmo prazo do ADR-024: um cliente que conecta e nunca
+    escreve nada bloquearia o `self.rfile.readline()` do `handle_one_request`
+    para sempre. O stdlib já trata esse `TimeoutError` fechando a conexão sem
+    traceback — falta só existir prazo.
+
+    Por isso o `require` vem **antes** do `monkeypatch`: encurtar o prazo aqui
+    criaria o próprio atributo `timeout` que o stdlib lê, e o teste passaria
+    mesmo sem o fix (foi o que aconteceu na primeira versão). Fixa-se que o
+    prazo está ligado de fábrica, e só depois se encurta o socket para não
+    esperar 10 s. O `recv` client-side devolve `b""` (FIN); se o servidor nunca
+    fechar, o timeout do teste derruba o assert em vez de pendurar a suíte.
+    """
+    require(
+        Handler.timeout == READ_TIMEOUT_SECONDS and READ_TIMEOUT_SECONDS > 0,
+        f"O prazo tem que estar ligado de fábrica no Handler; veio {Handler.timeout}.",
+    )
+    monkeypatch.setattr(Handler, "timeout", 0.3)
+    with running_server(tmp_path) as (server, app, _):
+        connection = socket.create_connection(("127.0.0.1", server.server_port), timeout=5)
+        try:
+            require(
+                connection.recv(4096) == b"",
+                "Conexão ociosa tem que ser fechada pelo prazo, sem resposta alguma.",
+            )
+        finally:
+            connection.close()
+        require(
+            request(server, "/api/status")[0] == 200,
+            "O servidor tem que continuar de pé depois de descartar conexão ociosa.",
+        )
 
 
 def test_cancel_only_targets_the_current_run(tmp_path):

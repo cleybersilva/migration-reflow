@@ -668,7 +668,7 @@ token/origin/host e corpo inválido.
 - **Teto e timeout são obrigatorios**: um `Content-Length` mentiroso não pode
   prender a thread do handler. Isso **não** resolve a pendência do `POST` sem
   deadline de leitura (ADR-021) — só evita repetir, nesta leitura nova, a
-  mesma fraqueza.
+  mesma fraqueza. *Fechada depois no ADR-024.*
 - **Corpo acima do teto**: sobra byte no socket mesmo depois do descarte, então
   a conexão é marcada `close_connection = True` — nunca reutilizar. Só atinge
   quem já mentiu no tamanho.
@@ -688,4 +688,97 @@ corpo junto continua cobrindo o caminho normal.
 
 Não se mexeu no `Content-Length` mentiroso além do teto, não se adicionou
 keep-alive ao dashboard e não se alterou o deadline de leitura do `POST`
-(ADR-021 segue aberto).
+(ADR-021 segue aberto) — os três passaram a ser endereçados depois: o prazo
+fechou no ADR-024.
+
+## ADR-024: prazo de leitura por requisição no dashboard, usando o hook do stdlib
+
+A pendência mais antiga da lista de segurança (aberta desde o ADR-021, Fase 4)
+era o `POST` sem deadline de leitura: `dashboard/server.py` fazia
+`self.rfile.read(length)` num socket **bloqueante por padrão**. Um cliente que
+mandasse os cabeçalhos com `Content-Length` e nunca mandasse o corpo prendia a
+thread do handler para sempre. Como o servidor é um `ThreadingHTTPServer`, cada
+conexão dessas vaza uma thread — não trava o dashboard na hora, mas o esgota.
+
+O mesmo valia para quem conectava e nem mandava a linha de requisição: o
+`self.rfile.readline()` do `handle_one_request` também bloqueava sem prazo.
+
+### Por que um atributo de classe e não um `settimeout` manual
+
+A investigação mostrou que **o stdlib já tem os dois lados do mecanismo** e que
+só faltava ligá-los:
+
+- `socketserver.StreamRequestHandler.setup()` aplica `self.timeout` ao socket
+  quando ele não é `None`. `BaseHTTPRequestHandler` herda `timeout = None`,
+  ou seja: sem prazo, sempre — é exatamente a lacuna.
+- `BaseHTTPRequestHandler.handle_one_request()` já captura `TimeoutError`,
+  marca `close_connection` e devolve sem traceback. Não há nada a inventar do
+  lado do erro.
+
+Então a peça que faltava é uma linha de classe, não uma implementação própria:
+`Handler.timeout = READ_TIMEOUT_SECONDS` (10 s). Ela cobre de uma vez a linha
+de requisição, os cabeçalhos e o corpo, porque os três leem do mesmo socket.
+10 s é o mesmo número que o código do SSE já usava, e folga de ordens de
+grandeza sobre qualquer requisição legítima em loopback.
+
+### O ramo `except TimeoutError` do `do_POST`
+
+Com prazo no socket, um corpo que nunca chega levanta `TimeoutError` lá dentro
+— e `TimeoutError` é subclasse de `OSError`, então cairia no
+`except (ValueError, OSError)` que respondia **400 "Seleção ou corpo
+inválido"**, mentindo sobre o que aconteceu. Verificado: com o `server.py`
+anterior e um prazo artificialmente curto, o teste novo recebia
+`HTTP/1.0 400 Bad Request`, não um travamento.
+
+O ramo novo vem **antes** do genérico e responde **408 Request Timeout**. Antes
+de escrever, ele drena o corpo (`_drain_body`): fechar com o corpo parcial no
+buffer de recepção faz o Winsock responder RST, que destrói a resposta que está
+a caminho — é a mesma falha medida no ADR-023, aqui em outro caminho. O custo é
+até 1 s extra de thread num cliente já morto, o que é irrelevante perto dos 10 s
+que ele já gastou.
+
+### O bug que a Fase 18 introduziu e só apareceu agora
+
+O `_drain_body` da Fase 18 terminava com `self.connection.settimeout(None)`
+no `finally`. Isso era inofensivo quando nenhum outro prazo existia, mas com
+este ADR passa a ser o oposto do objetivo: `None` é **socket bloqueante sem
+deadline**, então o descarte anularia o prazo da requisição no meio do caminho
+e deixaria a leitura seguinte exatamente como ADR-021 descrevia. Corrigido para
+devolver o valor que `gettimeout()` devolveu antes — nunca `None`.
+
+O `_drain_body` também ganhou constante própria (`DRAIN_TIMEOUT_SECONDS`,
+igual ao 1 s de antes) e o `settimeout(10)` literal do SSE passou a referenciar
+`READ_TIMEOUT_SECONDS`, para não existirem dois "10" soltos.
+
+### Cobertura
+
+Quatro testes novos, todos verificados **falhando sem o fix**:
+
+- `test_post_body_that_never_arrives_gets_408_not_a_hung_thread`: socket bruto
+  manda linha, cabeçalhos e token válidos, `Content-Length: 32` e nenhum byte
+  de corpo. Sem o ramo novo: 400 (medi). Com ele: 408 e `recv` devolvendo
+  `b""` — fechar é o que prova que a thread foi liberada, já que o
+  `ThreadingHTTPServer` atende a conexão seguinte em thread nova mesmo com a
+  antiga presa.
+- `test_idle_connection_is_dropped_by_the_read_deadline`: conexão que não manda
+  nada é fechada pelo prazo. O `require` do `Handler.timeout` vem **antes**
+  do `monkeypatch`, de propósito: a primeira versão encurtava o prazo primeiro,
+  e isso criava o próprio atributo que o stdlib lê — o teste passava sem o fix.
+  Medido e corrigido; agora ele falha com `veio None`.
+- `test_handler_carries_a_read_deadline_on_every_request` e
+  `test_drain_restores_the_deadline_it_found_not_none` (mais as demais do
+  descarte, atualizadas): fixam o valor de fábrica e a restauração do prazo,
+  sem rede.
+
+`pytest` → **211 passed** (eram 207). `ruff check`/`format --check`,
+`reflow scan`, `reflow lint-robin --all` e `node --test` → ok.
+
+### O que não se fez
+
+- **Não se escolheu o prazo por medição**: 10 s é o número que o SSE já usava,
+  folgado para loopback, não um valor calibrado. Se um dia o dashboard precisar
+  de upload de arquivo grande, isso muda.
+- O 408 drena antes de responder, e drenar um cliente morto custa 1 s extra. É
+  deliberado: a alternativa é perder a resposta no RST.
+- Continua valendo tudo o que depende de execução real no PAD — este ADR não
+  toca em Robin.

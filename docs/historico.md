@@ -807,6 +807,7 @@ Os 4 jobs de `checks` morreram no step 1 (o job `frontend` passou, porque
 - A suíte roda em Linux, mas o alvo de migração é Windows; a CI cobre
   comportamento do Python, não do Power Automate.
 - Continua aberto o deadline de leitura do `POST` no dashboard.
+  *Resolvido na Fase 19 (ADR-024).*
 
 ## Fase 18 — Corrigido o flake do dashboard: rejeição de POST respondia com RST
 
@@ -868,3 +869,70 @@ Com o fix: FIN 40/40 em todos os atrasos; 400 POSTs sob 22 threads de carga e
   que o dashboard aceita hoje, não em carga real de navegador.
 - **A pendência do `POST` sem deadline de leitura (ADR-021) segue aberta**:
   o descarte novo só cobre o caminho de rejeição e não resolve o caso geral.
+  *Resolvida na Fase 19 (ADR-024): toda requisição passou a ter prazo.*
+
+## Fase 19 — Prazo de leitura por requisição no dashboard (fecha a pendência do ADR-021)
+
+Fechei a última pendência de segurança que eu mesmo tinha registrado: o `POST`
+sem deadline de leitura, aberto desde o ADR-021 (Fase 4) e repetido nas listas
+da Fase 17 e da Fase 18. Documentado no ADR-024 em
+[`docs/decisions.md`](decisions.md).
+
+### O que estava aberto
+
+`dashboard/server.py` fazia `self.rfile.read(length)` num socket **bloqueante
+por padrão**. Um cliente que mandasse os cabeçalhos com `Content-Length` e nunca
+mandasse o corpo prendia a thread do handler para sempre — e como o servidor é
+`ThreadingHTTPServer`, cada conexão dessas vaza uma thread. O mesmo valia para
+quem conectava e nem mandava a linha de requisição: o `readline()` do
+`handle_one_request` também bloqueava sem prazo.
+
+### A peça que faltava
+
+Investiguei o stdlib antes de implementar, e os dois lados do mecanismo já
+existiam: `StreamRequestHandler.setup()` aplica `self.timeout` ao socket quando
+ele não é `None`, e `handle_one_request()` já captura `TimeoutError` fechando a
+conexão sem traceback. `BaseHTTPRequestHandler` herda `timeout = None` — ou
+seja, sem prazo, sempre. A correção é uma linha de classe
+(`Handler.timeout = READ_TIMEOUT_SECONDS`, 10 s), não uma implementação própria.
+
+### O que mudou
+
+- `dashboard/server.py`: `Handler.timeout` ligado (10 s, cobrindo linha,
+  cabeçalhos e corpo); `do_POST` ganhou ramo `except TimeoutError` **antes** do
+  `except (ValueError, OSError)`, respondendo 408 e drenando o corpo antes; o
+  `_drain_body` passou a devolver o prazo que encontrou em vez de
+  `settimeout(None)`; constantes `READ_TIMEOUT_SECONDS` e
+  `DRAIN_TIMEOUT_SECONDS`, com o literal `10` do SSE apontando para a primeira.
+- `tests/unit/test_dashboard_server.py`: teste novo do valor de fábrica e teste
+  novo de restauração do prazo; asserções do descarte atualizadas para o prazo
+  devolvido (não `None`).
+- `tests/integration/test_dashboard.py`: +2 testes de socket bruto — corpo que
+  nunca chega e conexão ociosa.
+- `SECURITY.md`: a pendência saiu da lista do "que ainda não está pronto".
+
+### Verificação
+
+`ruff check`/`format --check` → ok; `pytest` → **211 passed** (eram 207);
+`reflow scan`, `reflow lint-robin --all` → ok; `node --test` frontend → 3/3.
+
+Cada teste novo foi conferido **falhando sem o fix**, e um deles falhou pela
+razão errada na primeira versão — vale registrar:
+
+- O teste de corpo que nunca chega, com o `server.py` anterior, recebia
+  `400 Bad Request` em vez de travar: com um prazo artificial no socket, o
+  `TimeoutError` caía no `except (ValueError, OSError)` e virava "corpo
+  inválido". É a mentira que o ramo novo corrige.
+- O teste de conexão ociosa **passava sem o fix**, e eu peguei isso conferindo:
+  ele encurtava o prazo via `monkeypatch`, e isso criava o próprio atributo
+  `timeout` que o stdlib lê — o teste entregava de bandeja a proteção que
+  deveria provar. Movido o `require` do `Handler.timeout` para **antes** do
+  `monkeypatch`, ele agora falha com `veio None` quando o prazo não está ligado.
+
+### O que esta fase não fez (honestidade)
+
+- O prazo de 10 s não foi calibrado por medição: é o número que o SSE já usava,
+  folgado para loopback. Não é o resultado de carga real.
+- Drenar antes do 408 custa até 1 s extra de thread num cliente que já gastou
+  10 s. Decisão deliberada — a alternativa é perder a resposta no RST (ADR-023).
+- Nada disto toca Robin: as ações seguem 100% `[não validado]`.
