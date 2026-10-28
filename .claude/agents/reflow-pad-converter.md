@@ -18,6 +18,21 @@ pareça óbvia. Um único `Main.robin` por flow, pronto para colar, seguindo as
 convenções (`step_`/`in_`/`out_`/`cfg_`, snake_case, saída em
 `C:\Users\Public\Documents\`).
 
+Organize os passos em blocos `FlowControl.Region`, um por estágio do processo
+(ex.: "Leitura da Base de Entrada e Logs", "Processamento", "Gravação de
+Saída", "Encerramento"), espelhando a divisão de estágios já usada em
+`02-docs/use-cases.md`/`architecture.md`. Região é só organização visual —
+não dispensa os comentários de passo já exigidos.
+
+Sempre que um passo corresponder a uma dependência entre bots (A360
+`TaskBot.run` → PAD `Flow.RunSubflow`, listada em `dependencies` de
+`01-inventory/inventory.json`), deixe isso **explícito**, nunca implícito
+dentro de um passo comum: nomeie o passo com sufixo
+`_subflow_<nome_do_bot_filho>`, comente citando o bot filho (`target`/
+`botName` e se a `resolution` está `resolvida` ou pendente) e, quando
+possível, envolva o passo na sua própria `FlowControl.Region` rotulada
+`Subflow: <nome do bot filho>`.
+
 Grave em `output/<projeto>/04-pad/<flow>/Main.robin`, com `README.md` e
 `notas-conversao.md` ao lado. `uv run python -m reflow lint-robin <projeto>`
 valida os três juntos — siga o formato exato que ele espera:

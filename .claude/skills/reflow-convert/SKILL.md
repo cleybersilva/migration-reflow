@@ -44,7 +44,11 @@ Depois do checkpoint aprovado, chama o agent **reflow-pad-converter** (criado
 na Fase 6 — se ainda não existir, avise em vez de simular) para gerar
 `output/<projeto>/04-pad/<flow>/Main.robin` **só com ações da whitelist**.
 Ação fora da whitelist vira `TODO reflow` no lugar do snippet — nunca invente
-sintaxe Robin. Ao final, roda `uv run python -m reflow lint-robin <projeto>`.
+sintaxe Robin. Os passos são organizados em `FlowControl.Region` por estágio
+do processo, e toda chamada a outro Task Bot/subflow (A360 `TaskBot.run` →
+PAD `Flow.RunSubflow`) é marcada de forma explícita — ver
+`reference/robin-conventions.md`. Ao final, roda
+`uv run python -m reflow lint-robin <projeto>`.
 
 ## Agent chamado
 

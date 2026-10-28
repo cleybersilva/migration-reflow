@@ -220,10 +220,40 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
 ### `Flow.RunSubflow`
 - Módulo: Subflows
 - Quando usar: acionar outro flow/subflow (equivalente ao A360 `TaskBot.run`).
+  Todo uso tem que deixar explícito no `Main.robin` que o passo sai do fluxo
+  principal para rodar outro bot: nome do passo com sufixo
+  `_subflow_<nome_do_bot_filho>`, comentário citando o bot filho (campo
+  `target`/`botName` da entrada correspondente em `dependencies` de
+  `01-inventory/inventory.json`, e se a `resolution` está `resolvida` ou
+  pendente) e, quando possível, o passo envolvido na sua própria
+  `FlowControl.Region` rotulada `Subflow: <nome do bot filho>` — nunca deixar
+  a chamada implícita dentro de um passo comum. Ver convenção completa em
+  [`robin-conventions.md`](robin-conventions.md).
 - Status: [não validado]
 
 ```robin
 [não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+```
+
+## Flow Control
+
+> Também não é um dos nove módulos originais; ação de controle de fluxo do
+> designer do Power Automate Desktop, sem efeito de execução — só organiza
+> visualmente os passos.
+
+### `FlowControl.Region`
+- Módulo: FlowControl
+- Quando usar: agrupar, dentro de uma "Região", os passos do mesmo estágio do
+  processo (ex.: "Leitura da Base de Entrada e Logs", "Processamento",
+  "Gravação de Saída", "Encerramento"). Rótulo da Região = nome do estágio,
+  seguindo a mesma divisão usada em `02-docs/use-cases.md`/`architecture.md`.
+  Não substitui os comentários `step_`/`in_`/`out_`/`cfg_` já exigidos pelas
+  convenções — é só a moldura visual em torno deles. Use também para destacar
+  uma chamada de subflow (ver `Flow.RunSubflow` acima).
+- Status: [não validado]
+
+```robin
+[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (abertura e fechamento da Região)]
 ```
 
 ## Como promover uma ação para `[validado PAD: rodou]`

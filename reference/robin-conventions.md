@@ -6,6 +6,19 @@
 - Documentação do flow deve incluir seção “Teste” e evidências `arquivo:linha`.
 - Nunca inventar sintaxe. Usar somente a whitelist de `robin-actions.md`.
 - Sem validação real no PAD, marcar `[não validado]`; pendências são TODO reflow.
+- Separar os passos do mesmo estágio do processo com `FlowControl.Region`
+  (ação de controle de fluxo do Power Automate Desktop) — um bloco por
+  estágio (ex.: "Leitura da Base de Entrada e Logs", "Processamento",
+  "Gravação de Saída", "Encerramento"), com rótulo igual ao nome do estágio
+  usado em `02-docs/use-cases.md`/`architecture.md`. Região organiza
+  visualmente; não troca nem reduz os comentários `step_`/`in_`/`out_`/`cfg_`
+  já exigidos.
+- Chamada a outro Task Bot/subflow (A360 `TaskBot.run` → PAD
+  `Flow.RunSubflow`) nunca fica implícita dentro de um passo comum: nome do
+  passo com sufixo `_subflow_<nome_do_bot_filho>`, comentário citando o bot
+  filho (campo `target`/`botName` de `dependencies` em
+  `01-inventory/inventory.json`) e, quando possível, Região própria rotulada
+  `Subflow: <nome do bot filho>` para separar visualmente do fluxo principal.
 
 Whitelist completa: [`robin-actions.md`](robin-actions.md). Tabela verdade A360 → PAD:
 [`a360-to-pad.md`](a360-to-pad.md). Critérios de classificação PAD/PARTIAL/NOT_PAD:
