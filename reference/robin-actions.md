@@ -228,10 +228,13 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
   pendente) e, quando possível, o passo envolvido na sua própria
   `FlowControl.Region` rotulada `Subflow: <nome do bot filho>` — nunca deixar
   a chamada implícita dentro de um passo comum. Ver convenção completa em
-  [`robin-conventions.md`](robin-conventions.md). Caso análogo, mas para um
-  padrão de passos que se repete **entre processos diferentes** (sem chamada
-  explícita no legado): ver catálogo e sinalização próprios em
-  [`subfluxos-comuns.md`](subfluxos-comuns.md).
+  [`robin-conventions.md`](robin-conventions.md). Se o bot filho bater com
+  um nome da tabela "Subflows padrão já existentes no PAD" em
+  [`subfluxos-comuns.md`](subfluxos-comuns.md), seguir a regra extra de lá
+  (reaproveitar se ativo; `TODO reflow` citando o substituto se
+  descontinuado). Caso análogo, mas para um padrão de passos que se repete
+  **entre processos diferentes** (sem chamada explícita no legado): ver
+  catálogo próprio, também em [`subfluxos-comuns.md`](subfluxos-comuns.md).
 - Status: [não validado]
 
 ```robin

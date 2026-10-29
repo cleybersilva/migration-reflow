@@ -34,6 +34,13 @@ Verifique, nesta ordem:
    "candidato a novo subfluxo comum" citado em `notas-conversao.md` não tem
    evidência `projeto:arquivo:linha` real — ou, ao contrário, parece uma
    entrada `catalogado` sinalizada sem a marcação exigida?
+6. **Subflow padrão do PAD por nome de bot** (tabela em
+   `reference/subfluxos-comuns.md`): toda dependência cujo `target`/
+   `botName` bate com um nome **ativo** dessa tabela recebeu a observação
+   extra de "subflow padrão já disponível, reaproveitar"? Toda dependência
+   que bate com um nome **descontinuado** (hoje: `Log_Splunk`) virou `TODO
+   reflow` citando o substituto, em vez de apontar para o nome antigo como
+   se ainda fosse válido?
 
 Grave **somente** `output/<projeto>/04-pad/<flow>/review.md` — nunca edite
 `Main.robin`, `README.md` ou `notas-conversao.md`; quem corrige é o

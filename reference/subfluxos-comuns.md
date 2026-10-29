@@ -12,7 +12,11 @@ registrada em `dependencies` do inventário). Este catálogo cobre o caso
 oposto — uma **sequência de ações equivalentes que reaparece em projetos
 diferentes**, sem que o legado tenha chamado nada explicitamente; a
 repetição só fica visível depois de comparar mais de um projeto já
-convertido.
+convertido. Este arquivo também traz, numa seção separada ao final, uma
+lista de **nomes de bot/subflow já padronizados na organização e chamados
+diretamente pelo legado** — mecanismo e fonte de evidência diferentes, ver
+["Subflows padrão já existentes no PAD"](#subflows-padrao-ja-existentes-no-pad-chamados-pelo-nome-do-bot-filho)
+abaixo.
 
 ## Regra para o `reflow-pad-converter`
 
@@ -111,3 +115,54 @@ evidência `projeto:arquivo:linha` real, não uma suposição.
 4. Nunca remover ou reduzir a evidência de uma entrada já `catalogado` sem
    revisão humana (mesma regra de `a360-to-pad.md`, ver
    [`AGENTS.md`](../AGENTS.md)).
+
+## Subflows padrão já existentes no PAD (chamados pelo nome do bot filho)
+
+Lista diferente do catálogo acima: não é um padrão de ação detectado por
+repetição entre conversões, é uma **lista de nomes de bot/subflow já
+padronizados na organização**, que o legado chama diretamente (A360
+`TaskBot.run` com `target`/`botName` igual a um destes nomes, registrado em
+`dependencies` de `01-inventory/inventory.json`) e que já têm um subflow
+equivalente disponível no PAD — então a conversão não deve tratar essa
+dependência como "resolução pendente" genérica, e sim marcar explicitamente
+que o subflow padrão já existe e deve ser reaproveitado.
+
+**Fonte da evidência**: confirmação direta do usuário/analista em sessão de
+2026-10-29 — fato organizacional, não extraído de `input/<projeto>/`.
+Nenhum dos três projetos de exemplo (`a360-browser-rest`,
+`a360-excel-vault`, `quote-scraper`) chama algum destes hoje; a lista existe
+para quando um export A360 real citar um deles.
+
+| Nome do bot/subflow | Situação | Observação |
+| --- | --- | --- |
+| `MapearFileServer` | ativo | Subflow padrão para mapear unidade de rede (file server). |
+| `DesmapearFileServer` | ativo | Subflow padrão para desmapear unidade de rede. |
+| `ConsultarCredencialProducao` | ativo | Subflow padrão para consultar credencial de produção. Relacionado à entrada `obter-credencial-do-cofre` do catálogo acima, mas aqui é um subflow **nomeado e já chamado pelo legado**, não um padrão de ação a ser detectado. |
+| `AcessoPainelServico` | ativo | Subflow padrão para acessar painel de serviço. |
+| `KillProcessByName` | ativo | Subflow padrão para finalizar processo pelo nome. |
+| `Log_Splunk` | **descontinuado** | Substituído pelo Datadog, ferramenta padrão e oficial de observabilidade do banco. Nunca reaproveitar a chamada antiga como se ainda fosse válida. |
+
+### Regra para o `reflow-pad-converter`
+
+1. Para toda dependência (`TaskBot.run`) cujo `target`/`botName` bate com um
+   nome **ativo** desta lista: aplicar a convenção já existente de subflow
+   (sufixo `_subflow_<nome_do_bot_filho>`, comentário citando o bot filho —
+   ver `robin-conventions.md`) e **acrescentar** no comentário, de forma
+   explícita: "subflow padrão já disponível no PAD — reaproveitar a chamada
+   existente, nunca reimplementar a lógica interna como ação solta".
+2. Para `Log_Splunk` (ou qualquer nome futuro marcado **descontinuado**
+   nesta tabela): o comentário deve dizer que o bot está descontinuado e
+   citar o substituto (hoje: Datadog); o passo em si vira `TODO reflow`
+   pedindo ao analista o nome exato do subflow Datadog a chamar — **nunca**
+   apontar para `Log_Splunk` como se ainda fosse uma chamada válida, nem
+   inventar o nome do subflow substituto sem confirmação.
+3. Esta lista é mantida manualmente (edição humana direta no arquivo) — o
+   `reflow-pad-converter` nunca adiciona, remove ou muda a `Situação` de uma
+   linha sozinho.
+
+### Regra para o `reflow-robin-reviewer`
+
+Ao auditar, confira se toda dependência cujo `target`/`botName` aparece
+nesta tabela recebeu a observação extra (subflow padrão já disponível, ou
+aviso de descontinuado + substituto) — não só a marcação genérica de
+subflow entre bots.

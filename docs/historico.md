@@ -996,3 +996,65 @@ zero em cada conversão.
   sinalização de subfluxo comum — como a convenção equivalente de
   `Flow.RunSubflow`, ela continua sendo responsabilidade do agent de
   conversão e do agent de revisão semântica, nunca do lint estrutural.
+
+## Fase 21 — Lista de subflows padrão do PAD, chamados pelo nome do bot filho
+
+Continuação direta da Fase 20. O usuário informou que, na operação real, um
+conjunto fixo de bots/subflows aparece repetidamente sendo chamado pelo
+nome em vários processos — e que todos já têm equivalente disponível no
+PAD: `MapearFileServer`, `DesmapearFileServer`, `ConsultarCredencialProducao`,
+`AcessoPainelServico`, `KillProcessByName` e `Log_Splunk` (este último
+descontinuado, substituído pelo Datadog como ferramenta padrão e oficial de
+observabilidade do banco). Pediu que o `Main.robin`, ao identificar esses
+casos, já marque que deve usar o subflow equivalente já disponível no PAD.
+
+### Por que isto é diferente da Fase 20
+
+A Fase 20 cobre um padrão de **ações que se repetem sem chamada explícita**
+no legado (evidência extraída comparando `arquivo:linha` de dois ou mais
+projetos). Esta lista é o oposto: são **nomes de bot já chamados
+diretamente** pelo legado (`TaskBot.run` com `target`/`botName` igual a um
+destes), e a evidência é **confirmação direta do usuário/analista**, não
+extração de `input/<projeto>/` — nenhum dos três projetos de exemplo chama
+algum destes hoje. Por isso a lista entrou como uma seção própria em
+`reference/subfluxos-comuns.md`, com a fonte da evidência registrada
+explicitamente, em vez de ser misturada ao catálogo da Fase 20 (que exige
+`arquivo:linha` de inventário real).
+
+### O que mudou
+
+- `reference/subfluxos-comuns.md`: nova seção "Subflows padrão já
+  existentes no PAD (chamados pelo nome do bot filho)" com uma tabela de 6
+  linhas (nome, situação `ativo`/`descontinuado`, observação) e regras
+  próprias para o converter e o revisor.
+- `reference/robin-conventions.md` e `reference/robin-actions.md`: a regra
+  já existente de marcação de `TaskBot.run`/`Flow.RunSubflow` ganhou um
+  parágrafo extra — se o bot filho bater com um nome **ativo** dessa tabela,
+  o comentário do passo diz que é subflow padrão já disponível (reaproveitar,
+  nunca reimplementar); se bater com `Log_Splunk` (ou outro nome marcado
+  **descontinuado** no futuro), o passo vira `TODO reflow` citando o
+  substituto, nunca aponta para o nome antigo como válido.
+- `.opencode/agents/reflow-pad-converter.md`: instrução para cruzar toda
+  dependência de bot contra essa tabela e aplicar a marcação extra.
+- `.opencode/agents/reflow-robin-reviewer.md`: sexto item de auditoria,
+  conferindo essa marcação extra (subflow padrão vs. descontinuado).
+- Paridade entre harnesses: `scripts/sync_agents.py` e
+  `scripts/sync_copilot.py` rodados depois da mudança, regenerando os 7
+  espelhos `.claude/agents/` e os 7 `.github/chatmodes/*.chatmode.md`.
+
+### Verificação
+
+`ruff check`/`format --check` → ok; `pytest` → **225 passed**; `reflow
+scan`, `reflow lint-robin --all` → ok.
+
+### O que esta fase não fez (honestidade)
+
+- Não sei o nome exato do subflow Datadog que substitui `Log_Splunk` — a
+  regra manda o converter gerar `TODO reflow` pedindo esse nome ao analista,
+  nunca inventá-lo.
+- A lista é mantida manualmente (edição humana direta no arquivo); o
+  `reflow-pad-converter` nunca adiciona, remove ou muda a `Situação` de uma
+  linha sozinho — mesma cautela da Fase 20 para o catálogo baseado em
+  evidência.
+- Nenhum export A360 real ainda cita um destes seis nomes para validar a
+  marcação de ponta a ponta — fica para quando um export real chegar.

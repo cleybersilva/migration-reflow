@@ -19,6 +19,13 @@
   filho (campo `target`/`botName` de `dependencies` em
   `01-inventory/inventory.json`) e, quando possível, Região própria rotulada
   `Subflow: <nome do bot filho>` para separar visualmente do fluxo principal.
+  Se esse `target`/`botName` bater com um nome **ativo** da tabela "Subflows
+  padrão já existentes no PAD" em
+  [`subfluxos-comuns.md`](subfluxos-comuns.md), acrescente no comentário que
+  é um subflow padrão já disponível — reaproveitar, nunca reimplementar; se
+  bater com um nome marcado **descontinuado** nessa tabela (hoje:
+  `Log_Splunk`, substituído pelo Datadog), o passo vira `TODO reflow` citando
+  o substituto, nunca aponta para o nome antigo como se ainda fosse válido.
 - Subfluxo **comum entre processos diferentes** (não é uma chamada explícita
   do legado — é uma sequência de passos que se repete em mais de um projeto
   já convertido, catalogada em

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-29T16:49:48+00:00",
+  "generatedAt": "2026-10-29T17:30:20+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -19,6 +19,27 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Lista de subflows padrao do PAD chamados pelo nome do bot filho",
+      "title": "Lista de subflows padrao do PAD chamados pelo nome do bot filho",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-10-29",
+      "hora": "14:30 -03:00",
+      "atividade": "Registrar nomes de subflows padrao do PAD (MapearFileServer e outros) chamados diretamente pelo legado, com Log_Splunk descontinuado em favor do Datadog",
+      "tags": [
+        "robin",
+        "conversao",
+        "subfluxo",
+        "pad",
+        "datadog"
+      ],
+      "meta": {},
+      "content": "## O que foi feito\n\nContinuação de [[Catalogo de subfluxos comuns entre processos na conversao Robin]]. O usuário informou que, na operação real, seis bots/subflows aparecem\nrepetidamente chamados pelo nome em vários processos, todos já com\nequivalente disponível no PAD: `MapearFileServer`, `DesmapearFileServer`,\n`ConsultarCredencialProducao`, `AcessoPainelServico`, `KillProcessByName` e\n`Log_Splunk` (este último descontinuado, substituído pelo Datadog como\nferramenta padrão e oficial de observabilidade do banco). Pedido: o\n`Main.robin`, ao identificar esses casos, já marcar que deve usar o subflow\nequivalente já disponível no PAD.\n\nDiferença importante em relação à nota anterior: aquela cobre **ações que\nse repetem sem chamada explícita** no legado, com evidência extraída\ncomparando `arquivo:linha` de dois ou mais projetos. Esta lista é o\noposto — **nomes de bot já chamados diretamente** (`TaskBot.run` com\n`target`/`botName` igual a um destes), com evidência = **confirmação\ndireta do usuário**, não extração de `input/<projeto>/`. Por isso entrou\ncomo seção própria em `reference/subfluxos-comuns.md`, com a fonte da\nevidência registrada explicitamente, em vez de ser misturada ao catálogo\nbaseado em inventário real.\n\n## O que foi modificado\n\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `reference/subfluxos-comuns.md` | Nova seção \"Subflows padrão já existentes no PAD (chamados pelo nome do bot filho)\": tabela de 6 linhas (nome, situação ativo/descontinuado, observação) + regras para converter e revisor | alterado |\n| `reference/robin-conventions.md`, `reference/robin-actions.md` | Regra de marcação de `TaskBot.run`/`Flow.RunSubflow` ganhou parágrafo extra: nome ativo → marcar \"subflow padrão já disponível, reaproveitar\"; nome descontinuado (`Log_Splunk`) → `TODO reflow` citando o substituto | alterado |\n| `.opencode/agents/reflow-pad-converter.md` (canônico) | Instrução para cruzar toda dependência de bot contra a tabela nova e aplicar a marcação extra | alterado |\n| `.opencode/agents/reflow-robin-reviewer.md` (canônico) | 6º item de auditoria: confere a marcação extra (subflow padrão vs. descontinuado) | alterado |\n| `.claude/agents/reflow-pad-converter.md`, `.claude/agents/reflow-robin-reviewer.md` (espelhos Claude) e `.github/chatmodes/reflow-pad-converter.chatmode.md`/`reflow-robin-reviewer.chatmode.md` (espelhos Copilot) | Regenerados via `scripts/sync_agents.py` e `scripts/sync_copilot.py` | alterado |\n| `docs/historico.md` | Nova \"Fase 21\" com o relato completo | alterado |\n\n## O que foi implantado\n\n`uv run ruff check .` → ok; `ruff format --check .` → 157 arquivos já\nformatados; `uv run --active pytest -q` → **225 passed**; `uv run --active\npython -m reflow scan` → ok; `uv run --active python -m reflow lint-robin\n--all` → ok. Nenhum commit/push feito ainda nesta unidade de trabalho —\naguardando confirmação do usuário antes de versionar (regra de trabalhar\nfase por fase e parar aguardando \"ok\").\n\n## Benefícios para o projeto\n\n- As dependências de bot mais comuns na operação real (mapear/desmapear\n  file server, consultar credencial de produção, acessar painel de\n  serviço, matar processo) deixam de cair no \"resolução pendente\" genérico\n  — o `Main.robin` já aponta que é para reaproveitar um subflow padrão\n  existente, não reimplementar a lógica do zero.\n- `Log_Splunk` nunca mais seria convertido como se ainda fosse uma chamada\n  válida: a regra força `TODO reflow` citando a migração para Datadog,\n  evitando perpetuar uma ferramenta de observabilidade descontinuada num\n  flow novo.\n- A distinção explícita entre evidência de inventário (Fase 20) e\n  confirmação direta do usuário (esta fase) evita que as duas fontes de\n  fato se confundam no mesmo catálogo — cada uma com sua própria regra de\n  \"nunca inventar\".\n\n## Causa raiz / motivo\n\nPedido explícito do usuário, com base em conhecimento real da operação\n(não derivado de nenhum projeto de exemplo em `input/`).\n\n## Pendências\n\n- [ ] Nome exato do subflow Datadog que substitui `Log_Splunk` ainda não\n      informado — regra manda gerar `TODO reflow` pedindo esse nome ao\n      analista, nunca inventá-lo.\n- [ ] Nenhum export A360 real ainda cita um destes seis nomes para validar\n      a marcação de ponta a ponta.\n- [ ] Commit/push desta unidade de trabalho pendente de confirmação do\n      usuário.\n\n## Relations\n- relates_to [[Catalogo de subfluxos comuns entre processos na conversao Robin]]\n- relates_to [[Regra: manter Claude Code, OpenCode e Copilot sincronizados]]\n- relates_to [[Regra: registrar todo trabalho dev no Basic Memory]]"
+    },
     {
       "id": "projects/migration-reflow/Catalogo de subfluxos comuns entre processos na conversao Robin",
       "title": "Catalogo de subfluxos comuns entre processos na conversao Robin",

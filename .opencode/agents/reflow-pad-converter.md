@@ -43,6 +43,18 @@ dentro de um passo comum: nomeie o passo com sufixo
 possível, envolva o passo na sua própria `FlowControl.Region` rotulada
 `Subflow: <nome do bot filho>`.
 
+Para toda dependência dessas, confira também se o `target`/`botName` bate
+com um nome da tabela "Subflows padrão já existentes no PAD" em
+`reference/subfluxos-comuns.md`. Se bater com um nome **ativo** (hoje:
+`MapearFileServer`, `DesmapearFileServer`, `ConsultarCredencialProducao`,
+`AcessoPainelServico`, `KillProcessByName`), acrescente no comentário do
+passo que é um subflow padrão já disponível no PAD — reaproveitar a chamada
+existente, nunca reimplementar a lógica interna como ação solta. Se bater
+com um nome marcado **descontinuado** (hoje: `Log_Splunk`, substituído pelo
+Datadog), o passo vira `TODO reflow` citando o substituto e explicando a
+descontinuação — nunca aponte para o nome antigo como se ainda fosse
+válido, nem invente o nome exato do subflow substituto sem confirmação.
+
 Além disso, confira cada trecho do flow contra `reference/subfluxos-comuns.md`
 — o catálogo de **padrões de passos que se repetem entre processos
 diferentes**, sem chamada explícita no legado (caso distinto do
