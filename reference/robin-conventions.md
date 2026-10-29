@@ -19,7 +19,20 @@
   filho (campo `target`/`botName` de `dependencies` em
   `01-inventory/inventory.json`) e, quando possível, Região própria rotulada
   `Subflow: <nome do bot filho>` para separar visualmente do fluxo principal.
+- Subfluxo **comum entre processos diferentes** (não é uma chamada explícita
+  do legado — é uma sequência de passos que se repete em mais de um projeto
+  já convertido, catalogada em
+  [`subfluxos-comuns.md`](subfluxos-comuns.md)): quando o passo corresponder
+  a uma entrada com status `catalogado` nesse arquivo, sinalize também de
+  forma explícita e profissional, nunca implícita — nome do passo com
+  sufixo `_subfluxo_comum_<slug_do_padrao>`, comentário citando a entrada
+  catalogada e a recomendação de reuso registrada lá, e, quando possível,
+  Região própria rotulada `Subfluxo comum: <nome do padrão> (candidato a
+  reuso)`. Entrada `proposto` (sem evidência de dois projetos) nunca é
+  sinalizada como se fosse `catalogado`; veja o procedimento completo (e o
+  que fazer ao notar um novo padrão repetido) em `subfluxos-comuns.md`.
 
 Whitelist completa: [`robin-actions.md`](robin-actions.md). Tabela verdade A360 → PAD:
 [`a360-to-pad.md`](a360-to-pad.md). Critérios de classificação PAD/PARTIAL/NOT_PAD:
-[`classification-rubric.md`](classification-rubric.md).
+[`classification-rubric.md`](classification-rubric.md). Padrões recorrentes
+entre processos: [`subfluxos-comuns.md`](subfluxos-comuns.md).

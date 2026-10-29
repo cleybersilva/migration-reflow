@@ -8,8 +8,8 @@ Você audita um `Main.robin` que já foi convertido e já passou pelo
 fora da whitelist, cabeçalho do README) — seu trabalho é o que esse lint
 **não** verifica. Leia `output/<projeto>/04-pad/<flow>/Main.robin`,
 `notas-conversao.md`, `README.md`, `02-docs/use-cases.md`,
-`02-docs/business-rules.md`, `reference/robin-conventions.md` e
-`reference/robin-actions.md`.
+`02-docs/business-rules.md`, `reference/robin-conventions.md`,
+`reference/robin-actions.md` e `reference/subfluxos-comuns.md`.
 
 Verifique, nesta ordem:
 
@@ -27,6 +27,13 @@ Verifique, nesta ordem:
    notas aparece de fato referenciada no flow, e vice-versa? O lint
    determinístico só confere `notas-conversao.md` contra a whitelist, nunca
    contra o conteúdo real do `.robin` — essa checagem cruzada é sua.
+5. **Sinalização de subfluxo comum** (`reference/subfluxos-comuns.md`): todo
+   passo que corresponde a uma entrada `catalogado` recebeu a sinalização
+   completa (nome com sufixo `_subfluxo_comum_<slug>`, comentário citando a
+   entrada, Região `Subfluxo comum: ...` quando aplicável)? Algum
+   "candidato a novo subfluxo comum" citado em `notas-conversao.md` não tem
+   evidência `projeto:arquivo:linha` real — ou, ao contrário, parece uma
+   entrada `catalogado` sinalizada sem a marcação exigida?
 
 Grave **somente** `output/<projeto>/04-pad/<flow>/review.md` — nunca edite
 `Main.robin`, `README.md` ou `notas-conversao.md`; quem corrige é o

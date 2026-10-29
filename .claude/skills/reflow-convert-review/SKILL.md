@@ -1,6 +1,6 @@
 ---
 name: reflow-convert-review
-description: Audita semanticamente um Main.robin já convertido e aprovado no lint estrutural, verificando cobertura dos casos de uso, densidade de TODO reflow, convenções de nomenclatura e consistência com notas-conversao.md. Use depois de reflow-convert e antes de reflow-test, para pegar problemas que o lint determinístico não verifica.
+description: Audita semanticamente um Main.robin já convertido e aprovado no lint estrutural, verificando cobertura dos casos de uso, densidade de TODO reflow, convenções de nomenclatura, sinalização de subfluxos comuns catalogados e consistência com notas-conversao.md. Use depois de reflow-convert e antes de reflow-test, para pegar problemas que o lint determinístico não verifica.
 argument-hint: <projeto>
 metadata:
   opencode/slash: "true"
@@ -13,7 +13,8 @@ metadata:
 - `output/<projeto>/04-pad/<flow>/Main.robin`, `README.md` e
   `notas-conversao.md`.
 - `output/<projeto>/02-docs/use-cases.md` e `business-rules.md`.
-- `reference/robin-conventions.md`, `reference/robin-actions.md`.
+- `reference/robin-conventions.md`, `reference/robin-actions.md`,
+  `reference/subfluxos-comuns.md`.
 
 ## Pré-condição
 
@@ -25,8 +26,11 @@ metadata:
 
 Chama o agent **reflow-robin-reviewer** para verificar, por flow: cobertura
 dos `pad_use_cases` e de `business-rules.md`, densidade de `TODO reflow`,
-convenções de nomenclatura (`step_`/`in_`/`out_`/`cfg_`, snake_case) e
-consistência entre `notas-conversao.md` e o conteúdo real do `Main.robin`.
+convenções de nomenclatura (`step_`/`in_`/`out_`/`cfg_`, snake_case),
+sinalização correta de subfluxos comuns catalogados em
+`reference/subfluxos-comuns.md` (e evidência real de qualquer candidato a
+novo subfluxo comum citado nas notas) e consistência entre
+`notas-conversao.md` e o conteúdo real do `Main.robin`.
 Grava `output/<projeto>/04-pad/<flow>/review.md` com os achados — mesmo
 quando não encontra nenhum.
 
@@ -48,5 +52,6 @@ fica desatualizado até `reflow-convert-review` rodar outra vez.
 ## Resumo a mostrar
 
 - Quantos achados, por categoria (cobertura, `TODO reflow`, nomenclatura,
-  consistência de notas), e se o flow está pronto para `reflow-test` ou
-  precisa de outra rodada de `reflow-convert` primeiro.
+  sinalização de subfluxo comum, consistência de notas), e se o flow está
+  pronto para `reflow-test` ou precisa de outra rodada de `reflow-convert`
+  primeiro.

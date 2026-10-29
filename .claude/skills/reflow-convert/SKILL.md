@@ -12,7 +12,9 @@ metadata:
 
 - `output/<projeto>/03-classification/classification.md` e `02-docs/`.
 - `reference/robin-conventions.md`, `reference/robin-actions.md` (whitelist),
-  `reference/a360-to-pad.md` (tabela verdade).
+  `reference/a360-to-pad.md` (tabela verdade),
+  `reference/subfluxos-comuns.md` (padrões de passos que se repetem entre
+  processos diferentes).
 - `input/<projeto>/` — só trechos já citados pelo inventário/documentação.
 
 ## Pré-condição
@@ -47,8 +49,14 @@ Ação fora da whitelist vira `TODO reflow` no lugar do snippet — nunca invent
 sintaxe Robin. Os passos são organizados em `FlowControl.Region` por estágio
 do processo, e toda chamada a outro Task Bot/subflow (A360 `TaskBot.run` →
 PAD `Flow.RunSubflow`) é marcada de forma explícita — ver
-`reference/robin-conventions.md`. Ao final, roda
-`uv run python -m reflow lint-robin <projeto>`.
+`reference/robin-conventions.md`. Todo passo que corresponder a um padrão
+já **catalogado** em `reference/subfluxos-comuns.md` (sequência de passos
+que se repete entre processos diferentes, sem chamada explícita no legado)
+também é sinalizado de forma explícita e profissional, com a recomendação
+de reuso registrada no catálogo; um novo padrão repetido com evidência real
+mas ainda não catalogado entra como "candidato a novo subfluxo comum" em
+`notas-conversao.md`, nunca editado direto no catálogo pelo agent. Ao
+final, roda `uv run python -m reflow lint-robin <projeto>`.
 
 ## Agent chamado
 
@@ -66,7 +74,9 @@ corresponder ao `Main.robin` novo — recomende rodar `reflow-test` de novo.
 ## Resumo a mostrar
 
 - Flows gerados, quantas ações vieram da whitelist vs. quantas ficaram como
-  `TODO reflow`, e o resultado do `lint-robin` (passou ou os achados).
+  `TODO reflow`, o resultado do `lint-robin` (passou ou os achados), e
+  quantos passos foram sinalizados como subfluxo comum catalogado ou como
+  candidato a novo subfluxo comum.
 
 ## Próximo passo recomendado
 

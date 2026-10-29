@@ -936,3 +936,63 @@ razão errada na primeira versão — vale registrar:
 - Drenar antes do 408 custa até 1 s extra de thread num cliente que já gastou
   10 s. Decisão deliberada — a alternativa é perder a resposta no RST (ADR-023).
 - Nada disto toca Robin: as ações seguem 100% `[não validado]`.
+
+## Fase 20 — Catálogo de subfluxos comuns entre processos
+
+Pedido do usuário: alguns subfluxos se repetem em processos diferentes (não
+só chamadas explícitas de bot a bot, já cobertas pela convenção
+`TaskBot.run` → `Flow.RunSubflow`), e isso precisa ficar bem mapeado e
+sinalizado de forma explícita e profissional no `Main.robin` sempre que
+aparecer, para orientar reuso futuro em vez de remontar o mesmo trecho do
+zero em cada conversão.
+
+### O que mudou
+
+- `reference/subfluxos-comuns.md` (novo): catálogo de padrões de passos que
+  se repetem **entre projetos diferentes**, com status `catalogado`
+  (evidência real de dois ou mais projetos) ou `proposto` (hipótese, sem
+  evidência ainda). Hoje tem uma entrada `catalogado` com evidência real —
+  `obter-credencial-do-cofre` (`CredentialVault.getCredential` →
+  `Credentials.GetCredential`), observada em `a360-browser-rest/main.json:3`
+  e `a360-excel-vault/main.json:4` — e duas entradas `proposto` (tratamento
+  de erro padrão, notificação de falha por e-mail) registradas como
+  hipóteses de padrões típicos de RPA, sem evidência nos três projetos de
+  exemplo ainda, para não inventar fato onde não há `arquivo:linha`.
+- `reference/robin-conventions.md` e `reference/robin-actions.md`: nova
+  regra de sinalização (sufixo `_subfluxo_comum_<slug>`, comentário citando
+  a entrada catalogada, `FlowControl.Region` rotulada "Subfluxo comum: ...
+  (candidato a reuso)"), espelhando o padrão já usado para dependência entre
+  bots, mas para o caso sem chamada explícita no legado.
+- `.opencode/agents/reflow-pad-converter.md`: instrução para conferir cada
+  trecho do flow contra o catálogo na hora de converter, sinalizar entradas
+  `catalogado` e registrar candidatos novos (com evidência real) em
+  `notas-conversao.md` — nunca editar o catálogo nem promover `proposto`
+  para `catalogado` sozinho (permissão de escrita do agent continua restrita
+  a `output/*/04-pad/**`).
+- `.opencode/agents/reflow-robin-reviewer.md`: quinto item de auditoria,
+  conferindo a sinalização completa de subfluxo comum e a evidência real de
+  qualquer candidato citado nas notas.
+- `.claude/skills/reflow-convert/SKILL.md` e
+  `.claude/skills/reflow-convert-review/SKILL.md`: entradas, "o que faz" e
+  resumo atualizados para citar o catálogo novo.
+- Paridade entre harnesses: `scripts/sync_agents.py` e
+  `scripts/sync_copilot.py` rodados depois da mudança nos agents canônicos,
+  regenerando os sete espelhos em `.claude/agents/` e os sete
+  `.github/chatmodes/*.chatmode.md`; descrição do
+  `.github/prompts/reflow-convert-review.prompt.md` também atualizada —
+  Claude Code, OpenCode e Copilot seguem a mesma regra na mesma rodada.
+
+### O que esta fase não fez (honestidade)
+
+- Nenhum `Main.robin` já gerado (ex.: `a360-browser-rest`) foi reconvertido
+  retroativamente com a nova sinalização — essa conversão tinha só 3 passos
+  numa única Região implícita; aplicar a convenção nela é trabalho da
+  próxima rodada de `reflow-convert`, não desta fase.
+- O catálogo nasce pequeno de propósito: uma entrada com evidência real e
+  duas hipóteses sem evidência, em vez de inventar um catálogo "completo" de
+  padrões RPA genéricos sem `arquivo:linha` — contraria diretamente a regra
+  de `AGENTS.md` de nunca inventar fato ou evidência.
+- Nenhum gate determinístico (`reflow lint-robin`) passou a validar a
+  sinalização de subfluxo comum — como a convenção equivalente de
+  `Flow.RunSubflow`, ela continua sendo responsabilidade do agent de
+  conversão e do agent de revisão semântica, nunca do lint estrutural.
