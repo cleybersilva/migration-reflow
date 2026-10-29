@@ -56,7 +56,10 @@ também é sinalizado de forma explícita e profissional, com a recomendação
 de reuso registrada no catálogo; um novo padrão repetido com evidência real
 mas ainda não catalogado entra como "candidato a novo subfluxo comum" em
 `notas-conversao.md`, nunca editado direto no catálogo pelo agent. Ao
-final, roda `uv run python -m reflow lint-robin <projeto>`.
+final, roda `uv run python -m reflow fix-robin-eol <projeto>` (o agent
+escreve o arquivo sem controle sobre a quebra de linha; esse passo
+normaliza para CRLF, exigido pelo PAD — ver `reference/robin-conventions.md`)
+e depois `uv run python -m reflow lint-robin <projeto>`.
 
 ## Agent chamado
 

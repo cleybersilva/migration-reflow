@@ -75,9 +75,12 @@ git config core.hooksPath .githooks
 Disponíveis também: `uv run python -m reflow extract <projeto>`,
 `uv run python -m reflow extract --all`, `uv run python -m reflow report`,
 `uv run python -m reflow checkpoint <projeto> [--status|--approve|--reject]`,
-`uv run python -m reflow scan [--staged]` e `uv run python -m reflow
-lint-robin [<projeto>|--all]` — os dois últimos são gates: falham de forma
-restritiva e o hook de pre-commit os roda antes de qualquer commit.
+`uv run python -m reflow fix-robin-eol [<projeto>|--all]` (normaliza a
+quebra de linha de todo `Main.robin` já gerado para CRLF — rodar depois de
+qualquer conversão/geração de teste, antes do `lint-robin`), `uv run python
+-m reflow scan [--staged]` e `uv run python -m reflow lint-robin
+[<projeto>|--all]` — os dois últimos são gates: falham de forma restritiva e
+o hook de pre-commit os roda antes de qualquer commit.
 Consulte o estado real em `README.md`; não declare funcionalidades futuras prontas.
 
 ## Segurança

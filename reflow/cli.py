@@ -1,4 +1,5 @@
-"""CLI determinística: extract, report e checkpoint; scan e lint-robin como gates."""
+"""CLI determinística: extract, report, checkpoint e fix-robin-eol; scan e
+lint-robin como gates."""
 
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from .fs import LockError, project_lock, write_json_atomic
 from .inventory import Inventory
 from .limits import check_input_budget
 from .report import build_batch_report, read_verdict
-from .robin import lint_robin_files
+from .robin import fix_robin_eol, lint_robin_files
 from .security.paths import reject_unsafe_links
 from .security.scan import Finding, StagedScanError, scan_repository, scan_staged
 
@@ -45,6 +46,10 @@ def _build_parser() -> argparse.ArgumentParser:
     lint = sub.add_parser("lint-robin")
     lint.add_argument("project", nargs="?", default=None)
     lint.add_argument("--all", action="store_true")
+
+    fix_eol = sub.add_parser("fix-robin-eol")
+    fix_eol.add_argument("project", nargs="?", default=None)
+    fix_eol.add_argument("--all", action="store_true")
 
     checkpoint = sub.add_parser("checkpoint")
     checkpoint.add_argument("project", help="Projeto em input/<projeto>.")
@@ -331,6 +336,14 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(2)
         print("lint-robin ok: nenhum .robin pendente de validação.")
         raise SystemExit(0)
+
+    if args.command == "fix-robin-eol":
+        root = Path.cwd()
+        changed = fix_robin_eol(root, project=args.project)
+        for path in changed:
+            print(f"normalizado para CRLF: {path.relative_to(root)}")
+        print(f"fix-robin-eol: {len(changed)} arquivo(s) normalizado(s) para CRLF.")
+        return 0
 
     if args.command == "extract":
         return _cmd_extract(args)

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from reflow.robin.lint import lint_robin_files
+from reflow.robin.lint import fix_robin_eol, lint_robin_files, normalize_robin_eol
 
 WHITELIST = """\
 ### `Browser.LaunchNewBrowser`
@@ -28,7 +28,7 @@ def require(condition: bool, message: str) -> None:
 def _make_flow(
     tmp_path: Path,
     *,
-    robin_text: str = "[não validado — TODO reflow]\n",
+    robin_text: str = "[não validado — TODO reflow]\r\n",
     readme_text: str = "# quote-scraper — fluxo principal\n",
     notes_text: str = "# Notas de conversão\n\n- `Browser.LaunchNewBrowser` — abre o navegador\n",
     with_whitelist: bool = True,
@@ -41,7 +41,10 @@ def _make_flow(
 
     flow_dir = tmp_path / "output" / "quote-scraper" / "04-pad" / "main-flow"
     flow_dir.mkdir(parents=True)
-    (flow_dir / "Main.robin").write_text(robin_text, encoding="utf-8")
+    # write_bytes (nunca write_text): quebra de linha tem que ser exatamente a
+    # da string acima em qualquer SO — write_text traduziria "\n" para
+    # os.linesep, que já é "\r\n" no Windows e mascararia o teste de EOL.
+    (flow_dir / "Main.robin").write_bytes(robin_text.encode("utf-8"))
     if with_readme:
         (flow_dir / "README.md").write_text(readme_text, encoding="utf-8")
     if with_notes:
@@ -151,3 +154,84 @@ def test_fails_when_notas_conversao_is_missing(tmp_path: Path) -> None:
         any(f.pattern == "notas_conversao_ausente" for f in findings),
         "Falta de notas-conversao.md deveria reprovar o lint.",
     )
+
+
+def test_fails_when_main_robin_has_bare_lf(tmp_path: Path) -> None:
+    """LF puro é a causa mais comum de um .robin que cola errado no PAD."""
+    root = _make_flow(tmp_path, robin_text="[não validado — TODO reflow]\n")
+    findings = lint_robin_files(root, project="quote-scraper")
+    require(
+        any(f.pattern == "eol_lf_sem_cr" for f in findings),
+        "Main.robin com LF puro (sem \\r) deveria reprovar — PAD espera CRLF.",
+    )
+
+
+def test_passes_when_main_robin_is_already_crlf(tmp_path: Path) -> None:
+    root = _make_flow(tmp_path)  # robin_text padrão já termina em \r\n
+    findings = lint_robin_files(root, project="quote-scraper")
+    require(
+        not any(f.pattern == "eol_lf_sem_cr" for f in findings),
+        "Main.robin já em CRLF não deveria reprovar por quebra de linha.",
+    )
+
+
+def test_fails_when_only_some_lines_are_bare_lf(tmp_path: Path) -> None:
+    """Mistura de CRLF e LF no mesmo arquivo também tem que reprovar."""
+    mixed = "linha_1\r\nlinha_2\nlinha_3\r\n"
+    root = _make_flow(tmp_path, robin_text=mixed)
+    findings = lint_robin_files(root, project="quote-scraper")
+    eol_findings = [f for f in findings if f.pattern == "eol_lf_sem_cr"]
+    require(len(eol_findings) == 1, "Uma única mistura de EOL deveria gerar um achado.")
+    require("1 de 3" in eol_findings[0].excerpt, f"Contagem errada: {eol_findings[0].excerpt}")
+
+
+def test_normalize_robin_eol_converts_bare_lf_to_crlf(tmp_path: Path) -> None:
+    path = tmp_path / "Main.robin"
+    path.write_bytes(b"linha_1\nlinha_2\nlinha_3\n")
+    changed = normalize_robin_eol(path)
+    require(changed, "Arquivo com LF puro deveria ser normalizado (mudou).")
+    require(
+        path.read_bytes() == b"linha_1\r\nlinha_2\r\nlinha_3\r\n",
+        "Toda quebra de linha deveria virar CRLF.",
+    )
+
+
+def test_normalize_robin_eol_is_a_noop_when_already_crlf(tmp_path: Path) -> None:
+    path = tmp_path / "Main.robin"
+    path.write_bytes(b"linha_1\r\nlinha_2\r\n")
+    changed = normalize_robin_eol(path)
+    require(not changed, "Arquivo já em CRLF não deveria ser reescrito.")
+    require(path.read_bytes() == b"linha_1\r\nlinha_2\r\n", "Conteúdo não pode mudar.")
+
+
+def test_normalize_robin_eol_does_not_duplicate_existing_cr(tmp_path: Path) -> None:
+    """Mistura de CRLF e LF: o CR existente não pode virar CRCRLF."""
+    path = tmp_path / "Main.robin"
+    path.write_bytes(b"linha_1\r\nlinha_2\n")
+    normalize_robin_eol(path)
+    require(
+        path.read_bytes() == b"linha_1\r\nlinha_2\r\n",
+        "Linha já com \\r\\n não pode ganhar um \\r extra.",
+    )
+
+
+def test_fix_robin_eol_normalizes_every_main_robin_under_the_project(tmp_path: Path) -> None:
+    root = _make_flow(tmp_path, robin_text="[não validado — TODO reflow]\n")
+    robin_path = root / "output" / "quote-scraper" / "04-pad" / "main-flow" / "Main.robin"
+    require(b"\r\n" not in robin_path.read_bytes(), "Pré-condição: começa só com LF.")
+
+    changed = fix_robin_eol(root, project="quote-scraper")
+
+    require(changed == [robin_path], f"fix_robin_eol deveria normalizar {robin_path}.")
+    require(robin_path.read_bytes().endswith(b"\r\n"), "Arquivo deveria terminar em CRLF.")
+    findings = lint_robin_files(root, project="quote-scraper")
+    require(
+        not any(f.pattern == "eol_lf_sem_cr" for f in findings),
+        "Depois do fix, lint-robin não deveria mais reprovar por EOL.",
+    )
+
+
+def test_fix_robin_eol_returns_empty_when_nothing_to_fix(tmp_path: Path) -> None:
+    root = _make_flow(tmp_path)  # robin_text padrão já em CRLF
+    changed = fix_robin_eol(root, project="quote-scraper")
+    require(changed == [], "Nada para normalizar deveria devolver lista vazia.")

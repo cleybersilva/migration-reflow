@@ -120,10 +120,59 @@ def _check_flow_header(root: Path, readme_path: Path) -> list[Finding]:
     return []
 
 
+def _check_robin_eol(relative: str, raw: bytes) -> list[Finding]:
+    """`.robin` precisa ser CRLF (ver `.gitattributes`: `*.robin text eol=crlf`).
+
+    PAD roda no Windows; um `Main.robin` com LF puro costuma parecer certo no
+    editor mas colar errado no designer (as linhas se juntam numa só) — é a
+    causa mais comum de "a formatação veio estranha" ao copiar um snippet
+    para o PAD. `raw` tem que ser bytes crus, nunca o resultado de uma leitura
+    com tradução universal de quebra de linha (que já apagaria o problema).
+    """
+    lines = raw.splitlines(keepends=True)
+    bad = sum(1 for line in lines if line.endswith(b"\n") and not line.endswith(b"\r\n"))
+    if not bad:
+        return []
+    return [
+        Finding(
+            relative,
+            1,
+            "eol_lf_sem_cr",
+            f"{bad} de {len(lines)} linha(s) sem quebra CRLF — rode "
+            "`uv run python -m reflow fix-robin-eol` antes de colar no PAD",
+        )
+    ]
+
+
+def normalize_robin_eol(path: Path) -> bool:
+    """Converte toda quebra de linha de `path` para CRLF. Devolve True se mudou.
+
+    Opera em bytes crus (nunca abre em modo texto) para o resultado ser
+    idêntico em qualquer SO — nunca depender de tradução automática de
+    quebra de linha do Python, que varia por plataforma.
+    """
+    raw = path.read_bytes()
+    normalized = raw.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    if normalized == raw:
+        return False
+    path.write_bytes(normalized)
+    return True
+
+
+def fix_robin_eol(root: Path, project: str | None = None) -> list[Path]:
+    """Normaliza EOL de todo `Main.robin` já gerado — mesmo escopo de `lint_robin_files`."""
+    scope = root / "output" / project if project else root
+    robin_files = sorted(scope.rglob("Main.robin")) if scope.is_dir() else []
+    changed = [robin_file for robin_file in robin_files if normalize_robin_eol(robin_file)]
+    return changed
+
+
 def _lint_one(root: Path, robin_file: Path, whitelist: dict[str, RobinAction]) -> list[Finding]:
     relative = _relative(root, robin_file)
-    text = robin_file.read_text(encoding="utf-8")
+    raw = robin_file.read_bytes()
+    text = raw.decode("utf-8")
     findings = _check_secrets(relative, text) + _check_absolute_paths(relative, text)
+    findings += _check_robin_eol(relative, raw)
     findings += _check_actions_against_whitelist(
         root, robin_file.parent / "notas-conversao.md", whitelist
     )

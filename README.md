@@ -257,6 +257,7 @@ uv run python -m reflow extract <projeto>   # ou --all
 uv run python -m reflow report
 uv run python -m reflow checkpoint <projeto> --status   # pendente / aprovado / rejeitado
 uv run python -m reflow checkpoint <projeto> --approve  # grava a decisão humana (--reject para rejeitar)
+uv run python -m reflow fix-robin-eol <projeto>          # ou --all; CRLF antes de colar no PAD
 ```
 
 Dentro do opencode ou do Claude Code (mesmas skills, mesmos comandos):
@@ -295,10 +296,15 @@ projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
 ## 📋 Do flow para o PAD
 
 1. Abra o PAD, crie um novo flow desktop (nome livre).
-2. Abra `output/<projeto>/04-pad/<flow>/Main.robin`, selecione tudo, copie.
-3. No designer do PAD, clique no corpo do `Main` e cole (Ctrl+V).
-4. Rode o flow. Saída esperada sempre em `C:\Users\Public\Documents\`.
-5. Repita com `05-test/test_<flow>/Main.robin` para o flow de teste; leia os
+2. Antes de colar qualquer coisa, rode `uv run python -m reflow
+   fix-robin-eol <projeto>` (ou `--all`) — normaliza a quebra de linha do
+   `Main.robin` para CRLF, exigido pelo PAD no Windows; sem isso, colar o
+   arquivo (ou um trecho dele) pode juntar linhas ou falhar silenciosamente.
+   `lint-robin` reprova (`eol_lf_sem_cr`) se esse passo for esquecido.
+3. Abra `output/<projeto>/04-pad/<flow>/Main.robin`, selecione tudo, copie.
+4. No designer do PAD, clique no corpo do `Main` e cole (Ctrl+V).
+5. Rode o flow. Saída esperada sempre em `C:\Users\Public\Documents\`.
+6. Repita com `05-test/test_<flow>/Main.robin` para o flow de teste; leia os
    cenários `CT-xx` no `README.md` ao lado e registre manualmente
    PASS/FAIL — o pipeline nunca escreve isso por você.
 

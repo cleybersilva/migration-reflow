@@ -61,6 +61,35 @@ def test_lint_robin_passes_without_any_robin_file(workspace: Path) -> None:
     require(result.value.code == 0, "Sem nenhum Main.robin, lint-robin não tem nada a reprovar.")
 
 
+def test_fix_robin_eol_cli_normalizes_a_bare_lf_main_robin(workspace: Path) -> None:
+    (workspace / "reference").mkdir(exist_ok=True)
+    (workspace / "reference" / "robin-actions.md").write_text(
+        "### `Variables.SetVariable`\n- Status: [não validado]\n\n```robin\nTODO\n```\n",
+        encoding="utf-8",
+    )
+    flow_dir = workspace / "output" / "quote-scraper" / "04-pad" / "main-flow"
+    flow_dir.mkdir(parents=True)
+    robin_path = flow_dir / "Main.robin"
+    robin_path.write_bytes(b"step_01\nstep_02\n")
+    (flow_dir / "README.md").write_text("# quote-scraper\n", encoding="utf-8")
+    (flow_dir / "notas-conversao.md").write_text(
+        "- `Variables.SetVariable` — passo 1\n", encoding="utf-8"
+    )
+
+    with pytest.raises(SystemExit) as lint_before:
+        main(["lint-robin", "quote-scraper"])
+    require(lint_before.value.code == 2, "LF puro deveria reprovar o lint antes do fix.")
+
+    require(
+        main(["fix-robin-eol", "quote-scraper"]) == 0, "fix-robin-eol deveria concluir sem erro."
+    )
+    require(robin_path.read_bytes() == b"step_01\r\nstep_02\r\n", "EOL deveria virar CRLF.")
+
+    with pytest.raises(SystemExit) as lint_after:
+        main(["lint-robin", "quote-scraper"])
+    require(lint_after.value.code == 0, "Depois do fix, lint-robin deveria passar.")
+
+
 def test_extract_rejects_project_with_a_junction_escaping_the_sandbox(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

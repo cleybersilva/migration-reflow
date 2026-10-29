@@ -1,6 +1,14 @@
 # Convenções Robin — base inicial
 
 - Um `Main.robin` por flow, pronto para colar no PAD, sem configuração externa.
+- Quebra de linha **sempre CRLF** (`.gitattributes`: `*.robin text eol=crlf`)
+  — o PAD roda no Windows e um arquivo com LF puro costuma parecer certo no
+  editor mas colar errado no designer (linhas se juntam numa só). Quem
+  escreve o `Main.robin` (hoje, um agent via ferramenta de escrita de
+  arquivo) não controla a quebra de linha do texto que gera; por isso,
+  depois de gerar ou alterar qualquer `.robin`, rode `uv run python -m
+  reflow fix-robin-eol <projeto>` antes do `lint-robin` — que reprova
+  (`eol_lf_sem_cr`) se esse passo for esquecido.
 - Prefixos `step_`, `in_`, `out_`, `cfg_`; nomes em snake_case minúsculo.
 - Saídas somente em `C:\Users\Public\Documents\`.
 - Documentação do flow deve incluir seção “Teste” e evidências `arquivo:linha`.

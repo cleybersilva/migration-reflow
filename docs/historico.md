@@ -1058,3 +1058,92 @@ scan`, `reflow lint-robin --all` → ok.
   evidência.
 - Nenhum export A360 real ainda cita um destes seis nomes para validar a
   marcação de ponta a ponta — fica para quando um export real chegar.
+
+## Fase 22 — Bug real: `Main.robin` com LF puro em vez de CRLF (não colava no PAD)
+
+O usuário reportou que, nas duas últimas conversões testadas, o `Main.robin`
+"veio formatado estranho" e nenhuma linha conseguia ser copiada e colada no
+PAD sem erro — nem as declarações de variável (`cfg_`/`in_`/`out_`), nem um
+bloco `IF`...`END`. Pedido: corrigir de forma definitiva.
+
+### Diagnóstico
+
+Investiguei os dois `Main.robin` já commitados
+(`output/a360-browser-rest/04-pad/.../Main.robin` e o de `05-test/`) byte a
+byte. `.gitattributes` declara `*.robin text eol=crlf` (CRLF obrigatório,
+porque o PAD roda no Windows), mas `git ls-files --eol` mostrou
+`i/lf w/lf attr/text eol=crlf` nos dois — ou seja, tanto o índice quanto a
+working tree estavam em **LF puro**, nunca renormalizados depois que a
+regra `eol=crlf` entrou no `.gitattributes`. Confirmei a causa raiz: o
+`Main.robin` é escrito por um agent de LLM (`reflow-pad-converter`/
+`reflow-pad-tester`) através de uma ferramenta de escrita de arquivo que não
+expõe controle sobre o byte de quebra de linha — testei diretamente e ela
+grava `\n` cru, nunca `os.linesep`, em qualquer SO. Um arquivo LF puro é a
+causa clássica do bug do Bloco de Notas do Windows (e de controles de texto
+parecidos): as linhas aparentam estar juntas ou se comportam de forma
+inconsistente ao selecionar/colar — bate com "a formatação veio estranha" e
+"não consegui copiar nenhum dos exemplos".
+
+Também expliquei ao usuário a segunda causa, não um bug: hoje **toda** ação
+da whitelist (`reference/robin-actions.md`) ainda está `[não validado]` —
+o placeholder entre colchetes é texto explicativo, nunca sintaxe real do
+PAD, porque `AGENTS.md` proíbe inventar sintaxe Robin mesmo que pareça
+óbvia. Para um `Variables.SetVariable`/`Conditionals.IfElse` colarem como
+ação real, alguém precisa montar a ação de verdade no designer, copiar
+(Ctrl+C) e colar no lugar do placeholder — processo já documentado em
+`robin-actions.md`/`README.md`, não alterado nesta fase.
+
+### O que mudou
+
+- `reflow/robin/lint.py`: `_check_robin_eol()` — novo achado
+  `eol_lf_sem_cr` quando um `Main.robin` tem qualquer linha terminada em
+  `\n` sem `\r` antes (opera em bytes crus, nunca em texto já traduzido por
+  leitura universal de quebra de linha, que apagaria o problema);
+  `normalize_robin_eol(path)` e `fix_robin_eol(root, project=None)` —
+  normalizam para CRLF, byte a byte, sem depender de tradução de quebra de
+  linha do SO. `_lint_one()` passou a ler bytes crus e decodificar, em vez
+  de `read_text()` (que já fazia a tradução universal).
+- `reflow/cli.py`: novo subcomando `fix-robin-eol [<projeto>|--all]`.
+- `reflow/robin/__init__.py`: exporta `fix_robin_eol`.
+- `AGENTS.md`, `README.md`: comando novo documentado; passo explícito de
+  "rode `fix-robin-eol` antes de colar" na seção "Do flow para o PAD".
+- `reference/robin-conventions.md`: convenção nova — CRLF sempre, com o
+  porquê e o comando que corrige.
+- `.claude/skills/reflow-convert/SKILL.md` e
+  `.claude/skills/reflow-test/SKILL.md`: `fix-robin-eol` roda depois do
+  agent escrever o `Main.robin` e antes do `lint-robin` — `reflow-test` não
+  rodava `lint-robin` nenhuma vez antes desta fase, passou a rodar.
+- `output/a360-browser-rest/04-pad/uc-01-browser-rest/Main.robin` e
+  `output/a360-browser-rest/05-test/test_uc-01-browser-rest/Main.robin`:
+  normalizados para CRLF com o comando novo (só quebra de linha mudou,
+  nenhum caractere de conteúdo).
+- `tests/unit/test_lint_robin.py` (+9 testes: achado novo, mistura de EOL,
+  `normalize_robin_eol` idempotente/sem duplicar `\r`, `fix_robin_eol` em
+  lote) e `tests/integration/test_cli_end_to_end.py` (+1 teste de ponta a
+  ponta via CLI: LF puro reprova o lint, `fix-robin-eol` corrige, lint passa
+  depois).
+
+### Verificação
+
+`ruff check`/`format --check` → ok; `pytest` → **234 passed** (eram 225, +9
+novos); `reflow scan`, `reflow lint-robin --all` → ok, inclusive contra os
+dois `Main.robin` já normalizados.
+
+### O que esta fase não fez (honestidade)
+
+- **Não inventei sintaxe real do PAD para nenhuma ação.** O bug corrigido é
+  só de quebra de linha — ele garante que o *placeholder* (ou, no futuro,
+  o snippet real já validado) chegue inteiro e colável no PAD. Fazer uma
+  linha de `Variables.SetVariable` virar de fato uma ação "Definir
+  Variável" ao colar exige a sintaxe real do PAD, que só entra em
+  `robin-actions.md` pelo processo já existente (montar no designer, copiar
+  com Ctrl+C, colar no lugar do placeholder) — pedi ao usuário o texto real
+  copiado do PAD para `Variables.SetVariable` e `Conditionals.IfElse` em vez
+  de arriscar uma sintaxe "óbvia", mas possivelmente errada.
+- A normalização dos dois `Main.robin` já commitados foi manual (rodei o
+  comando eu mesmo); nenhuma migração automática varre `output/` inteiro
+  sozinha fora de uma chamada explícita a `fix-robin-eol`.
+- `reflow lint-robin` continua sem interpretar a sintaxe interna do Robin
+  (ver docstring do módulo) — o achado novo é puramente sobre bytes de
+  quebra de linha, nunca sobre se o conteúdo colado é uma ação válida do
+  PAD.

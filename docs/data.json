@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-29T17:30:20+00:00",
+  "generatedAt": "2026-10-29T20:03:13+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -19,6 +19,27 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Corrigido bug real de EOL no Main.robin (LF puro nao colava no PAD)",
+      "title": "Corrigido bug real de EOL no Main.robin (LF puro nao colava no PAD)",
+      "project": "migration-reflow",
+      "categoria": "correcao",
+      "categoriaLabel": "Correção",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-10-29",
+      "hora": "15:40 -03:00",
+      "atividade": "Corrigir Main.robin gerado com LF puro em vez de CRLF, que impedia copiar e colar no PAD sem erro",
+      "tags": [
+        "robin",
+        "bugfix",
+        "crlf",
+        "pad",
+        "lint"
+      ],
+      "meta": {},
+      "content": "## O que foi modificado\n\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `reflow/robin/lint.py` | `_check_robin_eol()` (achado `eol_lf_sem_cr`), `normalize_robin_eol(path)`, `fix_robin_eol(root, project=None)`; `_lint_one()` passou a ler bytes crus | criado/alterado |\n| `reflow/cli.py` | Novo subcomando `fix-robin-eol [<projeto>\\|--all]` | alterado |\n| `reflow/robin/__init__.py` | Exporta `fix_robin_eol` | alterado |\n| `AGENTS.md`, `README.md` | Comando documentado; passo explícito na seção \"Do flow para o PAD\" | alterado |\n| `reference/robin-conventions.md` | Convenção nova: CRLF sempre, com o porquê | alterado |\n| `.claude/skills/reflow-convert/SKILL.md`, `.claude/skills/reflow-test/SKILL.md` | `fix-robin-eol` roda antes do `lint-robin`; `reflow-test` passou a rodar `lint-robin` (não rodava nenhuma vez antes) | alterado |\n| `output/a360-browser-rest/04-pad/.../Main.robin` e `05-test/.../Main.robin` | Normalizados para CRLF (só quebra de linha, zero mudança de conteúdo) | corrigido |\n| `tests/unit/test_lint_robin.py`, `tests/integration/test_cli_end_to_end.py` | +10 testes (achado novo, mistura de EOL, normalização idempotente, fix em lote, ponta a ponta via CLI) | criado |\n\n## Causa raiz\n\nO usuário reportou que, nas duas últimas conversões testadas, o `Main.robin`\n\"veio formatado estranho\" e nenhuma linha colava no PAD sem erro — nem\nvariáveis (`cfg_`/`in_`/`out_`) nem blocos `IF`...`END`.\n\nInvestiguei byte a byte: `.gitattributes` exige `*.robin text eol=crlf`\n(CRLF, porque o PAD roda no Windows), mas `git ls-files --eol` mostrou\n`i/lf w/lf attr/text eol=crlf` nos dois `Main.robin` já commitados — índice\ne working tree em LF puro, nunca renormalizados depois que a regra entrou\nno `.gitattributes`. Confirmei que a ferramenta de escrita de arquivo usada\npelo agent de conversão grava `\\n` cru, nunca `os.linesep`, em qualquer SO\n— não há como o agent controlar isso sozinho. LF puro é a causa clássica do\nbug do Bloco de Notas do Windows (linhas parecem juntas/se comportam\nerrado ao copiar) — bate exatamente com o relato do usuário.\n\n**Segunda causa, explicada ao usuário mas não \"corrigida\" (não é bug):**\ntoda ação da whitelist (`reference/robin-actions.md`) ainda está `[não\nvalidado]` — o placeholder é texto explicativo, nunca sintaxe real do PAD,\nporque `AGENTS.md` proíbe inventar sintaxe Robin mesmo que pareça óbvia.\nPara uma linha de `Variables.SetVariable`/`Conditionals.IfElse` virar ação\nreal ao colar, é preciso a sintaxe real copiada do designer do PAD — pedi\nao usuário esse texto real em vez de arriscar uma sintaxe \"óbvia\" possivelmente\nerrada.\n\n## O que foi implantado\n\n`ruff check`/`format --check` → ok; `uv run --active pytest -q` → **234\npassed** (eram 225, +9 novos); `uv run --active python -m reflow scan` →\nok; `uv run --active python -m reflow lint-robin --all` → ok, inclusive\ncontra os dois `Main.robin` já normalizados com `fix-robin-eol --all`.\nNenhum commit/push feito ainda — aguardando confirmação do usuário.\n\n## Benefícios para o projeto\n\n- Qualquer `Main.robin` com LF puro agora reprova `lint-robin` de forma\n  explícita (`eol_lf_sem_cr`) em vez de parecer certo no editor e falhar\n  silenciosamente ao colar no PAD — exatamente o bug que o usuário bateu\n  duas vezes seguidas.\n- `fix-robin-eol` corrige de forma determinística e idempotente, sem tocar\n  no conteúdo — só na quebra de linha, byte a byte, nunca dependendo de\n  tradução automática do SO (testado explicitamente para não duplicar um\n  `\\r` já existente).\n- `reflow-test` ganhou a mesma rede de segurança que `reflow-convert` já\n  tinha (`lint-robin` ao final) — antes, o `Main.robin` de teste podia sair\n  sem nenhuma validação automática.\n\n## Pendências\n\n- [ ] Preciso do texto real copiado do PAD (Ctrl+C no designer) para\n      `Variables.SetVariable` e `Conditionals.IfElse` — é o que falta para\n      essas duas ações saírem de `[não validado]` e colarem como ação real,\n      não só como placeholder corrigido.\n- [ ] Commit/push desta unidade de trabalho pendente de confirmação do\n      usuário.\n\n## Relations\n- relates_to [[Region e marcacao explicita de subflow na conversao Robin]]\n- relates_to [[Regra: registrar todo trabalho dev no Basic Memory]]"
+    },
     {
       "id": "projects/migration-reflow/Lista de subflows padrao do PAD chamados pelo nome do bot filho",
       "title": "Lista de subflows padrao do PAD chamados pelo nome do bot filho",
