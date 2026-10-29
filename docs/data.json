@@ -1,9 +1,13 @@
 {
-  "generatedAt": "2026-10-28T22:58:33+00:00",
+  "generatedAt": "2026-10-29T13:43:06+00:00",
   "projects": [
     {
       "id": "migration-reflow",
       "label": "migration-reflow"
+    },
+    {
+      "id": "mpes-calendario",
+      "label": "mpes-calendario"
     },
     {
       "id": "opencode",
@@ -15,6 +19,87 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Caixinha -Harnesses- adicionada ao dashboard publicado (docs-index.html)",
+      "title": "Caixinha \"Harnesses\" adicionada ao dashboard publicado (docs/index.html)",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-10-29",
+      "hora": "00:00 -03:00",
+      "atividade": "Replicar no dashboard publicado (GitHub Pages) a caixinha de estatística \"Harnesses\" que já existia no snapshot privado (Claude Artifact)",
+      "tags": [
+        "basic-memory",
+        "dashboard",
+        "github-pages",
+        "ui"
+      ],
+      "meta": {},
+      "content": "## O que foi modificado\n\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `docs/index.html` | `renderStats()`: novo tile `{n: 3, l:\"Harnesses\"}` na lista de `tiles`, ao lado de Notas/Projetos/ADRs | alterado |\n\n## O que foi implantado\n\nMudança puramente estática (JS client-side, valor fixo `3`, sem tocar `docs/data.json` nem `scripts/basic_memory_dashboard.py`). Verificação: `uv run python -m pytest -q` → **225 passed** (sem mudança — nenhum teste cobre `docs/index.html`, que não tem suíte própria). Conferido visualmente o trecho gerado (`<div class=\"stat-tile\"><div class=\"n\">3</div><div class=\"l\">Harnesses</div></div>`) seguindo o mesmo padrão CSS/HTML das outras `stat-tile`.\n\n## Benefícios para o projeto\n\n- Paridade visual entre o snapshot privado (Claude Artifact `VGRr7teFowT9sJNphVpC5V`, que já trazia `{n: 3, l:\"Harnesses\"}` no header) e o dashboard público em `cleybersilva.github.io/migration-reflow/` — o número de harnesses configurados (Claude Code, OpenCode, GitHub Copilot) fica visível em ambos.\n- Reforça visualmente a regra [[feedback_harness_parity]] (fora deste Basic Memory, é memória local do Claude Code): o projeto tem 3 harnesses de IA configurados e nenhum pode ficar para trás.\n\n## Causa raiz / motivo\n\nPedido explícito do usuário: replicar no GitHub Pages a caixinha de contagem de harnesses que ele viu no Artifact privado. O valor é fixo (3) porque é um fato estrutural do repositório (`.claude/`, `.opencode/`, `.github/`), não derivado das notas do Basic Memory — por isso não foi adicionado a `scripts/basic_memory_dashboard.py`/`data.json`, só ao template estático `docs/index.html`, igual ao Artifact original (que também hardcoda `n: 3` no JS, não deriva dos dados).\n\n## Como reverter ou ativar depois\n\nReverter: remover a linha `{n: 3, l:\"Harnesses\"}` de `renderStats()` em `docs/index.html`. Nenhuma variável, serviço ou dado externo envolvido.\n\n## Pendências\n\n- [ ] Se o número de harnesses mudar no futuro (um quarto harness, ou um deixar de ser usado), atualizar o valor fixo nos dois lugares: Artifact privado e `docs/index.html` (não há fonte única automatizada).\n\n## Relacionados\n\n- [[Dashboard da memoria publicado em GitHub Pages (docs/)]]"
+    },
+    {
+      "id": "projects/mpes-calendario/Sincronizacao com GitHub ativada e beneficios documentados no mpes-calendario",
+      "title": "Sincronização com GitHub ativada e benefícios documentados no mpes-calendario",
+      "project": "mpes-calendario",
+      "categoria": "configuracao",
+      "categoriaLabel": "Configuração",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-10-28",
+      "hora": "22:20 -03:00",
+      "atividade": "Ativar a publicação do data.json pela página via token fine-grained e documentar os benefícios no README",
+      "tags": [
+        "mpes-calendario",
+        "github",
+        "sincronizacao",
+        "token"
+      ],
+      "meta": {},
+      "content": "# Sincronização com GitHub ativada e benefícios documentados no mpes-calendario\n\n## O que foi modificado\n\n| Arquivo/recurso | Mudança | Tipo |\n| --- | --- | --- |\n| Token fine-grained `mpes-calendario-sync` (GitHub do usuário) | Criado pelo próprio usuário: acesso só ao repo `mpes-calendario`, permissão Contents: Read and write, validade sugerida de 90 dias | configuração |\n| Navegador do usuário (localStorage `mpes2026_gh_v1`) | Token e config (owner `cleybersilva`, repo `mpes-calendario`, branch `main`, arquivo `data.json`) salvos pela página | configuração |\n| `data.json` | Primeira publicação feita pela página (commit `6086ddb`, \"Atualiza calendário MPES (28/10/2026, 22:13:09)\"), levando os 3 itens de outubro marcados como concluídos | alterado |\n| `README.md` | Nova subseção \"💡 Por que sincronizar\" com tabela de benefícios, fluxo do dia a dia e validade do token; link na nav | alterado |\n\nO valor do token NÃO é registrado aqui; fica apenas no localStorage do navegador onde foi colado.\n\n## O que foi implantado\n\n- Publicação pela página via GitHub Contents API (PUT `data.json`); selo mudou para \"Sincronizado\".\n- README: commit `65343cb`, push confirmado.\n\n## Benefícios para o projeto\n\n- **Mesmo calendário em todo lugar:** edição no notebook aparece no celular, no computador do trabalho e em outro navegador.\n- **Edições não se perdem:** limpar histórico, aba anônima ou trocar de computador não apaga nada; cada publicação vira commit.\n- **Histórico de todas as mudanças:** cada versão do `data.json` fica no GitHub com data e hora, permitindo recuperar algo apagado por engano.\n- **Compartilhável com a turma:** qualquer pessoa com o link vê o calendário atualizado; só quem tem o token altera.\n- **Proteção contra sobrescrever:** a página avisa se a versão publicada mudou em outro aparelho antes de substituir.\n\n## Fluxo do dia a dia\n\nEditar → quando o selo mostrar \"Alterações não publicadas\", tocar nele → site atualizado em 1–2 minutos.\n\n## Como reverter ou ativar depois\n\n- Desativar no navegador: menu ⋮ › Configurar sincronização GitHub › Esquecer token.\n- Revogar de vez: GitHub › Settings › Developer settings › Fine-grained tokens › `mpes-calendario-sync` › Revoke.\n- Outro aparelho: colar um token no mesmo diálogo daquele navegador.\n\n## Pendências\n\n- [ ] Renovar o token quando expirar (~90 dias após 28/10/2026, por volta de 26/01/2027); a página avisa \"token inválido ou expirado\".\n\n## Relacionados\n\n- [[Calendário vivo MPES criado e publicado no GitHub Pages]]\n- [[CSS e JS separados, PWA offline e experiência mobile no mpes-calendario]]"
+    },
+    {
+      "id": "projects/mpes-calendario/README do mpes-calendario no padrao do portfolio e autor via LinkedIn",
+      "title": "README do mpes-calendario no padrão do portfólio e autor via LinkedIn",
+      "project": "mpes-calendario",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-10-28",
+      "hora": "22:05 -03:00",
+      "atividade": "README no mesmo padrão do migration-reflow, seção do autor com dados do LinkedIn e link em destaque para a página",
+      "tags": [
+        "mpes-calendario",
+        "readme",
+        "branding",
+        "docs"
+      ],
+      "meta": {},
+      "content": "# README do mpes-calendario no padrão do portfólio e autor via LinkedIn\n\n## O que foi modificado\n\n| Arquivo/recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `README.md` | Reescrito no padrão do `migration-reflow`: header centralizado, duas fileiras de badges, nav por âncoras, seções com emoji (Sobre, Arquitetura em Mermaid, Funcionalidades, Instalação, Uso, Sincronização, Segurança, Calendário 2026-2027, Glossário, Roadmap), bloco de autor e rodapé | alterado |\n| `docs/screenshot-desktop.png`, `docs/screenshot-mobile.png` | Capturas da página para o README | criado |\n| `README.md` › Autor | Atualizado com o LinkedIn (linkedin.com/in/cleybersilva): Senior SRE & AI Specialist na TCS/Itaú (TAG), Platform Engineering na VCCU, trajetória profissional desde 2010, formação completa, competências e certificações; link do LinkedIn corrigido (era `/in/cleyber-silva`); selo do EduAutismo IA | alterado |\n| `README.md` | Link em destaque para a página: botão \"Abrir o calendário\", URL abaixo do header, item \"Página ao vivo\" na nav e captura de tela clicável | alterado |\n\n## O que foi implantado\n\n- Commits `de5edbb`, `cfdc2d2`, `5262e2b` na `main`, push confirmado.\n- Verificação: README renderizado conferido em github.com/cleybersilva/mpes-calendario pelo navegador.\n\n## Benefícios para o projeto\n\n- Repositório com a mesma identidade visual do restante do portfólio do usuário.\n- Quem chega ao repo encontra a página ao vivo em um clique.\n- Bio do autor reflete o perfil real e atual (LinkedIn), com link correto.\n\n## Causa raiz / motivo\n\nPedidos explícitos do usuário: padrão do README do `migration-reflow`, \"melhore o sobre o autor pegando os dados do meu LinkedIn\" e \"link para a página do calendário inserido no README\".\n\n## Pendências\n\n- [ ] Confirmar se o doutorado em Ciências da Educação (VCCU) está em andamento; no LinkedIn só aparece o mestrado (2022–2023). Mantido como \"em andamento\" no README.\n- [ ] Descrição do repositório no GitHub (\"About\") diz \"Profissional e Engenharia\" — falta o \"m\".\n\n## Relacionados\n\n- [[Calendário vivo MPES criado e publicado no GitHub Pages]]"
+    },
+    {
+      "id": "projects/mpes-calendario/CSS e JS separados, PWA offline e experiencia mobile no mpes-calendario",
+      "title": "CSS e JS separados, PWA offline e experiência mobile no mpes-calendario",
+      "project": "mpes-calendario",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-10-28",
+      "hora": "21:55 -03:00",
+      "atividade": "Separar CSS/JS, deixar a página mais robusta (validação, offline/PWA) e o mobile mais intuitivo",
+      "tags": [
+        "mpes-calendario",
+        "pwa",
+        "mobile",
+        "javascript",
+        "css"
+      ],
+      "meta": {},
+      "content": "# CSS e JS separados, PWA offline e experiência mobile no mpes-calendario\n\n## O que foi modificado\n\n| Arquivo/recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `css/styles.css` | Estilos extraídos do HTML; tema claro/escuro; layout mobile com barra inferior, bottom sheets, tabela em cartões, calendário com pontos coloridos | criado |\n| `js/app.js` | Lógica extraída do HTML; validação/normalização de itens (datas, categorias, IDs duplicados, limites de tamanho); localStorage protegido por try/catch; sync entre abas; aviso antes de sobrescrever versão publicada por outro dispositivo; erros de token claros; agenda do dia; swipe no calendário; botão voltar fecha diálogos; arrastar para baixo fecha sheets; chips de filtros ativos; atalhos `n`, `/`, `t`, setas | criado |\n| `index.html` | Só marcação; barra de navegação inferior; painel de filtros; skip-link e ARIA | alterado |\n| `manifest.webmanifest`, `sw.js`, `assets/icon-192.png`, `assets/icon-512.png` | PWA: instalável e offline (app shell em cache, `data.json` rede-primeiro) | criado |\n| `README.md` | Tabela de arquivos e de funcionalidades atualizada | alterado |\n\n## O que foi implantado\n\n- Commit `a90f5c1` na `main`; GitHub Pages publicou.\n- Verificação: Playwright desktop + mobile (390px, touch) — validação de formulário, adicionar, duplicar, excluir + desfazer, filtro pela legenda, painel de filtros, botão voltar fechando diálogo; sem erros de console. No site publicado: `js/app.js` carregado, barra inferior presente, service worker registrado.\n- Edições locais do usuário (3 itens de outubro marcados como concluídos) preservadas na migração.\n\n## Benefícios para o projeto\n\n- Código organizado por responsabilidade (HTML/CSS/JS), mais fácil de manter e com cache do navegador.\n- Dados inválidos ou backups malformados não quebram mais a página.\n- No celular: navegação com o polegar, formulários e detalhes em bottom sheet, toque no dia mostra a agenda, deslizar troca o mês.\n- Funciona sem internet e pode ser instalado na tela inicial.\n\n## Causa raiz / motivo\n\nPedido do usuário: acrescentar JavaScript e CSS para deixar o projeto mais robusto e o módulo mobile mais intuitivo, desde que melhore o projeto.\n\n## Como reverter\n\n`git revert a90f5c1` volta para o `index.html` em arquivo único.\n\n## Pendências\n\n- Nenhuma.\n\n## Relacionados\n\n- [[Calendário vivo MPES criado e publicado no GitHub Pages]]"
+    },
     {
       "id": "projects/migration-reflow/Dashboard da memoria publicado em GitHub Pages (docs-)",
       "title": "Dashboard da memoria publicado em GitHub Pages (docs/)",
@@ -34,6 +119,26 @@
       ],
       "meta": {},
       "content": "## O que foi modificado\n\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `scripts/basic_memory_dashboard.py` | Gerador determinístico (sem LLM, sem dependência nova): lê `.md` direto de `<basic-memory>/projects/*/` e `instructions/`, parser mínimo do dialeto YAML das notas (escalar citado/sem aspas dobrado em várias linhas, lista `- item` sem indentação) e grava `docs/data.json` | criado |\n| `tests/unit/test_basic_memory_dashboard.py` | 13 testes: fold de escalar citado e sem aspas, lista sem indentação, `tipo` vs `type` como categoria, projeto por pasta (`projects/<x>` vs `instructions`), meta genérico excluindo chaves tratadas, ordenação por data desc, raiz vazia | criado |\n| `docs/index.html` | Dashboard estático: abas de projeto (Todos/migration-reflow/opencode/Instruções & regras), busca, filtros por categoria (derivados dos dados, não fixos), `[[wikilinks]]` clicáveis entre notas, tabela de metadados genérica a partir de `meta` do frontmatter, tema claro/escuro | criado |\n| `docs/data.json` | Snapshot gerado: 21 notas, 3 projetos (migration-reflow 11, opencode 8, instructions 2) | criado |\n| `docs/.nojekyll` | Evita processamento Jekyll no GitHub Pages (arquivo estático puro) | criado |\n\n## O que foi implantado\n\n`uv run python scripts/basic_memory_dashboard.py --root \"C:\\Users\\Cleyber\\basic-memory\"` → `docs/data.json` (21 notas, 3 projetos). `uv run ruff check .`, `ruff format --check .` → limpos; `uv run python -m pytest -q` → **224 passed** (211 + 13 novos). Smoke test real: servido `docs/` localmente (`python -m http.server`) e verificado no Chrome via `claude-in-chrome` — abas de projeto filtram corretamente (ex.: `opencode` → 8 notas, chips de categoria mudam para as categorias existentes naquele projeto), filtro por categoria funciona, clique num `[[wikilink]]` no rodapé de uma nota navega para a nota alvo e atualiza a lista/seleção, tabelas e chips de metadados (`adr`, `commits`, `ci_run`, etc.) renderizam a partir do `meta` genérico do frontmatter. GitHub Pages habilitado via `gh api repos/cleybersilva/migration-reflow/pages` apontando `main` / `/docs`.\n\n## Benefícios para o projeto\n\n- A memória do Basic Memory (antes só consultável via MCP ou arquivo local) passa a ter uma página pública navegável, sem precisar reabrir uma sessão de harness para consultar o histórico do projeto.\n- Seletor \"por projeto\" é global de verdade: mostra as notas de `migration-reflow`, `opencode` e `instructions` juntas ou separadas, e cresce sozinho se um projeto novo aparecer em `<basic-memory>/projects/`.\n- Gerador é 100% determinístico e sem dependência nova (`dependencies = []` do `pyproject.toml` continua valendo) — consistente com a decisão já tomada no ADR-017 de manter o núcleo Python livre de LLM e de peso extra.\n- Metadados extras do frontmatter (ADR, commit, CI run, pytest, causa) aparecem automaticamente como chips no detalhe da nota, sem precisar de lógica por nota — uma nota nova com um campo novo já aparece sem alterar o gerador.\n\n## Causa raiz / motivo\n\nPedido explícito do usuário: depois de eu ter publicado um snapshot da memória como Artifact privado do Claude (`claude.ai/code/artifact/...`), o usuário pediu uma versão publicada no GitHub Pages dele, atualizada a cada push, e com seletor global por projeto (não só `migration-reflow`). Antes de implementar, perguntei e o usuário confirmou por `AskUserQuestion`: repositório `cleybersilva/migration-reflow`, página pública (achados de segurança nas notas são sintéticos/diagnósticos, não exploits reais), escopo com os 3 projetos existentes, e mecanismo de atualização = eu regenero `docs/data.json` e componho no commit/push de cada tarefa, já que GitHub Pages é estático e o Basic Memory só existe nesta máquina (não há como uma Action remota \"puxar\" os dados sozinha).\n\n## Como reverter ou ativar depois\n\nReverter: remover `docs/`, `scripts/basic_memory_dashboard.py`, o teste, e desabilitar o Pages (`gh api -X DELETE repos/cleybersilva/migration-reflow/pages`). Para desativar só a publicação sem apagar o gerador: `gh api -X DELETE .../pages` e manter `docs/` fora do Git (adicionar ao `.gitignore`).\n\n## Pendências\n\n- [ ] Lembrar de rodar `scripts/basic_memory_dashboard.py` e commitar `docs/data.json` sempre que uma nota nova entrar no Basic Memory, antes do push (passa a fazer parte da rotina de [[Regra: registrar todo trabalho dev no Basic Memory]]).\n- [ ] Nenhuma automação de CI regenera `docs/data.json` sozinha — se o usuário quiser isso no futuro, precisaria rodar em uma máquina com acesso ao Basic Memory local (não é possível só com GitHub Actions hospedado).\n- [ ] Favicon/ícone da página ainda é um emoji inline (🔁); trocar por um SVG próprio se quiser identidade visual mais forte.\n\n## Relacionados\n\n- [[Regra: registrar todo trabalho dev no Basic Memory]]\n- [[Region e marcacao explicita de subflow na conversao Robin]]"
+    },
+    {
+      "id": "projects/mpes-calendario/Calendario vivo MPES criado e publicado no GitHub Pages",
+      "title": "Calendário vivo MPES criado e publicado no GitHub Pages",
+      "project": "mpes-calendario",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-10-28",
+      "hora": "21:00 -03:00",
+      "atividade": "Transformar o PDF do calendário MPES 2026.2 em página viva com CRUD e publicar no GitHub Pages",
+      "tags": [
+        "mpes-calendario",
+        "cesar-school",
+        "github-pages",
+        "crud"
+      ],
+      "meta": {},
+      "content": "# Calendário vivo MPES criado e publicado no GitHub Pages\n\nRepositório: https://github.com/cleybersilva/mpes-calendario\nPágina: https://cleybersilva.github.io/mpes-calendario/\n\n## O que foi modificado\n\n| Arquivo/recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `data.json` | 40 itens transcritos do PDF \"Calendário MPES 2026.2 (em construção), atualizado 21/10\": 12 módulos de Construção de Software I/II/III, quartas de acompanhamento (Washington Almeida), avaliações SR1–SR3, Metodologia, Eletivas e marcos da dissertação | criado |\n| `index.html` | Painel com CRUD (adicionar, editar, duplicar, concluir, excluir com desfazer), linha do tempo, calendário mensal, tabela, busca/filtros, próximo encontro com contagem regressiva, KPIs, exportação .ics, backup JSON, tema claro/escuro | criado |\n| `assets/` | Logos da CESAR School enviados pelo usuário | criado |\n| `.nojekyll` | Servir arquivos sem Jekyll | criado |\n| Repositório GitHub `cleybersilva/mpes-calendario` | Criado (público) pelo navegador do usuário | criado |\n| GitHub Pages | Ativado em Settings › Pages › branch `main` / root | configuração |\n| `index.html` | \"Mostrar realizados\" passou a vir marcado por padrão (aulas de 23–24/10 não apareciam) | corrigido |\n\n## O que foi implantado\n\n- Push na `main` (commits `d2202a6` e `c4b7ea2`); GitHub Pages publicou automaticamente.\n- Verificação: página no ar carregando `data.json` (HTTP 200), 38–40 itens renderizados; outubro/2026 mostrando Aula inaugural, Gestão — Básico e Acompanhamento de 28/10.\n- Testes headless (Playwright) de CRUD em desktop 1366px e mobile 390px.\n\n## Benefícios para o projeto\n\n- O calendário deixa de ser um PDF estático: dá para editar quando a coordenação muda datas/professores, anotar leituras e marcar o que já aconteceu.\n- KPI \"Sextas com aula\" mostra quantas sextas exigem ausência na TCS, ajudando a planejar o trabalho.\n- Exportação .ics leva os turnos direto para Google Calendar/Outlook.\n\n## Causa raiz / motivo\n\nPedido do usuário: página viva para adicionar, alterar, editar e excluir itens do calendário do Mestrado Profissional em Engenharia de Software da CESAR School, com design moderno e responsivo, publicada no GitHub Pages.\n\n## Pendências\n\n- [ ] Atualizar `data.json` quando sair nova versão do PDF da coordenação.\n\n## Relacionados\n\n- [[README do mpes-calendario no padrão do portfólio e autor via LinkedIn]]\n- [[CSS e JS separados, PWA offline e experiência mobile no mpes-calendario]]\n- [[Sincronização com GitHub ativada e benefícios documentados no mpes-calendario]]"
     },
     {
       "id": "projects/migration-reflow/Region e marcacao explicita de subflow na conversao Robin",

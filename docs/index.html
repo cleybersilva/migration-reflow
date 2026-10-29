@@ -271,7 +271,8 @@
     var tiles = [
       {n: DATA.notes.length, l:"Notas"},
       {n: DATA.projects.length, l:"Projetos"},
-      {n: Object.keys(adrs).length, l:"ADRs"}
+      {n: Object.keys(adrs).length, l:"ADRs"},
+      {n: 3, l:"Harnesses"}
     ];
     statsEl.innerHTML = tiles.map(function(t){
       return '<div class="stat-tile"><div class="n">'+t.n+'</div><div class="l">'+t.l+'</div></div>';
