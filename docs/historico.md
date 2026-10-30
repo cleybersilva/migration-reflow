@@ -1241,3 +1241,108 @@ continua passando).
   sub-ação específica não).
 - Nada disto promove nada para `[validado PAD: rodou]` — essa barra
   continua exigindo execução real neste ambiente.
+
+## Fase 24 — CD visual do GitHub Pages (Actions) + painel de pipeline ao vivo no dashboard
+
+Pedido do usuário: pipeline de CI/CD no GitHub Actions para acompanhar
+visualmente o deploy das features. Perguntei antes de implementar porque o
+projeto não tem "produção" tradicional; o usuário confirmou — "deploy
+local e não em produção" — e pediu, além disso, um painel visual **dentro
+do próprio dashboard** mostrando o que está sendo implantado a cada nova
+funcionalidade. Ver [ADR-026](decisions.md) para o racional completo.
+
+### O que mudou
+
+- GitHub Pages migrado do modo legado (`build_type: "legacy"`, deploy
+  silencioso direto da branch) para o modo Actions (`build_type:
+  "workflow"`) via `gh api -X PUT .../pages`.
+- `.github/workflows/ci.yml`: job `deploy` novo (`needs: [checks,
+  frontend]`, só em push na `main`), publicando `docs/` via
+  `actions/configure-pages`, `actions/upload-pages-artifact` e
+  `actions/deploy-pages` (ações oficiais `actions/*`, tags major
+  confirmadas existir antes de usar — mesma cautela do `astral-sh/setup-uv`
+  já fixado por SHA). Grupo de concorrência próprio (`pages`,
+  `cancel-in-progress: false`).
+- `docs/index.html`: novo painel "Pipeline do reflow", entre o cabeçalho e
+  as abas de projeto. Busca ao vivo, direto do navegador, a API pública do
+  GitHub Actions (sem autenticação) e desenha três estágios (checks →
+  frontend → deploy), agrupando os jobs da matriz num card só por estágio.
+  Botão "Atualizar" e link direto para o Actions. Testado servindo `docs/`
+  localmente (`python -m http.server`) e conferindo no Chrome via
+  `claude-in-chrome` contra a execução real do commit anterior — renderizou
+  `checks 4/4 jobs` e `frontend concluído`, ambos corretos.
+- **Bug real pego no caminho**: `id-token: write` (permissão OIDC exigida
+  pelo `deploy-pages`) reprovava o próprio `reflow scan` — "token" é
+  palavra sensível e "write" não era reconhecido como valor seguro.
+  Corrigido em `reflow/security/masking.py`
+  (`PLACEHOLDER_VALUES += {read, write, none}`, vocabulário fechado e
+  documentado do bloco `permissions:` do GitHub Actions), com dois testes
+  novos (permissão não reprova; token real continua reprovando).
+
+### Verificação
+
+`ruff check`/`format --check` → ok; `pytest` → **239 passed** (eram 234,
++5 novos, todos em `test_security.py`); `reflow scan`, `reflow lint-robin
+--all` → ok; `node --test tests/frontend/dashboard.test.cjs` → 3/3 (não
+cobre `docs/index.html`, só `dashboard/app.js` — gap pré-existente, não
+desta fase). Painel conferido visualmente no navegador antes do commit.
+
+### O que esta fase não fez (honestidade)
+
+- Não inventou uma "produção" que este projeto não tem — o único artefato
+  publicado é `docs/`, e é só ele que a pipeline nova cobre.
+- `docs/index.html` continua sem suíte de teste própria.
+- Sem cache ou backoff para o limite de 60 req/h sem autenticação da API
+  pública do GitHub — em uso normal não é problema, mas existe.
+- O job `deploy` ainda não rodou de verdade no Actions até este commit ser
+  empurrado — a validação até aqui foi local (servidor HTTP + API real,
+  mas workflow não executado).
+
+## Fase 25 — Primeiras 4 ações validadas de verdade no PAD + raiz do bug de crase, corrigida
+
+O usuário colou um "Guia de equivalência" com 4 ações PAD reais (Iniciar
+Excel, Ler da Planilha, Ler texto do arquivo, Executar VBScript), cada uma
+com o código Robin e o equivalente AA360 de origem. Perguntei antes de
+promover: montadas e rodadas de verdade no PAD, ou material de referência
+ainda não executado? Confirmado: **rodou e validou no PAD**. Ver
+[ADR-027](decisions.md) para o racional completo.
+
+### O que mudou
+
+- `reference/robin-actions.md`: `Excel.LaunchExcel`, `File.ReadTextFromFile`
+  e o módulo novo `Scripting.RunVBScript` promovidos direto para
+  `[validado PAD: rodou]`. `Excel.ReadFromWorksheet` reestruturado em três
+  variantes (célula única — validada; planilha inteira — `[proposto]`;
+  intervalo específico — ainda `[não validado]`), porque o snippet validado
+  (`ReadCell`) é uma sub-ação diferente da já documentada (`ReadAllCells`).
+- `reference/a360-to-pad.md`: observações nas linhas afetadas, sem mudar o
+  status delas — a ação PAD está validada, mas o `packageName`/
+  `commandName` real do A360 não foi confirmado por extração de verdade,
+  só o rótulo da UI.
+- `tests/unit/test_whitelist.py`: o teste que assumia "nenhuma ação jamais
+  validada" foi substituído por um que verifica uma invariante ainda
+  válida (ação `[validado PAD: rodou]` tem snippet real, não o placeholder
+  genérico).
+- `reflow/security/masking.py`: `SECRET_ASSIGNMENT_RE` passou a parar o
+  valor também na crase (`` ` ``), igual já fazia com aspas — terceira vez
+  no mesmo dia que uma crase colada ao valor (`` `...write` ``) enganava o
+  scanner (comentário de código, nota do Basic Memory, documentação);
+  corrigido na raiz em vez de reescrever prosa pela quarta vez. Dois testes
+  novos provam os dois lados do fix.
+
+### Verificação
+
+`ruff check`/`format --check` → ok; `pytest` → **241 passed** (eram 239,
++2 novos de crase, -0 líquido no teste reescrito); `reflow scan`, `reflow
+lint-robin --all` → ok — inclusive a própria prosa desta fase, que bateu no
+mesmo bug de crase ao ser escrita e precisou de reformulação antes do fix
+de regex pegar todos os casos.
+
+### O que esta fase não fez (honestidade)
+
+- Não promoveu nenhuma ação por semelhança — só as 4 confirmadas pelo
+  usuário.
+- Não resolve a lacuna de "intervalo específico" do Excel nem o nome exato
+  do `packageName`/`commandName` do VBScript no A360 — seguem abertos.
+- Não mudou o status das linhas de `a360-to-pad.md` — deliberado, lado da
+  extração real segue sem confirmação.

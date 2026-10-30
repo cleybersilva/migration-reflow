@@ -85,51 +85,71 @@ Convenções do `Main.robin`: ver [`robin-conventions.md`](robin-conventions.md)
 
 ### `Excel.LaunchExcel`
 - Módulo: Excel
-- Quando usar: abrir uma planilha existente ou criar uma nova (equivalente ao A360 `Excel.open`).
-- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
-- Evidência: `src/flows/config-reader-local-connectors/source/read-excel-config.txt` do repositório
-  [`AgniusBartninkas/power-automate-desktop-framework`](https://github.com/AgniusBartninkas/power-automate-desktop-framework)
-  (licença aberta), cruzado com a ação oficial **Launch Excel** em
-  [`actions-reference/excel`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/excel)
-  (parâmetros `Document path`→`Path`, `Open as ReadOnly`→`ReadOnly`, `Make
-  instance visible`→`Visible`, saída `ExcelInstance`).
-- Observação: variante confirmada é "abrir documento existente, sem
-  processo Excel próprio" (`LaunchAndOpenUnderExistingProcess`). Outras
-  combinações do toggle "Launch Excel" (documento em branco) e "Nest under
-  a new Excel process" existem na documentação oficial, mas o sufixo exato
-  da sub-ação para elas não tem evidência direta — usar `TODO reflow` se
-  precisar de uma variante diferente desta.
+- Quando usar: abrir uma planilha existente ou criar uma nova (equivalente
+  ao A360 `Excel.open`; na UI do A360 do analista que validou esta ação,
+  aparece como "Excel avançado: Abrir").
+- Status: [validado PAD: rodou]
+- Confirmado pelo analista: montado no designer, rodado e testado neste
+  PAD (2026-10-30) — variante "abrir documento existente, sem processo
+  Excel próprio" (`LaunchAndOpenUnderExistingProcess`), com `Visible: True`
+  e `UseMachineLocale: False` além dos parâmetros já documentados por
+  evidência pública.
 
 ```robin
-Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: %cfg_arquivo_excel% Visible: False ReadOnly: True Instance=> out_excel_instance
+Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess
+    Path:              $'''%cfg_pasta_arquivos_entrada%/%cfg_numero_base%.xlsx'''
+    Visible:           True
+    ReadOnly:          False
+    UseMachineLocale:  False
+    Instance=>         out_excel_instance
 ```
 
 ### `Excel.ReadFromWorksheet`
 - Módulo: Excel
-- Quando usar: ler um intervalo de células de uma planilha já aberta (equivalente ao A360 `Excel.read`).
-- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
-- **Atenção**: a evidência cobre só o caso "ler a planilha inteira" — ver a
-  lacuna aberta logo abaixo para o caso "ler um intervalo específico".
-- Evidência: mesmo arquivo do repositório acima (`Excel.ReadFromExcel.ReadAllCells`),
-  cruzado com a ação oficial **Read from Excel worksheet** em
-  [`actions-reference/excel`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/excel)
-  (`ReadAsText`→"Get cell(s) contents as", `FirstLineIsHeader`→"First line
-  of range contains column names", saída `ExcelData`/aqui `RangeValue`).
-- **Lacuna aberta (TODO reflow, não inventar)**: o A360 `Excel.read` desta
-  pipeline usa o atributo `range` (ex.: `A1:B3` — ver
-  `01-inventory/inventory.json`), ou seja, o caso real é "ler um intervalo
-  específico", não "ler tudo". A documentação oficial confirma os
-  parâmetros desse modo (`Start column`/`Start row`/`End column`/`End row`),
-  mas o **sufixo exato da sub-ação** para esse modo (algo como
-  `Excel.ReadFromExcel.ReadCellRange`, sem confirmação direta) não tem
-  evidência — usar o placeholder `[não validado]` abaixo para esse caso até
-  alguém confirmar o nome real no PAD.
+- Quando usar: ler célula(s) de uma planilha já aberta (equivalente ao A360
+  `Excel.read`). Três variantes documentadas, com níveis de confiança
+  diferentes — leia a observação de cada uma antes de escolher.
+- Status: [validado PAD: rodou]
+- **Atenção**: esse status vale só para a variante "célula única"
+  (`ReadCell`) logo abaixo — é a única rodada de verdade neste PAD. As
+  outras duas variantes (planilha inteira, intervalo específico) têm
+  status próprio, mais fraco, citado no início de cada uma.
+
+**Variante validada — célula única (`ReadCell`)**: confirmada pelo
+analista, montada e rodada neste PAD (2026-10-30). Na UI do A360 que deu
+origem a ela, aparece como "Excel avançado: Obter planilha como tabela de
+dados" — mas o código real roda `ReadCell` (uma célula, via
+`StartColumn`/`StartRow`), não uma tabela inteira; se o seu caso precisa
+mesmo de uma tabela/intervalo, use uma das outras duas variantes abaixo.
 
 ```robin
-# Caso "ler a planilha inteira" — proposto, evidência pública:
-Excel.ReadFromExcel.ReadAllCells Instance: %out_excel_instance% ReadAsText: False FirstLineIsHeader: True RangeValue=> out_excel_data
+Excel.ReadFromExcel.ReadCell
+    Instance:               out_excel_instance
+    StartColumn:            $'''A'''
+    StartRow:               1
+    GetCellContentsMode:    Excel.GetCellContentsMode.TypedValues
+    CellValue=>             out_excel_data
+```
 
-# Caso "ler um intervalo específico" (A360 Excel.read com atributo `range`) — ainda sem evidência do sufixo real:
+**Variante `[proposto — baseado em evidência pública, não testado nesta
+instalação]` — planilha inteira (`ReadAllCells`)**: evidência de
+`src/flows/config-reader-local-connectors/source/read-excel-config.txt` do
+repositório
+[`AgniusBartninkas/power-automate-desktop-framework`](https://github.com/AgniusBartninkas/power-automate-desktop-framework),
+cruzada com a ação oficial **Read from Excel worksheet** em
+[`actions-reference/excel`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/excel).
+
+```robin
+Excel.ReadFromExcel.ReadAllCells Instance: %out_excel_instance% ReadAsText: False FirstLineIsHeader: True RangeValue=> out_excel_data
+```
+
+**Variante `[não validado]` — intervalo específico (ex.: A360 `Excel.read`
+com atributo `range`, tipo `A1:B3`)**: a documentação oficial confirma os
+parâmetros (`Start column`/`Start row`/`End column`/`End row`), mas o
+sufixo exato da sub-ação não tem evidência — nem pública nem validada
+ainda.
+
+```robin
 [não validado — TODO reflow: confirmar no PAD o nome exato da sub-ação de Excel.ReadFromExcel para intervalo específico (Start column/Start row/End column/End row), depois colar o texto copiado aqui]
 ```
 
@@ -166,10 +186,15 @@ Excel.CloseExcel.Close Instance: %out_excel_instance%
 ### `File.ReadTextFromFile`
 - Módulo: File
 - Quando usar: ler o conteúdo de um arquivo de texto ou CSV (equivalente ao A360 `CSV.read`/`File.read`).
-- Status: [não validado]
+- Status: [validado PAD: rodou]
+- Confirmado pelo analista: montado e rodado neste PAD (2026-10-30),
+  equivalente A360 "CSV/TXT: Ler".
 
 ```robin
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+File.ReadTextFromFile.ReadText
+    File:       $'''%cfg_pasta_logs_atividade%/log.txt'''
+    Encoding:   File.TextFileEncoding.UTF8
+    Content=>   out_file_contents
 ```
 
 ### `File.WriteTextToFile`
@@ -301,6 +326,38 @@ END
 
 ```robin
 [não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+```
+
+## Scripting
+
+> Também não é um dos nove módulos originais do prompt; entrou pelo mesmo
+> caminho de `Credentials`/`Subflows`/`Flow Control` — necessária porque um
+> equivalente real apareceu numa conversão.
+
+### `Scripting.RunVBScript`
+- Módulo: Scripting
+- Quando usar: rodar um script VBScript embutido no flow (equivalente ao
+  A360 "VBScript: Abrir").
+- Status: [validado PAD: rodou]
+- Confirmado pelo analista: montado e rodado neste PAD (2026-10-30).
+- **Atenção**: o nome exato do pacote/comando A360 de origem (campos
+  `packageName`/`commandName` do export real) ainda não foi confirmado por
+  uma extração de verdade — só a sintaxe PAD está validada. Ver
+  `reference/a360-to-pad.md` para a entrada correspondente, marcada
+  honestamente com essa ressalva.
+
+```robin
+Scripting.RunVBScript.RunVBScript
+    VBScriptCode: $'''
+        Set objWMIService = GetObject("winmgmts:\\.\root\cimv2")
+        Set colPrintJobs = objWMIService.ExecQuery("Select * From win32_PrintJob")
+
+        For Each objPrintJob in colPrintJobs
+            objPrintJob.Delete
+            WScript.Echo "Trabalho de impressão removido: " & objPrintJob.Name
+        Next
+    '''
+    ScriptOutput=> out_vbscript_output
 ```
 
 ## Credentials

@@ -867,3 +867,157 @@ sessão).
   **intervalo específico** de células (`range`, caso do A360 `Excel.read`)
   — só tenho evidência direta do sub-nome de ação para "ler tudo"
   (`ReadAllCells`); o sub-nome exato para intervalo fica como lacuna restante.
+
+## ADR-026: CD visual para o GitHub Pages — Actions em vez do modo legado, com painel ao vivo no próprio dashboard
+
+Pedido do usuário: uma pipeline de CI/CD no GitHub Actions para acompanhar
+visualmente as etapas de implantação. Confirmado com ele antes de
+implementar: este projeto **não tem produção** no sentido tradicional — é
+um CLI local (`reflow`) e um dashboard de teste só em loopback
+(`dashboard/`, nunca implantado em lugar nenhum). O único "deploy" real
+que existe é a publicação do `docs/` (dashboard da memória) no GitHub
+Pages. O usuário confirmou esse escopo ("deploy local e não em produção")
+e pediu, além da pipeline, um painel visual **dentro do próprio
+dashboard**, mostrando o que foi implantado a cada nova funcionalidade.
+
+### O que foi encontrado antes de implementar
+
+`gh api repos/.../pages` mostrou `build_type: "legacy"` — o Pages publicava
+direto da branch `main`/`docs` sem nenhuma execução do Actions associada.
+Era literalmente impossível acompanhar visualmente esse deploy porque não
+existia pipeline nenhuma rodando: o GitHub publicava silenciosamente a
+cada push que tocasse `docs/`.
+
+### A decisão
+
+1. **Migrar o Pages do modo legado para o modo Actions**
+   (`gh api -X PUT repos/.../pages -f build_type=workflow`) — mesma URL
+   pública, só muda o mecanismo de publicação.
+2. **Job `deploy` novo em `.github/workflows/ci.yml`**, com
+   `needs: [checks, frontend]` e `if: push na main` — nunca roda em pull
+   request de fora. Isso faz o Actions desenhar a pipeline inteira num
+   grafo visual único: **checks (matriz 2 SO × 2 Python) → frontend →
+   deploy**. Grupo de concorrência próprio (`pages`, `cancel-in-progress:
+   false`) para nunca cancelar um deploy em andamento — enfileira o
+   próximo em vez de derrubar o que está publicando.
+3. **Painel "Pipeline do reflow" dentro de `docs/index.html`** — não
+   bastava a pipeline existir no Actions, o pedido era vê-la **no próprio
+   dashboard**. O painel busca ao vivo, direto do navegador, a API pública
+   do GitHub (`api.github.com/repos/.../actions/workflows/ci.yml/runs` +
+   `.../jobs`, sem autenticação, só leitura) e desenha os três estágios
+   agrupando os jobs da matriz (`checks (ubuntu-latest, py3.12)` etc. viram
+   um card `checks` só, com contagem `N/M jobs`). Nunca simula sucesso: se
+   a API falhar ou o limite de 60 req/h sem autenticação estourar, mostra o
+   erro em texto, com link direto para o Actions.
+
+### Bug real pego no caminho: falso positivo no próprio scanner de segredo
+
+Ao commitar `id-token: write` (permissão OIDC exigida pelo
+`actions/deploy-pages`), `reflow scan` reprovou — "token" é palavra
+sensível reconhecida por `SECRET_KEY_RE`, e "write" não estava no
+vocabulário de valores-placeholder. Isso bloquearia **todo** workflow do
+GitHub Actions que use OIDC (um padrão comum e documentado, não um caso
+exótico). Corrigido adicionando `read`/`write`/`none` a
+`PLACEHOLDER_VALUES` em `reflow/security/masking.py` — vocabulário
+fechado e documentado pelo próprio GitHub para o bloco `permissions:`,
+nunca um segredo real. Dois testes novos: um confirma que
+`id-token: write`/`contents: read`/`pages: write` não reprovam mais o
+scan; outro confirma que um valor de token de verdade (`ghp_...`) continua
+reprovando — a correção não destampou a detecção real.
+
+### O que esta decisão não fez
+
+- Não criou nenhuma "produção" fictícia — o painel e a pipeline cobrem
+  exatamente o único artefato publicado que este projeto tem (`docs/`).
+- O painel no dashboard não tem suíte de teste própria — `docs/index.html`
+  nunca teve (`tests/frontend/dashboard.test.cjs` cobre `dashboard/app.js`,
+  um arquivo diferente); validado manualmente servindo `docs/` localmente
+  e conferindo no navegador contra a API real do GitHub Actions.
+- A API pública do GitHub tem limite de 60 requisições/hora por IP sem
+  autenticação — em uso normal (uma pessoa olhando o dashboard de vez em
+  quando) isso nunca é um problema, mas não há cache nem backoff além da
+  mensagem de erro explícita.
+
+## ADR-027: primeiras 4 ações promovidas a `[validado PAD: rodou]` + raiz do bug de crase no scanner, corrigida de vez
+
+O usuário colou um "Guia de equivalência" com 4 ações PAD reais (Iniciar
+Excel, Ler da Planilha, Ler texto do arquivo, Executar VBScript), cada uma
+com o código Robin e o equivalente AA360 de origem. Perguntei antes de
+promover qualquer coisa: essas ações foram montadas e **rodadas de
+verdade** no designer do PAD, ou é material de referência ainda não
+executado aqui? O usuário confirmou: **rodou e validou no PAD** — a barra
+mais alta da whitelist (ver ADR-025).
+
+### O que foi promovido
+
+Em `reference/robin-actions.md`, todas de `[não validado]`/`[proposto]`
+direto para `[validado PAD: rodou]`, com o snippet real dado pelo
+usuário (nomes de variável de exemplo trocados pela convenção `cfg_`/
+`in_`/`out_` deste repositório, conforme a regra de
+`robin-conventions.md`):
+
+- `Excel.LaunchExcel` — era `[proposto]` (evidência pública), agora
+  `[validado PAD: rodou]`.
+- `Excel.ReadFromWorksheet` — reestruturado em três variantes com
+  confiança diferente, porque o snippet validado (`ReadCell`, célula
+  única) não é a mesma sub-ação da variante `[proposto]` já documentada
+  (`ReadAllCells`, planilha inteira) nem cobre a lacuna de "intervalo
+  específico" que ainda falta. O parser de `robin-actions.md`
+  (`_STATUS_LINE_RE`) só aceita um `Status:` por cabeçalho `###`, então o
+  status do topo reflete o snippet principal (agora a variante validada),
+  e cada variante secundária cita o próprio nível de confiança no corpo.
+- `File.ReadTextFromFile` — era `[não validado]`, agora `[validado PAD:
+  rodou]`.
+- `Scripting.RunVBScript` (módulo novo) — ação que não existia na
+  whitelist; A360 "VBScript: Abrir" não tinha equivalente mapeado ainda.
+
+`reference/a360-to-pad.md` ganhou observações nas linhas afetadas, **sem
+mudar o status delas** — o `packageName`/`commandName` real do A360 (ex.:
+se o pacote é literalmente "Excel" ou "Excel avançado") não foi confirmado
+por uma extração de verdade, só o rótulo da UI que o usuário citou. Deixei
+essa distinção explícita: a ação PAD está validada, a identificação exata
+do campo de origem no export A360 ainda não.
+
+### Bug pego ao escrever a documentação: a terceira vez do mesmo erro
+
+Ao escrever a observação sobre o bug do ADR-026 (`id-token: write`
+reprovando o scanner), a prosa em Markdown — `` `id-token: write` (permissão
+OIDC) `` — reprovou o próprio `reflow scan`, de novo. A crase de fechamento
+do span de código, colada direto em "write" sem espaço, fazia o valor
+capturado pela regex ser "write\`" (com a crase), nunca igual a "write"
+sozinho — driblando a correção do ADR-026 (que só reconhece o literal
+exato "write"). Essa já era a terceira vez no mesmo dia que esse padrão
+mordia (comentário de código, nota do Basic Memory, agora a própria
+documentação) — sinal de que o problema era a regex, não o texto.
+
+Corrigido na raiz: `SECRET_ASSIGNMENT_RE` em
+`reflow/security/masking.py` passou a tratar a crase (`` ` ``) como mais
+um caractere de parada do valor, igual já fazia com aspas — crase nunca é
+delimitador de string em nenhuma linguagem que o scanner varre (Python,
+JSON, YAML, `.env`), então excluí-la do valor nunca perde a detecção de um
+segredo real. Dois testes novos provam os dois lados: uma menção em
+Markdown como `` `id-token: write` (permissão OIDC) `` não reprova mais, e
+um valor de token de verdade citado do mesmo jeito continua reprovando.
+
+### Teste reescrito
+
+`tests/unit/test_whitelist.py::test_no_action_is_presumed_validated_without_a_real_pad_run`
+assumia que **nenhuma** ação da whitelist jamais estaria validada — verdade
+até este ADR, mas deixou de ser uma invariante válida do projeto a partir
+daqui. Substituído por
+`test_validated_actions_have_a_real_snippet_not_the_generic_placeholder`,
+que verifica uma invariante mais forte e ainda válida: toda ação
+`[validado PAD: rodou]` tem, de fato, um snippet real no lugar do
+placeholder genérico — pega o caso real de alguém trocar só a linha de
+`Status:` sem trocar o conteúdo.
+
+### O que esta decisão não fez
+
+- Não promoveu nenhuma ação por semelhança — só as 4 que o usuário
+  confirmou ter rodado.
+- Não mudou o status das linhas de `a360-to-pad.md` ligadas a essas ações
+  — o lado da identificação do A360 real segue `não validado`,
+  deliberadamente, até uma extração real confirmar os nomes de campo.
+- Não resolve a lacuna de "intervalo específico" do `Excel.ReadFromWorksheet`
+  nem o nome exato do `packageName`/`commandName` do VBScript no A360 —
+  seguem abertos, documentados nos próprios arquivos.

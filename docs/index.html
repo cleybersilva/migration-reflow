@@ -164,6 +164,30 @@
   footer.pagefoot{border-top:1px solid var(--border); padding:14px clamp(16px,4vw,40px); color:var(--text-muted); font-size:.78rem; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;}
 
   .load-state{padding:40px; color:var(--text-muted); font-size:.95rem;}
+
+  section.pipeline{padding:16px clamp(16px,4vw,40px); background:var(--surface); border-bottom:1px solid var(--border);}
+  .pipeline-head{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; justify-content:space-between; margin-bottom:12px;}
+  .pipeline-head h2{font-size:1.05rem; margin:0 0 2px; font-weight:700;}
+  .pipeline-meta{margin:0; color:var(--text-muted); font-size:.82rem;}
+  .pipeline-actions{display:flex; gap:6px; flex-wrap:wrap;}
+  .pipeline-actions .tab{text-decoration:none; display:inline-flex; align-items:center;}
+  .pipeline-stages{display:flex; flex-wrap:wrap; align-items:stretch; gap:8px;}
+  .stage-arrow{display:flex; align-items:center; color:var(--text-muted); font-size:1.1rem; padding:0 2px;}
+  .stage-card{
+    display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:10px;
+    padding:10px 14px; background:var(--surface-2); min-width:150px;
+  }
+  .stage-card .stage-icon{
+    width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:.9rem; font-weight:700; flex:none;
+  }
+  .stage-card .stage-name{font-size:.86rem; font-weight:600; text-transform:capitalize;}
+  .stage-card .stage-sub{font-size:.74rem; color:var(--text-muted);}
+  .stage-card.status-concluido .stage-icon{background:var(--status-concluido-soft); color:var(--status-concluido);}
+  .stage-card.status-bloqueado .stage-icon{background:var(--status-bloqueado-soft); color:var(--status-bloqueado);}
+  .stage-card.status-em-andamento .stage-icon{background:var(--status-em-andamento-soft); color:var(--status-em-andamento); animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.4;}}
+  @media (max-width:640px){ .pipeline-stages{flex-direction:column;} .stage-arrow{transform:rotate(90deg); align-self:center;} }
 </style>
 </head>
 <body>
@@ -177,6 +201,21 @@
     </div>
     <div class="stats" id="stats"></div>
   </header>
+
+  <section class="pipeline" aria-label="Status do pipeline de CI/CD">
+    <div class="pipeline-head">
+      <div>
+        <span class="eyebrow">CI/CD &middot; GitHub Actions</span>
+        <h2>Pipeline do reflow</h2>
+        <p class="pipeline-meta" id="pipeline-meta">Carregando&hellip;</p>
+      </div>
+      <div class="pipeline-actions">
+        <button class="tab" id="pipeline-refresh" type="button">&#8635; Atualizar</button>
+        <a class="tab" id="pipeline-link" href="https://github.com/cleybersilva/migration-reflow/actions" target="_blank" rel="noopener">Ver no GitHub Actions &#8599;</a>
+      </div>
+    </div>
+    <div class="pipeline-stages" id="pipeline-stages"><p class="load-state">Carregando pipeline&hellip;</p></div>
+  </section>
 
   <nav class="project-tabs" id="project-tabs"></nav>
 
@@ -399,6 +438,111 @@
       });
     });
   }
+
+  // ---------- Pipeline CI/CD (GitHub Actions, ao vivo) ----------
+  // Lê o status real da última execução do workflow "ci.yml" na main
+  // direto da API pública do GitHub (sem autenticação, só leitura) e
+  // desenha as três etapas (checks → frontend → deploy) agrupando os jobs
+  // da matriz. Nunca inventa status: se a API falhar ou o limite de taxa
+  // (60 req/h sem auth) estourar, mostra o erro em vez de simular sucesso.
+  var REPO = "cleybersilva/migration-reflow";
+  var PIPELINE_WORKFLOW_FILE = "ci.yml";
+  var STAGE_ORDER = ["checks", "frontend", "deploy"];
+  var STATUS_LABEL = {
+    success:"concluído", failure:"falhou", cancelled:"cancelado",
+    skipped:"pulado", in_progress:"em andamento", queued:"na fila",
+    timed_out:"tempo esgotado", action_required:"aguardando ação",
+    neutral:"neutro", stale:"desatualizado"
+  };
+  var STATUS_ICON = {
+    success:"✓", failure:"✕", cancelled:"⊘", skipped:"⊝",
+    in_progress:"●", queued:"○"
+  };
+  var STATUS_PRIORITY = ["failure","timed_out","cancelled","action_required","in_progress","queued","skipped","neutral","stale","success"];
+
+  var pipelineStagesEl = document.getElementById("pipeline-stages");
+  var pipelineMetaEl = document.getElementById("pipeline-meta");
+  var pipelineLinkEl = document.getElementById("pipeline-link");
+  var pipelineRefreshBtn = document.getElementById("pipeline-refresh");
+
+  function stageKeyFromJobName(name){
+    var idx = name.indexOf(" (");
+    return idx === -1 ? name : name.slice(0, idx);
+  }
+
+  function jobStatus(job){
+    return job.status === "completed" ? (job.conclusion || "neutral") : job.status;
+  }
+
+  function worstStatus(statuses){
+    for(var i=0;i<STATUS_PRIORITY.length;i++){
+      if(statuses.indexOf(STATUS_PRIORITY[i]) !== -1) return STATUS_PRIORITY[i];
+    }
+    return "queued";
+  }
+
+  function stageCssClass(status){
+    if(status==="success") return "concluido";
+    if(status==="in_progress" || status==="queued") return "em-andamento";
+    return "bloqueado";
+  }
+
+  function renderPipelineStages(jobs){
+    var byStage = {};
+    jobs.forEach(function(j){
+      var key = stageKeyFromJobName(j.name);
+      (byStage[key] = byStage[key] || []).push(j);
+    });
+    var order = STAGE_ORDER.filter(function(s){ return byStage[s]; });
+    Object.keys(byStage).forEach(function(k){ if(order.indexOf(k)===-1) order.push(k); });
+    if(!order.length){
+      pipelineStagesEl.innerHTML = '<p class="load-state">A execução ainda não tem jobs reportados.</p>';
+      return;
+    }
+    var html = order.map(function(stageName, i){
+      var jobsIn = byStage[stageName];
+      var statuses = jobsIn.map(jobStatus);
+      var worst = worstStatus(statuses);
+      var okCount = statuses.filter(function(s){ return s==="success"; }).length;
+      var sub = jobsIn.length > 1 ? (okCount+"/"+jobsIn.length+" jobs") : (STATUS_LABEL[worst] || worst);
+      var card = '<div class="stage-card status-'+stageCssClass(worst)+'">' +
+          '<div class="stage-icon">'+(STATUS_ICON[worst] || "?")+'</div>' +
+          '<div class="stage-body"><div class="stage-name">'+stageName+'</div><div class="stage-sub">'+sub+'</div></div>' +
+        '</div>';
+      return (i>0 ? '<div class="stage-arrow">→</div>' : '') + card;
+    }).join("");
+    pipelineStagesEl.innerHTML = html;
+  }
+
+  function loadPipeline(){
+    pipelineStagesEl.innerHTML = '<p class="load-state">Carregando pipeline&hellip;</p>';
+    pipelineMetaEl.textContent = "Carregando…";
+    var runsUrl = "https://api.github.com/repos/"+REPO+"/actions/workflows/"+PIPELINE_WORKFLOW_FILE+"/runs?branch=main&per_page=1";
+    fetch(runsUrl, { headers: { Accept: "application/vnd.github+json" } })
+      .then(function(res){ if(!res.ok) throw new Error("HTTP "+res.status); return res.json(); })
+      .then(function(data){
+        var run = data.workflow_runs && data.workflow_runs[0];
+        if(!run){
+          pipelineStagesEl.innerHTML = '<p class="load-state">Nenhuma execução do pipeline encontrada ainda.</p>';
+          pipelineMetaEl.textContent = "";
+          return;
+        }
+        pipelineLinkEl.href = run.html_url;
+        var when = run.created_at ? new Date(run.created_at).toLocaleString("pt-BR") : "";
+        var title = run.display_title || (run.head_commit && run.head_commit.message ? run.head_commit.message.split("\n")[0] : "");
+        var sha = run.head_sha ? run.head_sha.slice(0,7) : "";
+        pipelineMetaEl.textContent = (sha ? sha+" — " : "") + title + (when ? " — "+when : "");
+        return fetch(run.jobs_url, { headers: { Accept: "application/vnd.github+json" } })
+          .then(function(res){ if(!res.ok) throw new Error("HTTP "+res.status); return res.json(); })
+          .then(function(jobsData){ renderPipelineStages(jobsData.jobs || []); });
+      })
+      .catch(function(err){
+        pipelineStagesEl.innerHTML = '<p class="load-state">Não foi possível carregar o status do Actions ('+err.message+'). O repositório é público mas a API sem autenticação tem limite de 60 requisições/hora por IP — tente de novo em alguns minutos, ou veja direto no <a href="https://github.com/'+REPO+'/actions" target="_blank" rel="noopener">GitHub Actions</a>.</p>';
+        pipelineMetaEl.textContent = "";
+      });
+  }
+  pipelineRefreshBtn.addEventListener("click", loadPipeline);
+  loadPipeline();
 
   searchEl.addEventListener("input", function(){ state.query = searchEl.value; renderList(); });
 

@@ -1,6 +1,10 @@
-# CI — só gates determinísticos. Nenhum agent, nenhum LLM, nenhum legado
-# executado: é a mesma linha dos hooks locais (AGENTS.md), espelhada no
-# GitHub para quem clonar sem configurar nada.
+# CI + CD. CI: só gates determinísticos, nenhum agent, nenhum LLM, nenhum
+# legado executado — é a mesma linha dos hooks locais (AGENTS.md), espelhada
+# no GitHub para quem clonar sem configurar nada. CD: publica docs/ (o
+# dashboard estático da memória) no GitHub Pages, só depois dos gates
+# passarem — não existe "produção" além disso neste projeto (reflow é um
+# CLI local; o dashboard de teste em dashboard/ roda só em loopback e nunca
+# é implantado em lugar nenhum).
 #
 # `scan --staged` é o gate local do pre-commit e depende do índice do Git;
 # num checkout da CI não existe staged, então o gate equivalente aqui é o
@@ -67,3 +71,38 @@ jobs:
           node-version: "24"
       - name: Testes do frontend do dashboard
         run: node --test tests/frontend/dashboard.test.cjs
+
+  # Publica docs/ (dashboard da memória) no GitHub Pages pelo próprio
+  # Actions — antes disso o Pages usava o modo legado (deploy direto da
+  # branch, sem nenhuma execução visível). Só roda depois que checks e
+  # frontend passarem, e só em push na main (nunca em pull_request) — PR de
+  # fora não publica nada. `needs` nos dois faz o Actions desenhar a
+  # pipeline completa (checks → frontend → deploy) num único grafo visual.
+  deploy:
+    name: deploy (GitHub Pages)
+    needs: [checks, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Grupo próprio (não o "ci-<ref>" do workflow inteiro): nunca cancelar
+    # um deploy do Pages já em andamento — enfileira o próximo em vez de
+    # derrubar o que está publicando.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configura o GitHub Pages
+        uses: actions/configure-pages@v6
+      - name: Empacota docs/ como artefato do Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
+      - name: Publica no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

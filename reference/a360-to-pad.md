@@ -25,18 +25,19 @@ nunca promova uma linha para `validado` sem ter rodado a ação de verdade no PA
 | REST | put | `Web.InvokeRestApi` | — | não validado |
 | REST | delete | `Web.InvokeRestApi` | — | não validado |
 | SOAP | call | `Web.InvokeSoapService` | — | não validado |
-| Excel | open | `Excel.LaunchExcel` | — | não validado |
-| Excel | read | `Excel.ReadFromWorksheet` | — | não validado |
+| Excel | open | `Excel.LaunchExcel` | Um analista validou a ação PAD para o pacote AA360 "Excel avançado: Abrir" (ver `robin-actions.md`); não confirmado ainda se o pacote simples "Excel" (sem "avançado") desta linha é o mesmo `packageName` real — status não muda até confirmar | não validado |
+| Excel | read | `Excel.ReadFromWorksheet` | Idem — AA360 "Excel avançado: Obter planilha como tabela de dados" validado para célula única (`ReadCell`), não para tabela inteira; mesma ressalva de `packageName` da linha acima | não validado |
 | Excel | write | `Excel.WriteToWorksheet` | — | não validado |
-| CSV | read | `File.ReadTextFromFile` | — | não validado |
+| CSV | read | `File.ReadTextFromFile` | A ação PAD (`File.ReadTextFromFile.ReadText`) foi validada para o equivalente AA360 "CSV/TXT: Ler" — mesma ressalva: não confirmado se `packageName` real desta linha ("CSV") é o testado | não validado |
 | CSV | write | `File.WriteTextToFile` | — | não validado |
 | Database | connect | — | nenhum módulo de banco de dados na whitelist ainda; PAD tem ações nativas de SQL a avaliar | sem equivalente |
 | Database | query | — | idem | sem equivalente |
-| File | read | `File.ReadTextFromFile` | — | não validado |
+| File | read | `File.ReadTextFromFile` | Mesma ação validada da linha `CSV \| read` acima; mesma ressalva de `packageName` | não validado |
 | File | write | `File.WriteTextToFile` | — | não validado |
 | CredentialVault | getCredential | `Credentials.GetCredential` | nunca copiar o valor bruto, só a referência ao cofre | não validado |
 | CredentialVault | get | `Credentials.GetCredential` | idem | não validado |
 | TaskBot | run | `Flow.RunSubflow` | resolução do bot filho depende de `attributes.botName` apontar para um JSON do export | não validado |
+| VBScript | open | `Scripting.RunVBScript` | Ação PAD validada para o equivalente AA360 "VBScript: Abrir" (ver `robin-actions.md`) — mas `packageName`/`commandName` desta linha ("VBScript"/"open") são um palpite baseado no rótulo da UI, nunca confirmados por uma extração real; corrigir assim que um export de verdade citar o nome exato | não validado |
 | CustomPackage | transform | — | comando fora do registro; apareceu em `tests/fixtures/a360/excel-vault` como `unknown_commands` | pendente de classificação |
 | Browser | unmappedAction | — | comando fora do registro; apareceu em `tests/fixtures/a360/excel-vault` como `unknown_commands` | pendente de classificação |
 

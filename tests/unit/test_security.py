@@ -68,10 +68,50 @@ def test_mask_pii_redacts_cpf_cnpj_email_phone_and_account() -> None:
         ("synthetic-vault-reference", True),
         ("not-a-real-credential", True),
         ("sk-this-looks-real-12345", False),
+        ("read", True),
+        ("write", True),
+        ("none", True),
     ],
 )
 def test_is_placeholder_value(value: str, expected: bool) -> None:
     require(is_placeholder_value(value) is expected, f"Classificação errada para {value!r}.")
+
+
+def test_github_actions_permission_scopes_are_not_flagged_as_secrets() -> None:
+    """Chaves do bloco permissions do workflow nunca são segredo, mesmo quando a
+    chave contém a palavra sensível "token" (caso de id-token) — sem
+    is_placeholder_value reconhecer o vocabulário fechado read/write/none isso
+    reprovaria todo workflow que usa OIDC."""
+    text = "id-token: write\ncontents: read\npages: write\n"  # reflow:allow-secret
+    findings = scan_bytes(text.encode("utf-8"), "workflow.yml")
+    require(not findings, f"Permissão de GitHub Actions não deveria reprovar o scan: {findings}")
+
+
+def test_a_real_looking_token_value_still_gets_flagged() -> None:
+    """Garante que a correção acima não destampou a detecção real de token."""
+    text = 'token: "ghp_abcdef1234567890abcdef1234567890"\n'  # reflow:allow-secret
+    findings = scan_bytes(text.encode("utf-8"), "config.yml")
+    require(findings, "Um valor de token real ainda precisa reprovar o scan.")
+
+
+def test_markdown_inline_code_backtick_right_after_the_value_is_not_swallowed() -> None:
+    """Prosa em Markdown tipo "`id-token: write` (permissão OIDC)" não pode
+    reprovar: sem a crase no conjunto de paradas do valor, "write`" vira o
+    valor capturado (nunca igual a "write" sozinho) e o achado falso volta."""
+    text = (  # reflow:allow-secret
+        "Ao commitar `id-token: write` (permissão OIDC exigida pelo deploy), reprovou.\n"
+    )
+    findings = scan_bytes(text.encode("utf-8"), "docs/decisions.md")
+    require(not findings, f"Crase colada ao valor não deveria reprovar o scan: {findings}")
+
+
+def test_a_real_token_immediately_followed_by_a_backtick_still_gets_flagged() -> None:
+    """A crase vira parada do valor, mas não pode virar uma forma nova de
+    escapar a detecção de um segredo real (ex.: um token real citado em
+    Markdown, com a crase de fechamento colada nele)."""
+    text = "Rotacione `token: ghp_abc123xyz789` antes de publicar.\n"  # reflow:allow-secret
+    findings = scan_bytes(text.encode("utf-8"), "docs/runbook.md")
+    require(findings, "Token real colado a uma crase ainda precisa reprovar o scan.")
 
 
 def test_safe_zip_rejects_too_many_files(tmp_path: Path) -> None:

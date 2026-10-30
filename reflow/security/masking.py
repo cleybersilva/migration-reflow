@@ -29,7 +29,15 @@ SECRET_ASSIGNMENT_RE = re.compile(
     # como `X-Reflow-Token` (que contém a palavra "Token" mas não é, ela
     # mesma, uma chave sensível isolada).
     rf"(?i)(?:\b(?:{_SENSITIVE_KEY_WORDS})\b|[\"'](?:{_SENSITIVE_KEY_WORDS})[\"'])"
-    r"\s*[:=]\s*(?P<quote>['\"]?)(?P<value>[^'\"\s]+)(?P=quote)"
+    # O valor também para numa crase (`` ` ``, fora do set de aspas acima):
+    # sem isto, uma menção em Markdown tipo "`id-token: write` (permissão
+    # OIDC)" engolia a crase de fechamento do span de código inteiro como se
+    # fosse parte do valor ("write`"), nunca batendo com um valor-placeholder
+    # de uma palavra só — reprovando prosa que só documenta a própria chave
+    # sensível, não um segredo. Crase nunca é delimitador de string em
+    # nenhuma linguagem que este scanner varre (Python, JSON, YAML, .env),
+    # então excluí-la do valor nunca perde a detecção de um segredo real.
+    r"\s*[:=]\s*(?P<quote>['\"]?)(?P<value>[^'\"\s`]+)(?P=quote)"
 )
 
 # Cabeçalho de autorização por token (ou a mesma palavra solta em texto livre):
@@ -45,7 +53,23 @@ EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 PHONE_RE = re.compile(r"\(\d{2}\)\s?9?\d{4}-\d{4}")
 BANK_ACCOUNT_RE = re.compile(r"(?i)\b(agência|agencia|conta)(\s*[:=]?\s*)(\d[\d.-]{2,10}\d)")
 
-PLACEHOLDER_VALUES = frozenset({"", "xxx", "changeme", "todo", "placeholder", "***"})
+PLACEHOLDER_VALUES = frozenset(
+    {
+        "",
+        "xxx",
+        "changeme",
+        "todo",
+        "placeholder",
+        "***",
+        # Vocabulário fechado do bloco "permissions" do GitHub Actions (YAML).
+        # Uma chave como "id-token" contém a palavra sensível "token", mas o
+        # valor atribuído a ela nunca é um segredo — é um escopo de permissão
+        # de um conjunto fixo e documentado pelo GitHub.
+        "read",
+        "write",
+        "none",
+    }
+)
 
 
 def is_placeholder_value(value: str) -> bool:

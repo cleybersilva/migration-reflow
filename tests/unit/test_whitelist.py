@@ -47,7 +47,27 @@ def test_every_truth_table_action_exists_in_whitelist() -> None:
     require(not missing, f"Ações citadas na tabela verdade mas ausentes na whitelist: {missing}")
 
 
-def test_no_action_is_presumed_validated_without_a_real_pad_run() -> None:
+def _robin_block_after_heading(text: str, name: str) -> str:
+    """Pega o primeiro bloco de código robin que vem depois da seção `### name`."""
+    heading = f"### `{name}`"
+    start = text.index(heading)
+    block_start = text.index("```robin", start) + len("```robin")
+    block_end = text.index("```", block_start)
+    return text[block_start:block_end]
+
+
+def test_validated_actions_have_a_real_snippet_not_the_generic_placeholder() -> None:
+    """`[validado PAD: rodou]` só existe depois de execução real confirmada
+    (ver ADR-025/Fase 25) — mas o status sozinho não garante que o snippet
+    foi de fato trocado; essa checagem cruza as duas coisas."""
+    path = ROOT / "reference" / "robin-actions.md"
+    text = path.read_text(encoding="utf-8")
     actions = load_whitelist(ROOT)
     validated = [name for name, action in actions.items() if action.validated]
-    require(not validated, f"Nenhuma ação pode estar validada sem evidência real: {validated}")
+    require(validated, "Pelo menos uma ação validada é esperada neste ponto do projeto.")
+    for name in validated:
+        block = _robin_block_after_heading(text, name)
+        require(
+            "TODO reflow: colar aqui" not in block,
+            f"{name} está [validado PAD: rodou] mas o snippet ainda é o placeholder genérico.",
+        )
