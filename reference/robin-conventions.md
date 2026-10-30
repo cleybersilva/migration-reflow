@@ -14,6 +14,20 @@
 - Documentação do flow deve incluir seção “Teste” e evidências `arquivo:linha`.
 - Nunca inventar sintaxe. Usar somente a whitelist de `robin-actions.md`.
 - Sem validação real no PAD, marcar `[não validado]`; pendências são TODO reflow.
+- `robin-actions.md` tem um terceiro status, `[proposto — baseado em
+  evidência pública, não testado nesta instalação]` (ver ADR-025 em
+  `docs/decisions.md`): sintaxe real, citando evidência (flow PAD público
+  real + documentação oficial), mas ainda não rodada neste ambiente. Para
+  uma ação `proposto`, copie o snippet real da whitelist **substituindo**
+  os nomes de variável/parâmetro de exemplo pelos nomes reais deste passo
+  (convenção `step_`/`in_`/`out_`/`cfg_`) — nunca copie literalmente os
+  nomes de exemplo da whitelist (`out_excel_instance`, etc., são só
+  placeholders dela). O comentário acima do passo continua citando que a
+  ação é `proposto`, nunca tratada como certeza igual a `[validado PAD:
+  rodou]`. Isso resolve a formatação (ação vira sintaxe PAD real, não texto
+  solto) mas não substitui a validação: se o analista rodar no PAD e
+  confirmar, promova para `[validado PAD: rodou]` seguindo o procedimento
+  em `robin-actions.md`.
 - Separar os passos do mesmo estágio do processo com `FlowControl.Region`
   (ação de controle de fluxo do Power Automate Desktop) — um bloco por
   estágio (ex.: "Leitura da Base de Entrada e Logs", "Processamento",

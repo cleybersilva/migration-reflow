@@ -782,3 +782,88 @@ Quatro testes novos, todos verificados **falhando sem o fix**:
   deliberado: a alternativa é perder a resposta no RST.
 - Continua valendo tudo o que depende de execução real no PAD — este ADR não
   toca em Robin.
+
+## ADR-025: terceiro status na whitelist Robin — `[proposto]`, sintaxe real de evidência pública, nunca inventada
+
+Pedido do usuário: o `Main.robin` gerado trazia só placeholders
+(`[não validado — TODO reflow: colar aqui o texto copiado do designer do
+PAD]`) para toda ação — nunca sintaxe real — e isso fazia qualquer coisa
+colada no PAD virar "Ação Desconhecida". Pediu que colar do `Main.robin`
+gere ação válida de verdade. Regra do projeto segue de pé: nunca inventar
+sintaxe Robin, mesmo que pareça óbvia (`AGENTS.md`).
+
+### Por que não era só "chutar com mais confiança"
+
+A primeira tentativa de resolver isso sem pesquisa real teria sido chutar a
+sintaxe copiada do PAD a partir de conhecimento genérico — exatamente o que
+`AGENTS.md` proíbe. Antes de escrever qualquer coisa, fiz pesquisa real na
+web (pedido explícito do usuário) e encontrei:
+
+1. A documentação oficial da Microsoft confirma que colar/copiar ações como
+   texto é um recurso real do Power Automate Desktop, mas avisa que é
+   **schema interno versionado** — pode mudar entre versões do PAD. Isso
+   confirma que chutar tem risco real, não é só cautela excessiva do
+   projeto.
+2. Achei um repositório público real
+   (`AgniusBartninkas/power-automate-desktop-framework`, licença aberta,
+   pasta `src/flows/*/source/*.txt`) com **flows PAD reais, versionados como
+   texto puro** — não é documentação, é o conteúdo literal que sai ao copiar
+   do designer, usado em produção por outra equipe. O próprio README desse
+   repositório confirma o mesmo risco que o item 1: "most actions will still
+   be accepted anyway, especially simple actions, such as Set variable, Run
+   subflow, etc., while more recent actions or actions with more custom
+   attributes may not be allowed."
+3. Cruzei a sintaxe desses arquivos reais com a documentação oficial de
+   parâmetros de cada ação (Variables, Conditionals, Loops, Flow control,
+   Excel) — os nomes de parâmetro batem entre as duas fontes independentes.
+
+### A decisão
+
+`reference/robin-actions.md` ganha um terceiro status, entre os dois que já
+existiam:
+
+- `[não validado]` — nada tentado ainda; placeholder genérico continua.
+- **`[proposto — baseado em evidência pública, não testado nesta
+  instalação]`** (novo) — sintaxe real, copiada de flows PAD públicos
+  reais e cruzada com a documentação oficial de parâmetros, mas **ninguém
+  rodou isso neste PAD especificamente**. Nunca inventada: toda entrada
+  nesse status cita a evidência (arquivo do repositório público + página da
+  documentação oficial).
+- `[validado PAD: rodou]` — inalterado: só depois de alguém montar a ação
+  de verdade no designer local e confirmar que funciona.
+
+Só entraram no novo status as ações com evidência real e direta: variável
+(`SET var TO valor`), condicional (`IF cond THEN ... [ELSE ...] END`),
+laços (`LOOP FROM n TO m STEP k ... END`, `LOOP FOREACH var IN lista ...
+END`, `LOOP WHILE (cond) ... END`), chamada de subflow (`CALL NomeDoSubflow`
+— achado importante: **não** é um padrão `Flow.RunSubflow Param: valor`, é
+uma palavra-chave própria) e quatro ações de Excel (`LaunchExcel`,
+`ReadFromExcel.ReadAllCells`, `SetActiveWorksheet`, `CloseExcel`). Ações sem
+evidência direta (Browser.*, UI.*, File.*, Web.InvokeRestApi,
+Web.InvokeSoapService, Text.Concatenate, Credentials.GetCredential,
+FlowControl.Region) continuam `[não validado]` — nenhuma foi promovida sem
+base real, mesmo as mais "óbvias".
+
+### Consequência para a conversão
+
+O `reflow-pad-converter` passa a copiar o snippet **real** de uma entrada
+`proposto` (substituindo nome de variável/parâmetro pelos nomes do próprio
+flow, convenção `step_`/`in_`/`out_`/`cfg_`) em vez do placeholder — mas o
+comentário acima do passo continua avisando que é sintaxe `proposto`, nunca
+tratada como certeza. Isso resolve a queixa de formatação (ação deixa de
+ser texto solto, vira sintaxe PAD real), mas **não resolve sozinho** o
+pedido de puxar o nome exato da variável declarada no A360 — isso segue
+bloqueado por um gap separado na extração (nenhum campo de variável de
+saída é capturado hoje do A360; ver nota do Basic Memory desta mesma
+sessão).
+
+### O que isto não faz
+
+- Não promove nenhuma ação para `[validado PAD: rodou]` — essa barra
+  continua exigindo execução real neste ambiente.
+- Não cobre as oito ações sem evidência direta listadas acima; permanecem
+  honestamente `[não validado]`.
+- Não resolve a variante de `Excel.ReadFromExcel` para leitura de um
+  **intervalo específico** de células (`range`, caso do A360 `Excel.read`)
+  — só tenho evidência direta do sub-nome de ação para "ler tudo"
+  (`ReadAllCells`); o sub-nome exato para intervalo fica como lacuna restante.

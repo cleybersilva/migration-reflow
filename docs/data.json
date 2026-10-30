@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-29T20:03:13+00:00",
+  "generatedAt": "2026-10-30T15:09:24+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -19,6 +19,27 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Terceiro status proposto na whitelist Robin com sintaxe real de evidencia publica",
+      "title": "Terceiro status proposto na whitelist Robin com sintaxe real de evidencia publica",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-10-30",
+      "hora": "00:30 -03:00",
+      "atividade": "Pesquisar sintaxe real do PAD na web e adicionar status proposto na whitelist Robin para 8 acoes com evidencia publica",
+      "tags": [
+        "robin",
+        "whitelist",
+        "pad",
+        "pesquisa-web",
+        "adr"
+      ],
+      "meta": {},
+      "content": "## O que foi feito\n\nO usuário pediu que colar o `Main.robin` no PAD pare de gerar \"Ação\nDesconhecida\" e que a leitura de Excel puxe a mesma variável declarada no\nA360. Antes de implementar, confirmei entendimento e levantei dois\nbloqueios reais (minha confiança na sintaxe PAD era baixa; extração não\ncaptura nome de variável de saída do A360). O usuário pediu pesquisa real\nna web antes de qualquer tentativa — não \"chutar com mais confiança\".\n\nPesquisa encontrou: documentação oficial confirma que copiar/colar ações\ncomo texto é real, mas é schema interno versionado (risco real). Achei um\nrepositório público aberto (`AgniusBartninkas/power-automate-desktop-framework`)\ncom flows PAD reais versionados como texto puro (`src/flows/*/source/*.txt`),\nusados em produção por outra equipe — cruzei com a documentação oficial de\nparâmetros (Variables, Conditionals, Loops, Flow control, Excel, HTTP) e os\nnomes bateram entre as duas fontes independentes. Achado importante:\n`Flow.RunSubflow` não usa `Módulo.Ação Param: valor` — é a palavra-chave\n`CALL <nome>`.\n\n## O que foi modificado\n\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `reference/robin-actions.md` | Novo status `[proposto — baseado em evidência pública, não testado nesta instalação]`; 8 ações promovidas com evidência citada (`Variables.SetVariable`, `Conditionals.IfElse`, `Loops.ForEach`, `Loops.LoopWhileCondition`, `Flow.RunSubflow`, `Excel.LaunchExcel`, `Excel.ReadFromWorksheet` parcial, `Excel.CloseExcel`); 14 ações restantes continuam `[não validado]` | alterado |\n| `docs/decisions.md` | ADR-025 com o racional completo | alterado |\n| `reference/robin-conventions.md` | Regra: snippet `proposto` copiado com nomes substituídos, nunca literal | alterado |\n| `.opencode/agents/reflow-pad-converter.md` (canônico) | Trata os 3 status de forma diferente ao copiar snippet | alterado |\n| `.opencode/agents/reflow-robin-reviewer.md` (canônico) | 7º item de auditoria: snippet `proposto` adaptado corretamente | alterado |\n| `.claude/agents/*` e `.github/chatmodes/*` (espelhos) | Regenerados via `scripts/sync_agents.py`/`scripts/sync_copilot.py` | alterado |\n| `docs/historico.md` | Nova \"Fase 23\" com o relato completo | alterado |\n\n## Bug pego durante a própria escrita\n\nAo testar `load_whitelist` depois de escrever a entrada de\n`Excel.ReadFromWorksheet`, a ação sumiu do dicionário — a linha `- Status:\n[...]` tinha texto extra depois do colchete, e o parser\n(`_STATUS_LINE_RE`) exige a linha exata. Corrigido movendo a ressalva para\nlinha própria; conferido com `load_whitelist` antes/depois: 21 ações\n(perdida) → 22 (todas).\n\n## O que foi implantado\n\n`ruff check`/`format --check` → ok; `uv run --active pytest -q` → **234\npassed** (sem mudança — tudo doc/prompt, zero código Python novo);\n`reflow scan`, `reflow lint-robin --all` → ok. `load_whitelist` conferido\nmanualmente: 22/22 ações, 8 `proposto`, nenhuma `validada`\n(`test_no_action_is_presumed_validated_without_a_real_pad_run` continua\npassando). Nenhum commit/push feito ainda — aguardando confirmação do\nusuário.\n\n## Benefícios para o projeto\n\n- As ações mais usadas numa conversão (variável, condicional, laço,\n  subflow, 3 de Excel) deixam de virar texto solto no `Main.robin` — viram\n  sintaxe PAD real, com chance real de colar como ação válida, em vez de\n  \"Ação Desconhecida\" garantida.\n- A distinção explícita entre `[proposto]` e `[validado PAD: rodou]`\n  preserva a garantia central do pipeline (nunca afirmar validação sem\n  execução real) mesmo com sintaxe real disponível — ninguém confunde\n  \"copiado de um repositório público\" com \"testado neste PAD\".\n- `Flow.RunSubflow` corrigido para a sintaxe real (`CALL nome`) evita que\n  uma suposição razoável, mas errada (`Flow.RunSubflow Param: valor`),\n  fosse usada achando que era óbvia.\n\n## Causa raiz / motivo\n\nPedido explícito do usuário, com pesquisa web solicitada explicitamente\nantes de qualquer tentativa de sintaxe.\n\n## Pendências\n\n- [ ] Nome exato do sub-nome de ação para ler um **intervalo específico**\n      do Excel (caso real do A360 `Excel.read` com atributo `range`) ainda\n      sem evidência — só \"ler tudo\" está coberto.\n- [ ] Puxar o nome exato da variável declarada no A360 (ponto 2 do pedido\n      original) segue bloqueado — precisa de export A360 real ou do nome\n      do campo de variável de saída no schema.\n- [ ] Commit/push desta unidade de trabalho pendente de confirmação do\n      usuário.\n\n## Relations\n- relates_to [[Corrigido bug real de EOL no Main.robin (LF puro nao colava no PAD)]]\n- relates_to [[Lista de subflows padrao do PAD chamados pelo nome do bot filho]]\n- relates_to [[Regra: manter Claude Code, OpenCode e Copilot sincronizados]]"
+    },
     {
       "id": "projects/migration-reflow/Corrigido bug real de EOL no Main.robin (LF puro nao colava no PAD)",
       "title": "Corrigido bug real de EOL no Main.robin (LF puro nao colava no PAD)",

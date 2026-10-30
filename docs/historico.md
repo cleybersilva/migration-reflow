@@ -1147,3 +1147,97 @@ dois `Main.robin` já normalizados.
   (ver docstring do módulo) — o achado novo é puramente sobre bytes de
   quebra de linha, nunca sobre se o conteúdo colado é uma ação válida do
   PAD.
+
+## Fase 23 — Terceiro status `[proposto]` na whitelist, com sintaxe real de evidência pública (ADR-025)
+
+Continuação direta da Fase 22. O usuário pediu que colar o `Main.robin` no
+PAD pare de gerar "Ação Desconhecida" e que a leitura de Excel puxe a
+mesma variável declarada no A360. Pedi antes para confirmar entendimento;
+a resposta revelou dois bloqueios reais: (1) minha confiança na sintaxe
+literal copiada do PAD era baixa — não é uma linguagem legível documentada,
+é schema interno versionado; (2) a extração hoje não captura nome de
+variável de saída do A360, só nome de parâmetro. O usuário pediu pesquisa
+real na web antes de qualquer tentativa (não "chutar com mais confiança").
+
+### O que a pesquisa encontrou
+
+- A documentação oficial confirma que copiar/colar ações como texto é
+  recurso real do PAD, mas avisa que é schema interno que muda entre
+  versões — risco real, não cautela do projeto.
+- Achei um repositório público aberto
+  (`AgniusBartninkas/power-automate-desktop-framework`) com flows PAD reais
+  versionados como texto puro (`src/flows/*/source/*.txt`), usados em
+  produção por outra equipe. O próprio README desse repositório confirma o
+  mesmo risco de incompatibilidade entre versões, mas destaca que "ações
+  simples, como Set variable, Run subflow, etc." são as mais estáveis.
+- Cruzei a sintaxe desses arquivos reais com a documentação oficial de
+  parâmetros (Variables, Conditionals, Loops, Flow control, Excel, HTTP) —
+  os nomes batem entre as duas fontes independentes.
+- Achado importante: `Flow.RunSubflow` não usa o padrão `Módulo.Ação
+  Param: valor` — a sintaxe real é a palavra-chave `CALL <nome>`.
+
+Ver [ADR-025](decisions.md) para o racional completo, incluindo por que
+isso não é "inventar com mais confiança" — é evidência real citável, vs.
+chute.
+
+### O que mudou
+
+- `reference/robin-actions.md`: novo status `[proposto — baseado em
+  evidência pública, não testado nesta instalação]`, documentado no topo
+  do arquivo junto dos outros dois. Promovidas para esse status, cada uma
+  com a evidência citada (arquivo real + página oficial):
+  `Variables.SetVariable` (`SET var TO valor`), `Conditionals.IfElse`
+  (`IF cond THEN ... [ELSE ...] END`), `Loops.ForEach` (`LOOP FOREACH var
+  IN lista ... END`), `Loops.LoopWhileCondition` (`LOOP WHILE (cond) ...
+  END`), `Flow.RunSubflow` (`CALL nome`), `Excel.LaunchExcel`,
+  `Excel.ReadFromWorksheet` (só o caso "ler tudo" — "ler intervalo
+  específico" segue `[não validado]`, lacuna documentada) e
+  `Excel.CloseExcel`. As 14 ações restantes (Browser.*, UI.*, File.*,
+  Web.*, Text.Concatenate, Credentials.GetCredential, FlowControl.Region)
+  continuam `[não validado]` — nenhuma promovida sem evidência direta.
+- `docs/decisions.md`: ADR-025 com o racional completo.
+- `reference/robin-conventions.md`: nova regra — snippet `proposto` é
+  copiado com os nomes de exemplo substituídos pelos nomes reais do passo,
+  nunca literalmente.
+- `.opencode/agents/reflow-pad-converter.md`: instrução para tratar os três
+  status de forma diferente ao copiar o snippet.
+- `.opencode/agents/reflow-robin-reviewer.md`: 7º item de auditoria,
+  conferindo se um snippet `proposto` foi corretamente adaptado (nomes
+  substituídos, comentário ainda citando que não é validado).
+- Paridade entre harnesses: `scripts/sync_agents.py` e
+  `scripts/sync_copilot.py` rodados depois da mudança nos dois agents.
+
+### Bug pego durante a própria escrita
+
+Ao testar o parser da whitelist (`load_whitelist`) depois de escrever a
+entrada de `Excel.ReadFromWorksheet`, a ação **sumiu** do dicionário
+carregado — a linha `- Status: [...]` tinha texto extra depois do colchete
+de fechamento, e o parser (`_STATUS_LINE_RE`) exige a linha exata, sem
+sobra. Corrigido movendo a ressalva para uma linha própria. Verificado com
+`uv run python -c "...load_whitelist..."` antes e depois: 21 ações antes
+do fix (uma perdida), 22 depois (todas as que o arquivo declara).
+
+### Verificação
+
+`ruff check`/`format --check` → ok; `pytest` → **234 passed** (sem mudança
+de contagem — é tudo doc/prompt, nenhum código Python novo);
+`reflow scan`, `reflow lint-robin --all` → ok. `load_whitelist` conferido
+manualmente: 22/22 ações carregadas, 8 com status `proposto`, nenhuma
+`validada` (`test_no_action_is_presumed_validated_without_a_real_pad_run`
+continua passando).
+
+### O que esta fase não fez (honestidade)
+
+- Não resolveu o pedido de puxar o nome exato da variável declarada no
+  A360 (ponto 2 do pedido original) — isso depende de um gap separado na
+  extração (nenhum campo de variável de saída é capturado hoje), ainda sem
+  um export A360 real para confirmar o schema.
+- Não tem evidência do sub-nome de ação para "ler um intervalo específico"
+  do Excel (caso real do A360 `Excel.read` com atributo `range`) — só para
+  "ler tudo".
+- Nenhuma das 14 ações sem evidência direta foi promovida por semelhança
+  com as que têm evidência — ficou `[não validado]` mesmo quando "parecia
+  óbvio" (ex.: `Text.Concatenate`, módulo `Text` confirmado existir, mas a
+  sub-ação específica não).
+- Nada disto promove nada para `[validado PAD: rodou]` — essa barra
+  continua exigindo execução real neste ambiente.

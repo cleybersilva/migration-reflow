@@ -1,14 +1,27 @@
 # Whitelist de ações Robin
 
 Toda ação Robin usada numa conversão **tem que vir desta lista**. Nenhuma sintaxe é
-inventada: o snippet de cada ação só deixa de ser `[não validado]` depois que alguém
-monta a ação de verdade no designer do Power Automate Desktop, copia o texto gerado
-(Ctrl+C) e substitui o placeholder abaixo por esse texto exato.
+inventada — nem mesmo a que "parece óbvia" (ver [`AGENTS.md`](../AGENTS.md)).
+
+Status possíveis, do mais fraco para o mais forte:
+
+- **`[não validado]`** — nada foi tentado ainda. O conteúdo é um placeholder
+  textual (`[não validado — TODO reflow: ...]`), nunca sintaxe real — colar
+  isso no PAD não cria ação nenhuma.
+- **`[proposto — baseado em evidência pública, não testado nesta
+  instalação]`** — sintaxe **real** do PAD, copiada de flows públicos reais
+  (repositório aberto, não documentação genérica) e cruzada com a
+  documentação oficial de parâmetros de cada ação. Ninguém rodou isso
+  **neste** PAD ainda. Toda entrada nesse status cita a evidência exata
+  (arquivo do repositório + página oficial). Ver [ADR-025](decisions.md)
+  para o racional completo e por que isso não é "inventar com mais
+  confiança". Colar um snippet `proposto` tem boa chance de virar ação real
+  — mas precisa de confirmação antes de qualquer execução em produção.
+- **`[validado PAD: rodou]`** — alguém montou a ação de verdade no designer
+  **deste** PAD, rodou e confirmou. É a única barra que conta como validação
+  real.
 
 Convenções do `Main.robin`: ver [`robin-conventions.md`](robin-conventions.md).
-
-Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
-`[não validado]` (ainda é só um placeholder — nunca usar como se fosse sintaxe real).
 
 ## Browser
 
@@ -73,19 +86,51 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
 ### `Excel.LaunchExcel`
 - Módulo: Excel
 - Quando usar: abrir uma planilha existente ou criar uma nova (equivalente ao A360 `Excel.open`).
-- Status: [não validado]
+- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
+- Evidência: `src/flows/config-reader-local-connectors/source/read-excel-config.txt` do repositório
+  [`AgniusBartninkas/power-automate-desktop-framework`](https://github.com/AgniusBartninkas/power-automate-desktop-framework)
+  (licença aberta), cruzado com a ação oficial **Launch Excel** em
+  [`actions-reference/excel`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/excel)
+  (parâmetros `Document path`→`Path`, `Open as ReadOnly`→`ReadOnly`, `Make
+  instance visible`→`Visible`, saída `ExcelInstance`).
+- Observação: variante confirmada é "abrir documento existente, sem
+  processo Excel próprio" (`LaunchAndOpenUnderExistingProcess`). Outras
+  combinações do toggle "Launch Excel" (documento em branco) e "Nest under
+  a new Excel process" existem na documentação oficial, mas o sufixo exato
+  da sub-ação para elas não tem evidência direta — usar `TODO reflow` se
+  precisar de uma variante diferente desta.
 
 ```robin
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: %cfg_arquivo_excel% Visible: False ReadOnly: True Instance=> out_excel_instance
 ```
 
 ### `Excel.ReadFromWorksheet`
 - Módulo: Excel
 - Quando usar: ler um intervalo de células de uma planilha já aberta (equivalente ao A360 `Excel.read`).
-- Status: [não validado]
+- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
+- **Atenção**: a evidência cobre só o caso "ler a planilha inteira" — ver a
+  lacuna aberta logo abaixo para o caso "ler um intervalo específico".
+- Evidência: mesmo arquivo do repositório acima (`Excel.ReadFromExcel.ReadAllCells`),
+  cruzado com a ação oficial **Read from Excel worksheet** em
+  [`actions-reference/excel`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/excel)
+  (`ReadAsText`→"Get cell(s) contents as", `FirstLineIsHeader`→"First line
+  of range contains column names", saída `ExcelData`/aqui `RangeValue`).
+- **Lacuna aberta (TODO reflow, não inventar)**: o A360 `Excel.read` desta
+  pipeline usa o atributo `range` (ex.: `A1:B3` — ver
+  `01-inventory/inventory.json`), ou seja, o caso real é "ler um intervalo
+  específico", não "ler tudo". A documentação oficial confirma os
+  parâmetros desse modo (`Start column`/`Start row`/`End column`/`End row`),
+  mas o **sufixo exato da sub-ação** para esse modo (algo como
+  `Excel.ReadFromExcel.ReadCellRange`, sem confirmação direta) não tem
+  evidência — usar o placeholder `[não validado]` abaixo para esse caso até
+  alguém confirmar o nome real no PAD.
 
 ```robin
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+# Caso "ler a planilha inteira" — proposto, evidência pública:
+Excel.ReadFromExcel.ReadAllCells Instance: %out_excel_instance% ReadAsText: False FirstLineIsHeader: True RangeValue=> out_excel_data
+
+# Caso "ler um intervalo específico" (A360 Excel.read com atributo `range`) — ainda sem evidência do sufixo real:
+[não validado — TODO reflow: confirmar no PAD o nome exato da sub-ação de Excel.ReadFromExcel para intervalo específico (Start column/Start row/End column/End row), depois colar o texto copiado aqui]
 ```
 
 ### `Excel.WriteToWorksheet`
@@ -100,10 +145,20 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
 ### `Excel.CloseExcel`
 - Módulo: Excel
 - Quando usar: fechar a planilha, com ou sem salvar (equivalente ao A360 `Excel.activate` ao final do flow).
-- Status: [não validado]
+- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
+- Evidência: `src/flows/excel-closer/source/main.txt` e
+  `src/flows/config-reader-local-connectors/source/read-excel-config.txt`
+  do repositório
+  [`AgniusBartninkas/power-automate-desktop-framework`](https://github.com/AgniusBartninkas/power-automate-desktop-framework),
+  cruzado com a ação oficial **Close Excel** em
+  [`actions-reference/excel`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/excel).
+  Variante confirmada: fechar sem salvar (`Close`, "Do not save document" —
+  o default oficial). Para "salvar antes de fechar", a documentação lista
+  os parâmetros (`Before closing Excel`, `Document format`, `Document
+  path`), mas a sintaxe exata colada não tem evidência direta.
 
 ```robin
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+Excel.CloseExcel.Close Instance: %out_excel_instance%
 ```
 
 ## File
@@ -131,10 +186,20 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
 ### `Variables.SetVariable`
 - Módulo: Variables
 - Quando usar: criar ou atualizar uma variável do flow (prefixos `step_`/`in_`/`out_`/`cfg_`, ver convenções).
-- Status: [não validado]
+- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
+- Evidência: múltiplos arquivos do repositório
+  [`AgniusBartninkas/power-automate-desktop-framework`](https://github.com/AgniusBartninkas/power-automate-desktop-framework)
+  (ex.: `src/flows/browser-closer/source/main.txt`: `SET Output_Status TO
+  200`), cruzado com a ação oficial **Set variable** em
+  [`actions-reference/variables`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/variables)
+  (entrada única `To`, saída = nome da variável). Diferente do padrão
+  `Módulo.Ação Param: valor` das outras ações — é uma palavra-chave própria
+  da linguagem (`SET`), sem `Result=>`. Texto literal usa `$'''...'''` para
+  valores de texto e `%NomeDaVariavel%` para referenciar outra variável
+  dentro de uma string.
 
 ```robin
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+SET cfg_output_folder TO $'''C:\Users\Public\Documents\'''
 ```
 
 ## Loops
@@ -142,19 +207,34 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
 ### `Loops.ForEach`
 - Módulo: Loops
 - Quando usar: iterar sobre uma lista ou tabela de itens.
-- Status: [não validado]
+- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
+- Evidência: múltiplos arquivos do mesmo repositório (ex.:
+  `src/flows/flow-template-work-queues/source/generate-work-items.txt`:
+  `LOOP FOREACH DataRow_CurrentWorkItem IN DataTable_WorkItems`), cruzado
+  com a ação oficial **For each** em
+  [`actions-reference/loops`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/loops)
+  ("Value to iterate" = lista/data table/data row).
 
 ```robin
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+LOOP FOREACH step_item_atual IN in_lista_ou_tabela
+    [proposto — corpo do laço: passos reais do flow aqui dentro]
+END
 ```
 
 ### `Loops.LoopWhileCondition`
 - Módulo: Loops
 - Quando usar: repetir um bloco enquanto uma condição permanecer verdadeira.
-- Status: [não validado]
+- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
+- Evidência: `src/flows/flow-template-work-queues/source/process-work-items.txt`
+  do mesmo repositório (`LOOP WHILE (...)`), cruzado com a ação oficial
+  **Loop condition** em
+  [`actions-reference/loops`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/loops)
+  (operador, primeiro e segundo operando).
 
 ```robin
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+LOOP WHILE (in_condicao_operando_1 = in_condicao_operando_2)
+    [proposto — corpo do laço: passos reais do flow aqui dentro]
+END
 ```
 
 ## Conditionals
@@ -162,10 +242,23 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
 ### `Conditionals.IfElse`
 - Módulo: Conditionals
 - Quando usar: ramificar o fluxo conforme uma condição booleana.
-- Status: [não validado]
+- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
+- Evidência: múltiplos arquivos do repositório
+  [`AgniusBartninkas/power-automate-desktop-framework`](https://github.com/AgniusBartninkas/power-automate-desktop-framework)
+  (ex.: `src/flows/browser-closer/source/main.txt`:
+  `IF IsNotEmpty(Input_BrowserInstance) THEN ... END`, e variantes com
+  `ELSE`), cruzado com as ações oficiais **If**/**Else**/**Else if** em
+  [`actions-reference/conditionals`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/conditionals)
+  (operador, primeiro e segundo operando). A condição pode ser uma
+  comparação (`A = B`, `A <> B`, etc.) ou uma função booleana (ex.:
+  `IsNotEmpty(X)`, `IsEmpty(X)`).
 
 ```robin
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+IF in_condicao_operando_1 = in_condicao_operando_2 THEN
+    [proposto — passos reais do flow se verdadeiro]
+ELSE
+    [proposto — passos reais do flow se falso; bloco ELSE é opcional]
+END
 ```
 
 ## Web
@@ -174,6 +267,13 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
 - Módulo: Web
 - Quando usar: chamar um endpoint REST — GET/POST/PUT/DELETE (equivalente ao A360 `REST.*`).
 - Status: [não validado]
+- Observação: a ação oficial equivalente é **Invoke web service**
+  (parâmetros `URL`, `Method`, `Custom headers`, `Request body`, saída
+  `WebServiceResponse`/`StatusCode` — ver
+  [`actions-reference/web`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/web)),
+  mas não encontrei um exemplo real de texto copiado citando o nome exato
+  do módulo/sub-ação usado no PAD — por isso continua `[não validado]`, sem
+  promover por semelhança com as outras ações.
 
 ```robin
 [não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
@@ -194,6 +294,10 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
 - Módulo: Text
 - Quando usar: concatenar textos/variáveis para montar uma string de saída.
 - Status: [não validado]
+- Observação: o módulo `Text` existe de verdade no PAD (vi `Text.ToNumber`
+  e `Text.AppendLine` em flows reais do repositório citado acima), mas não
+  encontrei evidência direta da sub-ação `Concatenate` especificamente —
+  continua `[não validado]` em vez de assumir o nome por semelhança.
 
 ```robin
 [não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
@@ -235,10 +339,20 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
   descontinuado). Caso análogo, mas para um padrão de passos que se repete
   **entre processos diferentes** (sem chamada explícita no legado): ver
   catálogo próprio, também em [`subfluxos-comuns.md`](subfluxos-comuns.md).
-- Status: [não validado]
+- Status: [proposto — baseado em evidência pública, não testado nesta instalação]
+- Evidência: múltiplos arquivos do repositório
+  [`AgniusBartninkas/power-automate-desktop-framework`](https://github.com/AgniusBartninkas/power-automate-desktop-framework)
+  (ex.: `CALL CloseChrome`, `CALL GetSubflowName`), cruzado com a ação
+  oficial **Run subflow** em
+  [`actions-reference/flowcontrol`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/flowcontrol)
+  (`Subflow name`). **Achado importante**: a sintaxe real não é um padrão
+  `Módulo.Ação Param: valor` — é a palavra-chave `CALL` seguida só do nome
+  do subflow, sem dois-pontos nem parâmetros nomeados nesse caso estático.
+  A variante dinâmica (`Input as expression` habilitado) não tem evidência
+  direta.
 
 ```robin
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
+CALL <nome_do_bot_filho>
 ```
 
 ## Flow Control
@@ -258,17 +372,38 @@ Status possíveis: `[validado PAD: rodou]` (copiado de uma execução real) ou
   uma chamada de subflow (ver `Flow.RunSubflow` acima) ou um subfluxo comum
   catalogado em [`subfluxos-comuns.md`](subfluxos-comuns.md).
 - Status: [não validado]
+- Observação: a ação oficial **Region**/**End region** existe de verdade
+  (confirmado em
+  [`actions-reference/flowcontrol`](https://learn.microsoft.com/en-us/power-automate/desktop-flows/actions-reference/flowcontrol),
+  parâmetro `Name`), mas não encontrei um exemplo real de texto copiado —
+  continua `[não validado]` até alguém confirmar a sintaxe exata.
 
 ```robin
 [não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (abertura e fechamento da Região)]
 ```
 
-## Como promover uma ação para `[validado PAD: rodou]`
+## Como promover uma ação
 
-1. Monte a ação manualmente no designer do Power Automate Desktop.
+### De `[não validado]` ou `[proposto]` para `[validado PAD: rodou]`
+
+1. Monte a ação manualmente no designer do Power Automate Desktop **deste
+   ambiente** (ter evidência pública de um `[proposto]` não dispensa esse
+   passo — é só um ponto de partida melhor que um placeholder em branco).
 2. Rode o flow e confirme que a ação funciona como esperado.
 3. Selecione a ação no designer e copie (Ctrl+C).
-4. Cole o texto copiado no lugar do placeholder `[não validado — TODO reflow: ...]`.
-5. Troque o `Status` da seção para `[validado PAD: rodou]`.
+4. Cole o texto copiado no lugar do conteúdo anterior (placeholder ou
+   snippet `proposto`).
+5. Troque o `Status` da seção para `[validado PAD: rodou]` e remova a nota
+   de "Evidência" (ela passa a ser supérflua — a evidência agora é a
+   execução real).
 6. Nunca edite à mão uma linha já marcada `[validado PAD: rodou]` sem revisão humana
    (ver [`AGENTS.md`](../AGENTS.md)).
+
+### De `[não validado]` para `[proposto — baseado em evidência pública, não testado nesta instalação]`
+
+Só promova se tiver evidência **real e citável**: um flow PAD real,
+público, legível como texto (não um exemplo de blog sem fonte verificável),
+cruzado com a documentação oficial de parâmetros da ação. Registre a fonte
+exata (arquivo + link) na seção "Evidência" — sem isso, a entrada não é
+`proposto`, continua `[não validado]`. Ver [ADR-025](decisions.md) para o
+racional completo.

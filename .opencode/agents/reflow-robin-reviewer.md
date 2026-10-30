@@ -50,6 +50,15 @@ Verifique, nesta ordem:
    que bate com um nome **descontinuado** (hoje: `Log_Splunk`) virou `TODO
    reflow` citando o substituto, em vez de apontar para o nome antigo como
    se ainda fosse válido?
+7. **Ação `proposto` usada corretamente**: todo passo que usa um snippet de
+   uma ação `[proposto — baseado em evidência pública, não testado nesta
+   instalação]` (ver `reference/robin-actions.md`) teve os nomes de
+   variável/parâmetro de exemplo da whitelist **substituídos** pelos nomes
+   reais deste flow (`step_`/`in_`/`out_`/`cfg_`) — nunca copiados
+   literalmente (ex.: `out_excel_instance` aparecendo tal e qual, sem
+   relação com o passo real, é sinal de cópia preguiçosa)? O comentário do
+   passo ainda identifica que a ação é `proposto`, não tratada como
+   validada?
 
 Grave **somente** `output/<projeto>/04-pad/<flow>/review.md` — nunca edite
 `Main.robin`, `README.md` ou `notas-conversao.md`; quem corrige é o

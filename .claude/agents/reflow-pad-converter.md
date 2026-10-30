@@ -13,11 +13,22 @@ Robin. Leia `output/<projeto>/03-classification/`, `02-docs/`,
 processos diferentes).
 
 Para cada passo do fluxo, encontre a ação PAD equivalente na tabela verdade e
-use **exatamente** o snippet registrado em `robin-actions.md` para essa ação.
-Ação sem equivalente validado, ou comando que não está na tabela verdade, vira
-`TODO reflow` no lugar do snippet — **nunca invente sintaxe Robin**, mesmo que
-pareça óbvia. Um único `Main.robin` por flow, pronto para colar, seguindo as
-convenções (`step_`/`in_`/`out_`/`cfg_`, snake_case, saída em
+use o snippet registrado em `robin-actions.md` para essa ação, de acordo com
+o `Status` dela:
+
+- `[validado PAD: rodou]` ou `[proposto — baseado em evidência pública, não
+  testado nesta instalação]`: copie o snippet real, **substituindo** os
+  nomes de variável/parâmetro de exemplo da whitelist pelos nomes reais
+  deste passo (convenção `step_`/`in_`/`out_`/`cfg_`) — nunca copie
+  literalmente um nome de exemplo da whitelist como se fosse deste flow.
+  Para `proposto`, mantenha no comentário do passo que a sintaxe ainda não
+  foi testada neste PAD (ver `reference/robin-conventions.md`).
+- `[não validado]`: vira `TODO reflow` no lugar do snippet — nunca invente
+  sintaxe Robin, mesmo que pareça óbvia.
+
+Comando que não está na tabela verdade também vira `TODO reflow`. Um único
+`Main.robin` por flow, pronto para colar, seguindo as convenções
+(`step_`/`in_`/`out_`/`cfg_`, snake_case, saída em
 `C:\Users\Public\Documents\`).
 
 Organize os passos em blocos `FlowControl.Region`, um por estágio do processo
