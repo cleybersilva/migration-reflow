@@ -1,5 +1,10 @@
 {
-  "checkpoint": null,
+  "checkpoint": {
+    "classification_sha256": "806f889d84b44c0ade603d7e0539e18c54a31a32aa9a328e49cde6711c2111cf",
+    "decision": "approved",
+    "inputs_fingerprint": "61c69f51aea1d8257b20f708ea69cf98e9b0d249e7428263421373d2af046c0d",
+    "recorded_at": "2026-10-31T01:55:17.513611+00:00"
+  },
   "extracted_at": "2026-10-21T16:32:40.216376+00:00",
   "inputs": [
     {

@@ -1021,3 +1021,56 @@ placeholder genérico — pega o caso real de alguém trocar só a linha de
 - Não resolve a lacuna de "intervalo específico" do `Excel.ReadFromWorksheet`
   nem o nome exato do `packageName`/`commandName` do VBScript no A360 —
   seguem abertos, documentados nos próprios arquivos.
+
+## ADR-028: checkpoint de `a360-excel-vault` aprovado só para a parte confirmada (Excel + REST + CredentialVault)
+
+`a360-excel-vault` estava parado em `03-classification` desde a extração
+original: veredito `PARTIAL` gravado, mas sem a segunda opinião que o
+pipeline (`AGENTS.md`) exige antes do checkpoint humano. Rodei
+`reflow-classify-review` (agent `reflow-classification-reviewer`) para
+reclassificar o projeto do zero, sem ler `classification.md` antes de
+concluir o próprio veredito.
+
+### Resultado da segunda opinião
+
+`output/a360-excel-vault/03-classification/review.md`:
+`original_verdict: PARTIAL`, `reviewed_verdict: PARTIAL`,
+`agreement: concorda`. A mesma lógica nas duas análises independentes: a
+parte confirmada do fluxo (`Excel/open`, `Excel/read`, `REST/post`,
+`CredentialVault/get`) não atende nenhum critério C1–C5 (sem
+`ui_interactions`) e atende fortemente N1/N4 (já usa API REST existente +
+padrão ETL puro) — isoladamente apontaria `NOT_PAD`. Mas os dois comandos
+não reconhecidos na extração (`CustomPackage/transform`,
+`Browser/unmappedAction`) são incerteza genuína, sem evidência de UI nem de
+ETL, o que aciona a regra da rubrica "na dúvida entre `PARTIAL` e
+`NOT_PAD`, escolha `PARTIAL`" (`reference/classification-rubric.md:9`).
+
+### Decisão do checkpoint
+
+Classificação com segunda opinião concordante foi para o analista (o
+usuário), que decidiu: **aprovar apenas a parte confirmada** do fluxo
+(`Excel/open` → `Excel/read` → `REST/post` com `CredentialVault/get`) para
+seguir à conversão PAD, pela regra KISS de não fragmentar o projeto em
+dois sub-fluxos — mesmo essa parte, isolada, apontando estatisticamente
+para `NOT_PAD` por N1/N4. Os dois comandos não reconhecidos
+(`CustomPackage/transform`, `Browser/unmappedAction`) **ficam de fora**
+da conversão até alguém confirmar, com evidência real (consulta a
+`reference/robin-actions.md` ou nova extração), se representam interação
+de UI ou só mais uma etapa de transformação/integração.
+
+`reflow checkpoint a360-excel-vault --approve` grava a aprovação no
+manifesto (`checkpoint.decision: "approved"`, vinculado por hash a
+`classification.md` e às entradas atuais de `input/a360-excel-vault/`,
+conforme ADR-020). O CLI atual não tem campo de "escopo parcial" no
+manifesto — por isso esse recorte (o que exatamente foi aprovado, e o que
+ficou de fora) está registrado aqui e em `docs/historico.md`, não só no
+JSON.
+
+### O que esta decisão não fez
+
+- Não aprovou `CustomPackage/transform` nem `Browser/unmappedAction` para
+  conversão — seguem fora do escopo do PAD até confirmação real.
+- Não alterou `classification.md` nem o veredito `PARTIAL` do projeto —
+  só o `checkpoint` no manifesto mudou.
+- Não gerou nenhum `Main.robin` ainda — a conversão em si
+  (`reflow-pad-converter`) é o próximo passo, de posse desta aprovação.

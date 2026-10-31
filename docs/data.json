@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-10-30T20:07:26+00:00",
+  "generatedAt": "2026-10-31T01:56:49+00:00",
   "projects": [
-    {
-      "id": "mpes-calendario",
-      "label": "mpes-calendario"
-    },
     {
       "id": "migration-reflow",
       "label": "migration-reflow"
+    },
+    {
+      "id": "mpes-calendario",
+      "label": "mpes-calendario"
     },
     {
       "id": "opencode",
@@ -19,6 +19,26 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Segunda opinião da classificação concorda- a360-excel-vault continua PARTIAL",
+      "title": "Segunda opinião da classificação concorda: a360-excel-vault continua PARTIAL",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-10-30",
+      "hora": "23:00 -03:00",
+      "atividade": "Segunda opinião da classificação de a360-excel-vault + checkpoint humano aprovado parcialmente (Excel+REST+CredentialVault)",
+      "tags": [
+        "reflow",
+        "classificacao",
+        "checkpoint",
+        "a360-excel-vault"
+      ],
+      "meta": {},
+      "content": "## O que foi feito\n\nUsuário pediu para continuar de onde a sessão anterior parou. O último\ncommit (`c2db8e4`, CD do GitHub Pages + 4 ações Robin validadas) já estava\ncomitado e com push feito — nada pendente ali. Rodando `reflow report`,\nencontrei três projetos em `output/`: `a360-browser-rest` (pipeline\ncompleto até `05-test`), `a360-excel-vault` (parado em `03-classification`,\nsem `review.md` e sem checkpoint) e `quote-scraper` (NOT_PAD, terminal após\nclassificação — nada pendente). `a360-excel-vault` era o único ponto real\nde continuação.\n\n1. Disparei o agent `reflow-classification-reviewer` via skill\n   `reflow-classify-review` para reclassificar o projeto do zero.\n   Resultado: `original_verdict: PARTIAL`, `reviewed_verdict: PARTIAL`,\n   `agreement: concorda` — mesma lógica nas duas análises independentes.\n2. Levei o resultado ao usuário para o checkpoint humano (decisão que o\n   pipeline exige explicitamente, nunca automática). Decisão do usuário:\n   **aprovar só a parte confirmada** do fluxo (Excel open/read + REST post\n   + CredentialVault get), regra KISS, deixando\n   `CustomPackage/transform` e `Browser/unmappedAction` fora da conversão\n   até confirmação real.\n3. Gravei a aprovação com `reflow checkpoint a360-excel-vault --approve` e\n   documentei o recorte exato (o que foi aprovado vs. o que ficou de fora)\n   em ADR-028 (`docs/decisions.md`) e Fase 26 (`docs/historico.md`), já que\n   o manifesto atual não tem campo de \"escopo parcial\".\n\n## O que foi modificado\n\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `output/a360-excel-vault/03-classification/review.md` | Criado pelo agent `reflow-classification-reviewer`: segunda opinião concordante | criado |\n| `output/a360-excel-vault/00-manifest.json` | `checkpoint.decision: \"approved\"`, vinculado por hash a `classification.md` e a `input/` atual | alterado |\n| `docs/decisions.md` | ADR-028 | alterado |\n| `docs/historico.md` | Fase 26 | alterado |\n| `docs/data.json` | Regenerado a partir das notas do Basic Memory | alterado |\n\n## O que foi implantado\n\n`reflow checkpoint a360-excel-vault --approve` → \"checkpoint aprovado\ngravado\"; `ruff check` → ok; `reflow scan` → ok; `pytest` sem regressão\n(nenhum código de produção mudou, só artefatos de pipeline e documentação).\n\n## Benefícios para o projeto\n\n- `a360-excel-vault` sai do limbo entre classificação e conversão — tem\n  segunda opinião registrada e checkpoint humano explícito, auditável em\n  `docs/decisions.md` (ADR-028) além do manifesto.\n- O recorte do que foi aprovado (parte confirmada) vs. o que ficou de fora\n  (2 comandos não reconhecidos) está documentado antes de qualquer\n  conversão acontecer — próxima sessão pode rodar `reflow-pad-converter`\n  sabendo exatamente o escopo autorizado.\n\n## Causa raiz / motivo\n\nProjeto estava com `classification.md` pronto mas sem a segunda opinião\nnem o checkpoint — etapas do pipeline (`AGENTS.md`) ainda não executadas,\nnão um bug. Decisão de escopo (aprovar só a parte confirmada) foi do\nusuário no checkpoint, não inferida pelo agent.\n\n## Pendências\n\n- [ ] Conversão (`reflow-pad-converter`) de `a360-excel-vault` ainda não\n      rodou — próximo passo natural, escopo: só Excel open/read + REST\n      post + CredentialVault get.\n- [ ] `CustomPackage/transform` e `Browser/unmappedAction` seguem sem\n      evidência real (consultar `reference/robin-actions.md` ou nova\n      extração) — não convertidos, não descartados.\n- [ ] Commit/push desta unidade de trabalho — usuário já autorizou.\n\n## Relations\n- relates_to [[Primeiras 4 acoes validadas de verdade no PAD e raiz do bug de crase corrigida]]"
+    },
     {
       "id": "projects/mpes-calendario/Equipes e trabalho em grupo no mpes-calendario",
       "title": "Equipes e trabalho em grupo no mpes-calendario",

@@ -1346,3 +1346,46 @@ de regex pegar todos os casos.
   do `packageName`/`commandName` do VBScript no A360 — seguem abertos.
 - Não mudou o status das linhas de `a360-to-pad.md` — deliberado, lado da
   extração real segue sem confirmação.
+
+## Fase 26 — Checkpoint de `a360-excel-vault` aprovado parcialmente (Excel + REST + CredentialVault)
+
+Continuação de sessão: `reflow report` mostrou três projetos em
+`output/` — `a360-browser-rest` (pipeline completo até `05-test`),
+`quote-scraper` (`NOT_PAD`, terminal) e `a360-excel-vault`, parado em
+`03-classification` desde a extração original, sem a segunda opinião que
+o pipeline exige antes do checkpoint. Esse era o único ponto real de
+continuação.
+
+### O que mudou
+
+- Rodei `reflow-classify-review` (agent `reflow-classification-reviewer`)
+  em `a360-excel-vault`: reclassificação independente do zero, sem ler
+  `classification.md` antes de concluir o próprio veredito. Resultado em
+  `output/a360-excel-vault/03-classification/review.md`:
+  `original_verdict: PARTIAL`, `reviewed_verdict: PARTIAL`,
+  `agreement: concorda`.
+- Levei o resultado ao usuário (analista) para o checkpoint humano — a
+  decisão de converter ou não não é do agent, é dele. Decisão: **aprovar
+  só a parte confirmada** do fluxo (Excel open/read + REST post +
+  CredentialVault get), regra KISS, deixando
+  `CustomPackage/transform` e `Browser/unmappedAction` fora da conversão
+  até confirmação real.
+- `reflow checkpoint a360-excel-vault --approve` gravou a aprovação no
+  manifesto. Ver [ADR-028](decisions.md) para o recorte completo do que
+  foi aprovado e o que ficou de fora.
+
+### Verificação
+
+`ruff check` → ok; `reflow scan` → ok; `pytest` → sem regressão (nenhum
+código de produção mudou nesta fase, só artefatos de pipeline e
+documentação).
+
+### O que esta fase não fez (honestidade)
+
+- Não converteu nada para `Main.robin` ainda — a aprovação do checkpoint é
+  pré-requisito da conversão, não a própria conversão.
+- Não aprovou `CustomPackage/transform` nem `Browser/unmappedAction` —
+  seguem fora do escopo até alguém trazer evidência real sobre o que esses
+  dois comandos fazem.
+- Não editou `classification.md` nem `review.md` além do que o agent
+  gravou — nenhum raciocínio de classificação foi sobrescrito.
