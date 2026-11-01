@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-01T19:59:04+00:00",
+  "generatedAt": "2026-11-01T20:27:17+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -19,6 +19,26 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Auditoria semântica aprova o Main.robin de a360-excel-vault, sem achados bloqueantes",
+      "title": "Auditoria semântica aprova o Main.robin de a360-excel-vault, sem achados bloqueantes",
+      "project": "migration-reflow",
+      "categoria": "diagnostico",
+      "categoriaLabel": "Diagnóstico",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-01",
+      "hora": "00:40 -03:00",
+      "atividade": "Rodar reflow-convert-review (auditoria semântica) no Main.robin recém-convertido de a360-excel-vault",
+      "tags": [
+        "reflow",
+        "revisao",
+        "robin",
+        "a360-excel-vault"
+      ],
+      "meta": {},
+      "content": "## O que foi feito\n\nContinuação direta da conversão (ver [[Primeira conversão de\na360-excel-vault para Main.robin (escopo parcial)]]). Usuário pediu para\nrodar também a auditoria semântica recomendada pela skill\n`reflow-convert-review`, antes do teste. Disparei o agent\n`reflow-robin-reviewer`, com contexto explícito de que o escopo parcial\n(ADR-028) é a baseline esperada, não uma lacuna a reprovar.\n\n## O que foi modificado\n\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `output/a360-excel-vault/04-pad/uc-01-excel-vault/review.md` | Criado pelo agent `reflow-robin-reviewer` | criado |\n\nNenhum outro arquivo de conversão (`Main.robin`, `README.md`,\n`notas-conversao.md`) foi tocado.\n\n## O que foi implantado\n\nAgent leu `use-cases.md`, `business-rules.md`, `classification.md`,\n`robin-conventions.md`, `subfluxos-comuns.md` e comparou com o\n`Main.robin` real. Resultado: **nenhum achado bloqueante**.\n\n- Cobertura de caso de uso: completa (UC-01, 4 passos na ordem certa).\n- Densidade de `TODO reflow`: 17 ocorrências, alta mas 100% justificada\n  (ação `[não validado]` na whitelist ou valor não capturado pela\n  extração) — 1 de 4 passos do escopo com sintaxe real (25%).\n- Nomenclatura: sem violação. Observação menor, não bloqueante:\n  `out_excel_instance` (passo validado) coincide com o placeholder de\n  exemplo da whitelist — vale double-check humano de que é o nome real\n  usado no designer, não cópia do exemplo (a regra de não copiar exemplo\n  é formalmente só para ação `[proposto]`, esta é `[validado]`).\n- Consistência `notas-conversao.md` × `Main.robin`: ok nos dois sentidos.\n- Subfluxo comum catalogado (`obter-credencial-do-cofre`): sinalizado por\n  completo. Nenhum candidato a novo subfluxo comum perdido.\n- Nenhuma dependência de bot por nome nem uso de ação `proposto`.\n\n## Benefícios para o projeto\n\n- Segunda camada de revisão (além do lint estrutural) confirma que a\n  conversão parcial foi fiel ao escopo aprovado, sem atalho nem invenção\n  de ação para os 2 comandos fora do checkpoint.\n- Acha o único ponto que merece atenção humana antes de montar no designer\n  (nome de variável coincidente com o exemplo da whitelist) — barato de\n  checar agora, caro de descobrir depois de montado.\n\n## Causa raiz / motivo\n\nPasso recomendado pela própria skill `reflow-convert` depois do\n`lint-robin` passar; pedido explícito do usuário para rodar agora.\n\n## Pendências\n\n- [ ] Confirmar com o analista se `out_excel_instance` é de fato o nome\n      usado no designer quando `Excel.LaunchExcel` foi validado em\n      2026-10-30, ou se foi copiado do exemplo da whitelist.\n- [ ] Gerar teste (`reflow-test`) ainda não rodou para este flow.\n- [ ] Commit/push desta unidade pendente de confirmação do usuário.\n\n## Relations\n- relates_to [[Primeira conversão de a360-excel-vault para Main.robin (escopo parcial)]]"
+    },
     {
       "id": "projects/migration-reflow/Primeira conversão de a360-excel-vault para Main.robin (escopo parcial)",
       "title": "Primeira conversão de a360-excel-vault para Main.robin (escopo parcial)",
