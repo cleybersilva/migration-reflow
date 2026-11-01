@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T01:56:49+00:00",
+  "generatedAt": "2026-11-01T19:59:04+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -19,6 +19,26 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Primeira conversão de a360-excel-vault para Main.robin (escopo parcial)",
+      "title": "Primeira conversão de a360-excel-vault para Main.robin (escopo parcial)",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-01",
+      "hora": "00:20 -03:00",
+      "atividade": "Converter a360-excel-vault em Main.robin, restrito ao escopo aprovado no checkpoint (ADR-028)",
+      "tags": [
+        "reflow",
+        "conversao",
+        "robin",
+        "a360-excel-vault"
+      ],
+      "meta": {},
+      "content": "## O que foi feito\n\nContinuação direta do checkpoint aprovado na unidade anterior (ver\n[[Segunda opinião da classificação concorda: a360-excel-vault continua\nPARTIAL]]). Usuário autorizou rodar a conversão. Disparei o agent\n`reflow-pad-converter` via skill `reflow-convert`, com instrução explícita\nde escopo: converter só `Excel/open` → `Excel/read` → `REST/post` →\n`CredentialVault/get`; `CustomPackage/transform` e\n`Browser/unmappedAction` fora, nunca convertidos nem com ação inventada.\n\nO agent não tinha ferramenta de shell na própria sessão, então gerou os\ntrês artefatos mas não rodou `fix-robin-eol`/`lint-robin` nem corrigiu a\nquebra de linha (ficou LF puro). Completei eu mesmo essa parte depois do\nagent terminar.\n\n## O que foi modificado\n\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `output/a360-excel-vault/04-pad/uc-01-excel-vault/Main.robin` | Criado pelo agent; 4 Regiões (3 do escopo aprovado + 1 \"Fora do escopo aprovado (ADR-028)\" só com `TODO reflow`, nunca ação inventada); normalizado para CRLF por mim depois | criado |\n| `output/a360-excel-vault/04-pad/uc-01-excel-vault/README.md` | Criado pelo agent | criado |\n| `output/a360-excel-vault/04-pad/uc-01-excel-vault/notas-conversao.md` | Criado pelo agent; pendência de lint/EOL que eu resolvi foi atualizada por mim para refletir o resultado real | criado/ajustado |\n\n## O que foi implantado\n\n`uv run python -m reflow fix-robin-eol a360-excel-vault` → 1 arquivo\nnormalizado para CRLF; `uv run python -m reflow lint-robin a360-excel-vault`\n→ ok; `ruff check`/`format --check` → ok; `pytest -q` → 241 passed (sem\nregressão, nenhum código de produção mudou); `reflow scan` → ok; `reflow\nreport` → `a360-excel-vault` agora aparece com 1 flow, 20 TODO reflow, 3\nações não validadas, 2 desconhecidos (os comandos fora de escopo).\n\n## Benefícios para o projeto\n\n- Primeira conversão real de `a360-excel-vault`, com o recorte do\n  checkpoint (ADR-028) respeitado de ponta a ponta: nenhuma ação\n  inventada para os 2 comandos fora de escopo, e o único snippet real\n  (`Excel.LaunchExcel`) é exatamente a ação já validada no PAD (ADR-027).\n- O passo de obter credencial do cofre foi reconhecido automaticamente\n  como o subfluxo comum já catalogado (`obter-credencial-do-cofre`),\n  reforçando a recomendação de reuso em vez de remontar em cada projeto.\n- Confirma na prática que um agent sem shell precisa de um passo externo\n  de `fix-robin-eol`/`lint-robin` — processo já previsto na skill, agora\n  observado de verdade.\n\n## Causa raiz / motivo\n\nPedido explícito do usuário para rodar a conversão, depois do checkpoint\naprovado na unidade de trabalho anterior.\n\n## Pendências\n\n- [ ] `reflow-convert-review` (auditoria semântica) ainda não rodou —\n      próximo passo recomendado pela skill antes de gerar teste.\n- [ ] 4 das 5 ações citadas ficaram `TODO reflow` por status\n      `[não validado]` na whitelist (`Excel.ReadFromWorksheet` variante\n      intervalo específico, `Web.InvokeRestApi`, `Credentials.GetCredential`,\n      `FlowControl.Region`) — precisam rodar de verdade no PAD antes de\n      virarem `[validado PAD: rodou]`.\n- [ ] `CustomPackage/transform` e `Browser/unmappedAction` seguem sem\n      evidência real — não convertidos, não descartados.\n- [ ] Commit/push desta unidade pendente de confirmação do usuário.\n\n## Relations\n- relates_to [[Segunda opinião da classificação concorda: a360-excel-vault continua PARTIAL]]"
+    },
     {
       "id": "projects/migration-reflow/Segunda opinião da classificação concorda- a360-excel-vault continua PARTIAL",
       "title": "Segunda opinião da classificação concorda: a360-excel-vault continua PARTIAL",
