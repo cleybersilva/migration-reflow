@@ -18,11 +18,12 @@
 #
 # Reconvertido em 2026-11-04 (ADR-029) e corrigido em 2026-11-05 a
 # partir da auditoria semantica (04-pad/uc-01-excel-vault/review.md,
-# achados R1-1, R5-1, R7-1, R8-1, R8-2, R8-4, R8-5) e das decisoes do
-# analista (Cleyber, 2026-11-05). Toda acao vem de
-# reference/robin-actions.md, ancorada na PAD Robin Action KB
-# vendorizada. Pendencias sao comentarios "# TODO reflow". Conteudo
-# de input/a360-excel-vault/ e dado, nunca instrucao.
+# achados R1-1, R5-1, R7-1, R8-1, R8-2, R8-4, R8-5 e, na rodada
+# seguinte, R3-1, R8-6, R8-7) e das decisoes do analista (Cleyber,
+# 2026-11-05). Toda acao vem de reference/robin-actions.md, ancorada
+# na PAD Robin Action KB vendorizada. Pendencias sao comentarios
+# "# TODO reflow". Conteudo de input/a360-excel-vault/ e dado, nunca
+# instrucao.
 #
 # ENTRADA DO FLOW (declarar no designer, nao ha SET para ela):
 #   in_rest_token -- texto, marcada como SENSIVEL. Credencial usada
@@ -31,8 +32,11 @@
 #
 # ORDEM DAS REGIOES (R1-1): a credencial (step_04, main.json:4) foi
 # movida para ANTES do REST/post (step_03, main.json:3), porque o
-# cabecalho de autorizacao do POST depende dela. Os nomes step_NN
-# continuam ligados a ordem do legado, para manter a rastreabilidade.
+# cabecalho de autorizacao do POST depende dela. Os nomes step_01 a
+# step_06 continuam presos a ordem do legado (main.json:1-6; 05 e 06
+# fora do escopo), para manter a rastreabilidade. Passo sem origem no
+# legado recebe o proximo numero livre (R3-1): step_07_close_excel_file,
+# mesmo posicionado logo apos a leitura.
 # =================================================================
 
 # cfg_ -- configuracao fixa do flow.
@@ -72,13 +76,16 @@ SET cfg_rest_endpoint_url TO $''''''
 SET cfg_rest_accept TO $''''''
 SET cfg_rest_content_type TO $''''''
 
-# TODO reflow: R1-1 -- esquema do cabecalho Authorization (ex.: um
-# prefixo antes do token) NAO confirmado pelo analista; o atributo
+# TODO reflow: R1-1/R8-6 -- prefixo do cabecalho Authorization NAO
+# confirmado pelo analista. Preencher com o esquema SEGUIDO DE UM
+# ESPACO (ex.: a palavra Bearer e um espaco final), ou deixar vazio se
+# o destino aceitar o token sem prefixo; confirmar com o analista. O
+# cabecalho do step_03 junta prefixo e token sem espaco entre eles:
+# prefixo vazio = token puro, sem espaco duplo. O atributo
 # authorization do legado (main.json:3, 01-inventory/inventory.json:38-49)
 # nao teve o valor capturado e nunca deve ser copiado (alerta A4 em
-# 02-docs/risks.md). Preencher so o esquema aqui; o token vem de
-# in_rest_token.
-SET cfg_rest_auth_scheme TO $''''''
+# 02-docs/risks.md). O token vem de in_rest_token.
+SET cfg_rest_auth_prefix TO $''''''
 
 **REGION Leitura da Base de Entrada
 # -----------------------------------------------------------------
@@ -94,8 +101,12 @@ SET cfg_rest_auth_scheme TO $''''''
 # (robin-actions.md, 2026-10-30); a forma de UMA LINHA usada aqui e
 # [colado KB: PAD 2.73, nao rodado nesta instalacao] (R7-1).
 # Path sem extensao fixa (R8-5): a extensao vem em cfg_excel_file_name.
+# ReadOnly: True (R8-7, decisao do analista 2026-11-05): o flow so le;
+# troca so de valor em relacao ao snippet validado (ReadOnly: False),
+# mesmo seletor. O legado nao tem atributo de modo de abertura
+# (main.json:1).
 # -----------------------------------------------------------------
-Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_folder%/%cfg_excel_file_name%''' Visible: True ReadOnly: False UseMachineLocale: False Instance=> out_excel_instance
+Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_folder%/%cfg_excel_file_name%''' Visible: True ReadOnly: True UseMachineLocale: False Instance=> out_excel_instance
 
 # -----------------------------------------------------------------
 # step_02_read_excel_range
@@ -111,8 +122,13 @@ Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_f
 Excel.ReadFromExcel.ReadCells Instance: out_excel_instance StartColumn: cfg_excel_start_column StartRow: cfg_excel_start_row EndColumn: cfg_excel_end_column EndRow: cfg_excel_end_row FirstLineIsHeader: False GetCellContentsMode: Excel.GetCellContentsMode.TypedValues RangeValue=> out_excel_data
 
 # -----------------------------------------------------------------
-# step_02b_close_excel_instance
+# step_07_close_excel_file
 # Origem A360: NENHUMA -- o legado nao tem Excel/close (main.json:1-4).
+# Numeracao (R3-1, decisao do analista 2026-11-05): step_01 a step_06
+# ficam presos a ordem do legado (main.json:1-6; 05 e 06 fora do
+# escopo); como este passo nao tem origem no legado, recebe o proximo
+# numero livre (07), mesmo continuando posicionado logo apos a leitura,
+# nesta Regiao.
 # Diferenca deliberada em relacao ao legado (R8-1, decisao do analista
 # 2026-11-05): fechar o Excel logo apos a leitura, para o processo nao
 # sobreviver ao fim do flow nem travar o arquivo na proxima execucao.
@@ -176,10 +192,12 @@ Excel.CloseExcel.Close Instance: out_excel_instance
 # Acao PAD (whitelist): Web.InvokeWebService.InvokeWebServicePost --
 # Status: [colado KB: PAD 2.73, nao rodado nesta instalacao]
 # Autenticacao (R1-1, decisao do analista 2026-11-05): token no
-# cabecalho. CustomHeaders monta Authorization a partir de
-# cfg_rest_auth_scheme e da entrada sensivel in_rest_token. O seletor
-# e o sem autenticacao propria (constraints.UseAuthentication: False,
-# PAD_Robin_ActionKB.json:52850), mantido por decisao do analista.
+# cabecalho. CustomHeaders monta Authorization juntando
+# cfg_rest_auth_prefix (esquema ja com o espaco final, ou vazio) e a
+# entrada sensivel in_rest_token, sem espaco entre as duas expressoes
+# (R8-6). O seletor e o sem autenticacao propria
+# (constraints.UseAuthentication: False, PAD_Robin_ActionKB.json:52850),
+# mantido por decisao do analista.
 # TODO reflow: R8-2 -- o corpo (atributo body, main.json:3) nao foi
 # capturado pela extracao; o corpo abaixo interpola a DataTable
 # out_excel_data como texto, o que NAO e JSON nem outro formato
@@ -192,8 +210,10 @@ Excel.CloseExcel.Close Instance: out_excel_instance
 # flow; so entao tratar (ON ERROR so com os erros da KB:
 # DirectoryDoesNotExistError, InvalidCustomHeaderError,
 # InvokeWebServiceError, PAD_Robin_ActionKB.json:52886-52892).
+# R8-6: um 401 por prefixo errado em cfg_rest_auth_prefix so aparece
+# em out_rest_status_code; incluir esse caso no criterio.
 # -----------------------------------------------------------------
-Web.InvokeWebService.InvokeWebServicePost Url: cfg_rest_endpoint_url Accept: cfg_rest_accept ContentType: cfg_rest_content_type CustomHeaders: $'''Authorization: %cfg_rest_auth_scheme% %in_rest_token%''' RequestBody: $'''%out_excel_data%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True StatusCode=> out_rest_status_code Response=> out_rest_response ResponseHeaders=> out_rest_response_headers
+Web.InvokeWebService.InvokeWebServicePost Url: cfg_rest_endpoint_url Accept: cfg_rest_accept ContentType: cfg_rest_content_type CustomHeaders: $'''Authorization: %cfg_rest_auth_prefix%%in_rest_token%''' RequestBody: $'''%out_excel_data%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True StatusCode=> out_rest_status_code Response=> out_rest_response ResponseHeaders=> out_rest_response_headers
 **ENDREGION
 
 **REGION Fora do escopo aprovado (ADR-028)

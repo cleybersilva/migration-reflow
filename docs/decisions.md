@@ -1185,6 +1185,10 @@ autenticação (R1-1, bloqueante) e deixava outras quatro escolhas sem dono. O a
 | Formato do corpo | confirmar com o analista | `Accept`/`ContentType` viram `cfg_` vazias com TODO; nada de `application/json` sem evidência |
 | Fechar o Excel | sim | `Excel.CloseExcel.Close` logo após a leitura; diferença deliberada em relação ao legado |
 
+Atualização (Fase 29, R8-6): `cfg_rest_auth_scheme` foi substituída por `cfg_rest_auth_prefix`,
+que guarda o esquema já seguido de espaço; o cabeçalho junta prefixo e token sem espaço entre
+as expressões, de modo que prefixo vazio envia o token puro.
+
 A Região da credencial passou a vir antes do REST (o legado tinha a ordem inversa). Os nomes
 `step_NN` seguem a ordem do legado para manter o rastreio até `main.json`.
 

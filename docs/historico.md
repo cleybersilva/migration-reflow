@@ -1428,3 +1428,33 @@ detector); `reflow scan`, `lint-robin --all` e `kb verify` → ok.
   autorização seguem vazios com TODO.
 - Não tratou R3-1 (nome `step_02b`), R8-6 (esquema vazio) e R8-7 (`ReadOnly: False`): ficam
   para o analista decidir.
+
+## Fase 29 — Piloto `a360-excel-vault`: achados menores R3-1, R8-6 e R8-7
+
+### O que mudou
+
+- **R3-1**: `step_02b_close_excel_instance` virou `step_07_close_excel_file`. Os números
+  `step_01` a `step_06` ficam presos à ordem do legado (`main.json:1-6`); passo sem origem
+  no legado recebe o próximo número livre. No flow de teste, o registro do resultado
+  seguiu a mesma regra (`step_05_record_test_result` virou `step_08_record_test_result`).
+- **R8-6**: `cfg_rest_auth_scheme` virou `cfg_rest_auth_prefix`, com o esquema já seguido
+  de espaço. O cabeçalho junta prefixo e token sem espaço entre as expressões, então
+  prefixo vazio envia o token puro (antes saía com espaço duplo). Expressões adjacentes
+  têm evidência de colagem limpa na sonda `V56-adjacent-vars` da KB.
+- **R8-7**: `step_01` abre a planilha com `ReadOnly: True` (o flow só lê).
+- **R4-2**: README do flow troca o estado datado dos gates por uma regra fixa.
+- `05-test/test_uc-01-excel-vault/` atualizado: mesmas linhas de ação do flow principal
+  (conferido por diff), CT-02 agora cobre prefixo errado ou ausente, CT-05 confere se o
+  Excel ficou aberto quando a leitura falha.
+- Terceira auditoria semântica: nenhum achado bloqueante.
+
+### Verificação
+
+`ruff check`/`ruff format --check` → ok; `pytest` → 283 passed; `reflow scan`,
+`lint-robin --all` e `kb verify` → ok.
+
+### O que esta fase não fez (honestidade)
+
+- Não executou nada no PAD; o resultado dos 5 cenários continua vazio.
+- Não preencheu `cfg_` nem decidiu formato do corpo, prefixo de autorização e critério
+  de status HTTP: seguem com o analista.

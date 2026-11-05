@@ -5,8 +5,9 @@
 # do fluxo, ADR-028 (main.json:1-4): Excel/open (main.json:1) ->
 # Excel/read (main.json:2) -> CredentialVault/get (main.json:4, aqui
 # substituido pela entrada sensivel in_rest_token) -> REST/post
-# (main.json:3). Mesmas acoes e mesma ordem do flow convertido em
-# output/a360-excel-vault/04-pad/uc-01-excel-vault/Main.robin.
+# (main.json:3). Mesmas acoes, mesmos valores e mesma ordem do flow
+# convertido em output/a360-excel-vault/04-pad/uc-01-excel-vault/
+# Main.robin (versao de 2026-11-05, com R3-1, R8-6 e R8-7).
 # CustomPackage/transform (main.json:5) e Browser/unmappedAction
 # (main.json:6) ficam fora deste teste (ADR-028).
 #
@@ -23,6 +24,11 @@
 # ENTRADA DO FLOW (declarar no designer, nao ha SET para ela):
 #   in_rest_token -- texto, marcada como SENSIVEL. Token do cabecalho
 #   Authorization do POST. Nunca valor no arquivo nem no README.
+#
+# NUMERACAO (R3-1): step_01 a step_06 seguem a ordem do legado
+# (main.json:1-6); passo sem origem no legado recebe o proximo numero
+# livre: step_07_close_excel_file (do flow principal, logo apos a
+# leitura) e step_08_record_test_result (so deste teste).
 # =================================================================
 
 # cfg_ -- identificacao do cenario e pasta de evidencias.
@@ -31,7 +37,7 @@
 SET cfg_test_case_id TO $''''''
 SET cfg_output_folder TO $'''C:\Users\Public\Documents\\'''
 
-# cfg_ -- mesma configuracao do flow principal (04-pad Main.robin:46-81).
+# cfg_ -- mesma configuracao do flow principal (04-pad Main.robin:42-88).
 # TODO reflow: valores nao capturados pela extracao
 # (01-inventory/inventory.json:15-32, 02-docs/data-sources.md); o
 # analista preenche conforme o "Dado de entrada" de cada cenario.
@@ -43,15 +49,17 @@ SET cfg_excel_start_row TO 1
 SET cfg_excel_end_column TO $''''''
 SET cfg_excel_end_row TO 1
 
-# TODO reflow: URL, Accept, ContentType e esquema de autorizacao do
+# TODO reflow: URL, Accept, ContentType e prefixo de autorizacao do
 # destino nao capturados (01-inventory/inventory.json:38-49,
 # 02-docs/integrations.md); preencher com o analista. Usar endpoint de
-# homologacao, nunca producao. CT-02 e CT-03 alteram o esquema e o
-# ContentType de proposito (README.md).
+# homologacao, nunca producao. R8-6: cfg_rest_auth_prefix guarda o
+# esquema JA COM o espaco final, ou fica vazia se o destino aceitar o
+# token puro. CT-02 altera o prefixo e CT-03 o ContentType de
+# proposito (README.md).
 SET cfg_rest_endpoint_url TO $''''''
 SET cfg_rest_accept TO $''''''
 SET cfg_rest_content_type TO $''''''
-SET cfg_rest_auth_scheme TO $''''''
+SET cfg_rest_auth_prefix TO $''''''
 
 **REGION CT-01, CT-04 e CT-05: Leitura da Base de Entrada
 # -----------------------------------------------------------------
@@ -61,11 +69,12 @@ SET cfg_rest_auth_scheme TO $''''''
 # Acao PAD (whitelist): Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess
 # -- acao [validado PAD: rodou] no snippet multilinha do analista; a
 # forma de uma linha abaixo e [colado KB: PAD 2.73, nao rodado nesta
-# instalacao].
+# instalacao]. ReadOnly: True igual ao flow principal (R8-7): o flow
+# so le.
 # Verifica: CT-01 (abre o arquivo), CT-04 (arquivo inexistente: espera
 # erro OpenDocumentError, declarado na KB).
 # -----------------------------------------------------------------
-Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_folder%/%cfg_excel_file_name%''' Visible: True ReadOnly: False UseMachineLocale: False Instance=> out_excel_instance
+Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_folder%/%cfg_excel_file_name%''' Visible: True ReadOnly: True UseMachineLocale: False Instance=> out_excel_instance
 
 # -----------------------------------------------------------------
 # step_02_read_excel_range
@@ -80,8 +89,9 @@ Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_f
 Excel.ReadFromExcel.ReadCells Instance: out_excel_instance StartColumn: cfg_excel_start_column StartRow: cfg_excel_start_row EndColumn: cfg_excel_end_column EndRow: cfg_excel_end_row FirstLineIsHeader: False GetCellContentsMode: Excel.GetCellContentsMode.TypedValues RangeValue=> out_excel_data
 
 # -----------------------------------------------------------------
-# step_02b_close_excel_instance
-# Origem A360: nenhuma (diferenca deliberada do flow principal, R8-1).
+# step_07_close_excel_file
+# Origem A360: nenhuma (diferenca deliberada do flow principal, R8-1;
+# numerado 07 por nao ter origem no legado, R3-1).
 # Acao PAD (whitelist): Excel.CloseExcel.Close -- Status: [colado KB:
 # PAD 2.73, nao rodado nesta instalacao]
 # Verifica: CT-01 (nenhum processo Excel sobra apos a leitura).
@@ -109,21 +119,26 @@ Excel.CloseExcel.Close Instance: out_excel_instance
 # Tabela verdade: reference/a360-to-pad.md -- "REST | post"
 # Acao PAD (whitelist): Web.InvokeWebService.InvokeWebServicePost --
 # Status: [colado KB: PAD 2.73, nao rodado nesta instalacao]
+# CustomHeaders igual ao flow principal (R8-6): junta
+# cfg_rest_auth_prefix e in_rest_token sem espaco entre as duas
+# expressoes; prefixo vazio = token puro.
 # FailOnErrorStatus: False, igual ao flow principal: 4xx/5xx NAO
 # interrompem o flow. O analista confere out_rest_status_code e
 # out_rest_response contra o "Resultado esperado" de cada cenario
 # (R8-4, R8-6). Verifica: CT-01 (status esperado), CT-02 (401),
 # CT-03 (corpo em formato inesperado pelo destino).
 # -----------------------------------------------------------------
-Web.InvokeWebService.InvokeWebServicePost Url: cfg_rest_endpoint_url Accept: cfg_rest_accept ContentType: cfg_rest_content_type CustomHeaders: $'''Authorization: %cfg_rest_auth_scheme% %in_rest_token%''' RequestBody: $'''%out_excel_data%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True StatusCode=> out_rest_status_code Response=> out_rest_response ResponseHeaders=> out_rest_response_headers
+Web.InvokeWebService.InvokeWebServicePost Url: cfg_rest_endpoint_url Accept: cfg_rest_accept ContentType: cfg_rest_content_type CustomHeaders: $'''Authorization: %cfg_rest_auth_prefix%%in_rest_token%''' RequestBody: $'''%out_excel_data%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True StatusCode=> out_rest_status_code Response=> out_rest_response ResponseHeaders=> out_rest_response_headers
 **ENDREGION
 
 **REGION Registro do Resultado
 # -----------------------------------------------------------------
-# step_05_record_test_result
-# Nao corresponde a uma acao A360: so o registro manual do resultado
-# observado pelo analista. Acao PAD (whitelist): SET -- Status:
-# [colado KB: PAD 2.73, nao rodado nesta instalacao].
+# step_08_record_test_result
+# Nao corresponde a uma acao A360 nem a um passo do flow principal:
+# so o registro manual do resultado observado pelo analista. Numerado
+# 08 para nao colidir com step_05 do legado (main.json:5, fora do
+# escopo), pela mesma regra de R3-1. Acao PAD (whitelist): SET --
+# Status: [colado KB: PAD 2.73, nao rodado nesta instalacao].
 # TODO reflow: preencher out_test_result com o resultado observado
 # (status HTTP, mensagem de erro, evidencia salva em cfg_output_folder)
 # SOMENTE depois da execucao real no PAD (README.md -> tabela de

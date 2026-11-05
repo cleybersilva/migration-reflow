@@ -39,33 +39,39 @@ aparecem em `Main.robin` só como comentário `# TODO reflow` dentro da Região
 Reconvertido em 2026-11-04 (ADR-029) e corrigido em 2026-11-05 a partir da auditoria
 semântica (`review.md`) e das decisões do analista (ver `notas-conversao.md`).
 
+Numeração: step_01 a step_06 ficam presos à ordem do legado (`main.json:1-6`; 05 e 06
+fora do escopo). Passo sem origem no legado recebe o próximo número livre (R3-1).
+
 1. **step_01_open_excel_file**: abre a planilha (`main.json:1`, `Excel.open` →
    `Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess`). A ação é `[validado PAD:
    rodou]` no snippet multilinha do analista; a forma de uma linha usada aqui é
    `[colado KB: PAD 2.73, não rodado nesta instalação]`. O caminho não acrescenta
-   extensão: `cfg_excel_file_name` vai com a extensão.
+   extensão: `cfg_excel_file_name` vai com a extensão. Abre com `ReadOnly: True`,
+   porque o flow só lê (R8-7).
 2. **step_02_read_excel_range**: lê o intervalo (`main.json:2`, `Excel.read` →
    `Excel.ReadFromExcel.ReadCells`, `[colado KB: PAD 2.73, não rodado nesta instalação]`).
-3. **step_02b_close_excel_instance**: fecha o Excel sem salvar (`Excel.CloseExcel.Close`,
+3. **step_07_close_excel_file**: fecha o Excel sem salvar (`Excel.CloseExcel.Close`,
    `[colado KB: PAD 2.73, não rodado nesta instalação]`). Diferença deliberada em relação
-   ao legado, que não fecha a planilha.
+   ao legado, que não fecha a planilha. Sem origem no legado, por isso o número 07,
+   embora fique logo após a leitura (R3-1).
 4. **step_04_get_credential_subfluxo_comum_obter_credencial_do_cofre**: só documentação.
    A credencial chega por `in_rest_token` (sem ação de cofre). Vem antes do REST porque o
    POST depende dela (no legado, `main.json:4` vem depois de `main.json:3`).
 5. **step_03_post_data_to_rest_api**: POST ao sistema externo (`main.json:3`, `REST.post`
    → `Web.InvokeWebService.InvokeWebServicePost`, `[colado KB: PAD 2.73, não rodado nesta
-   instalação]`), com `Authorization` montado em `CustomHeaders` a partir de
-   `cfg_rest_auth_scheme` e `in_rest_token`.
+   instalação]`), com `Authorization` montado em `CustomHeaders` juntando
+   `cfg_rest_auth_prefix` (esquema já com o espaço final, ou vazio) e `in_rest_token`,
+   sem espaço entre os dois (R8-6).
 
 Regiões, nesta ordem:
 
-- "Leitura da Base de Entrada": step_01, step_02, step_02b.
+- "Leitura da Base de Entrada": step_01, step_02, step_07.
 - "Subfluxo comum: Obter credencial do cofre (candidato a reuso)": step_04.
 - "Envio de Dados ao Sistema Externo (REST)": step_03.
 - "Fora do escopo aprovado (ADR-028)": comandos 5 e 6, não convertidos.
 
 Valores que a extração não capturou (arquivo, intervalo, URL, `Accept`/`ContentType`,
-esquema de autorização) são `SET cfg_... TO $''''''` com `# TODO reflow` acima. Formato
+prefixo de autorização) são `SET cfg_... TO $''''''` com `# TODO reflow` acima. Formato
 do corpo e critério de status HTTP também ficaram como `# TODO reflow`. Lista completa em
 `notas-conversao.md` → "Pendências antes de rodar no designer".
 
@@ -79,10 +85,11 @@ verdade antes de qualquer conversão futura.
 
 ## Teste
 
-Nenhum teste foi executado no PAD ainda. `fix-robin-eol` e `lint-robin` rodaram em
-2026-11-05 sem achados, e a auditoria semântica (`review.md`) não tem achado bloqueante.
-Gerar o flow de teste (`05-test/`) não depende do designer; **executá-lo** depende: antes
-de rodar no PAD, um analista precisa declarar `in_rest_token` (sensível) no designer,
-preencher as `cfg_` pendentes e decidir o formato do corpo, o esquema de autorização e o
-critério de status HTTP. Só a execução real promove as ações usadas para
+Nenhum teste foi executado no PAD ainda. Depois de qualquer alteração no `Main.robin`,
+rodar `fix-robin-eol` e `lint-robin` antes de colar (ver `reference/robin-conventions.md`);
+o estado de cada rodada fica em `review.md` e no histórico do repositório. Gerar o flow de teste (`05-test/`) não depende do designer; **executá-lo**
+depende: antes de rodar no PAD, um analista precisa declarar `in_rest_token` (sensível)
+no designer, preencher as `cfg_` pendentes e decidir o formato do corpo, o prefixo de
+autorização e o critério de status HTTP (incluindo o 401 por prefixo errado, visível só
+em `out_rest_status_code`). Só a execução real promove as ações usadas para
 `[validado PAD: rodou]` (ver `reference/robin-actions.md` → "Como promover uma ação").

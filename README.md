@@ -480,8 +480,8 @@ grande demais.
 
 - Rodar no PAD o piloto `a360-excel-vault` e seu flow de teste (5 cenários `CT-xx`
   gerados, sem resultado): falta o analista declarar `in_rest_token`, preencher as `cfg_`
-  e confirmar formato do corpo, esquema de autorização e critério de status HTTP
-  (ADR-030). Hoje 4 ações estão `[validado PAD: rodou]`; o resto é `[colado KB]` ou abaixo.
+  e confirmar formato do corpo, prefixo de autorização e critério de status HTTP
+  (ADR-030; achados menores da auditoria tratados na Fase 29). Hoje 4 ações estão `[validado PAD: rodou]`; o resto é `[colado KB]` ou abaixo.
 - Rodar a extração contra exports A360 reais (hoje só fixtures sintéticas).
 - Ampliar `reference/a360-to-pad.md` a partir de `unknown_commands` reais.
 - Agente próprio (harness `refold`, plano B secundário) reaproveitando as
