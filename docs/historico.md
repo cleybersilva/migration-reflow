@@ -1389,3 +1389,42 @@ documentação).
   dois comandos fazem.
 - Não editou `classification.md` nem `review.md` além do que o agent
   gravou — nenhum raciocínio de classificação foi sobrescrito.
+
+## Fase 27 — PAD Robin Action KB vendorizada e lint de sintaxe Robin como gate
+
+Ver [ADR-029](decisions.md). A KB pública de Joe Green (CC BY 4.0, v3.8.0) foi vendorizada
+em `reference/vendor/pad-robin-kb/`, travada por sha256 (`reflow kb verify`, gate no
+pre-commit e na CI). O `lint-robin` passou a interpretar Robin (revoga o ADR-012): os
+`Main.robin` anteriores tinham 323 achados que fariam o PAD descartar a colagem inteira.
+Whitelist e tabela verdade passaram a usar ids reais, com o status intermediário
+`[colado KB: PAD 2.73, não rodado nesta instalação]`. Piloto e flows de teste reconvertidos.
+Commit `3c7c10b`, CI verde.
+
+## Fase 28 — Piloto `a360-excel-vault`: auditoria, decisões do analista e flow de teste
+
+### O que mudou
+
+- `reflow-convert-review` refeito sobre o `Main.robin` da Fase 27: 8 achados, um bloqueante
+  (POST sem autenticação, R1-1).
+- Decisões do analista registradas no [ADR-030](decisions.md) (credencial por entrada
+  sensível, token no cabeçalho, corpo a confirmar, fechar o Excel).
+- Nova rodada de `reflow-convert` aplicando as decisões e os achados R5-1, R7-1, R8-1,
+  R8-2, R8-4 e R8-5. Segunda auditoria: nenhum achado bloqueante, 4 menores (R3-1, R4-1,
+  R8-6, R8-7); o R4-1 (README do flow desatualizado) foi corrigido na hora.
+- `reflow-test` gerou `05-test/test_uc-01-excel-vault/` com 5 cenários: CT-01 caminho feliz,
+  CT-02 falha de autenticação, CT-03 corpo em formato inesperado, CT-04 arquivo inexistente,
+  CT-05 intervalo inválido.
+- Detector de segredo passou a entender cabeçalho montado com `%expressões%` (ADR-030).
+
+### Verificação
+
+`ruff check` e `ruff format --check` → ok; `pytest` → 283 passed (4 casos novos no teste do
+detector); `reflow scan`, `lint-robin --all` e `kb verify` → ok.
+
+### O que esta fase não fez (honestidade)
+
+- Não rodou nada no PAD: nenhum PASS/FAIL existe, e nenhuma ação foi promovida.
+- Não preencheu `cfg_`: arquivo, intervalo, URL, Accept/ContentType e esquema de
+  autorização seguem vazios com TODO.
+- Não tratou R3-1 (nome `step_02b`), R8-6 (esquema vazio) e R8-7 (`ReadOnly: False`): ficam
+  para o analista decidir.

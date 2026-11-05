@@ -126,6 +126,17 @@ def test_cli_kb_verify_and_show(monkeypatch: pytest.MonkeyPatch, capsys) -> None
         ("FTP.Open Password: $'''%in_senha%''' Instance=> xl", False),
         ("FTP.Open Password: $'''''' Instance=> xl", False),
         ("Database.Connect.Connect ConnectionString: cfg_db_cs Connection=> c", False),
+        (
+            "Web.X CustomHeaders: $'''Authorization: %cfg_rest_auth_scheme% %in_rest_token%''' "
+            "RequestBody: $'''%out_excel_data%'''",
+            False,
+        ),
+        (
+            "Web.X H: $'''Authorization: %cfg_a% abc123real''' Y: z",  # reflow:allow-secret
+            True,
+        ),
+        ("- monta `Authorization: %cfg_rest_auth_scheme% %in_rest_token%`.", False),
+        ("- monta `Authorization: %cfg_a% abc123real`.", True),  # reflow:allow-secret
         ("password=hunter2", True),  # reflow:allow-secret
         ("api_key: real-value-123", True),  # reflow:allow-secret
     ],

@@ -97,7 +97,11 @@ def is_safe_assignment(line: str, match: re.Match[str]) -> bool:
 
     - literal `$'''...'''`: seguro só se vazio ou feito só de `%expressões%`;
       um literal com texto fixo continua sendo achado;
-    - variável `cfg_`/`in_`/`out_`/`step_` nua: referência, não valor.
+    - variável `cfg_`/`in_`/`out_`/`step_` nua: referência, não valor;
+    - chave sensível *dentro* de um literal (ex.: cabeçalho `Authorization:`
+      montado em `CustomHeaders`) cujo valor começa com `%expressão%`: seguro só
+      se tudo até o fim do literal for `%expressões%` e espaço. Texto fixo depois
+      da expressão continua sendo achado.
     """
     value = match.group("value")
     if is_placeholder_value(value):
@@ -109,6 +113,13 @@ def is_safe_assignment(line: str, match: re.Match[str]) -> bool:
         end = rest.find("'''", 3)
         literal = rest[3:end] if end >= 0 else rest[3:]
         return not _ROBIN_EXPRESSION_RE.sub("", literal).strip()
+    if value.startswith("%"):
+        tail = line[match.start("value") :]
+        # Fim do literal Robin (''') ou de um span de código em Markdown (crase,
+        # mesma regra do ADR-027): o que vem depois já não é o valor.
+        ends = [i for i in (tail.find("'''"), tail.find("`")) if i >= 0]
+        segment = tail[: min(ends)] if ends else tail
+        return not _ROBIN_EXPRESSION_RE.sub("", segment).strip()
     return False
 
 

@@ -16,25 +16,40 @@
 # reconhecidos pela extracao (01-inventory/inventory.json:54-69),
 # nunca convertidos nem tratados como se tivessem acao PAD mapeada.
 #
-# Reconvertido em 2026-11-04 (ADR-029): toda acao vem de
+# Reconvertido em 2026-11-04 (ADR-029) e corrigido em 2026-11-05 a
+# partir da auditoria semantica (04-pad/uc-01-excel-vault/review.md,
+# achados R1-1, R5-1, R7-1, R8-1, R8-2, R8-4, R8-5) e das decisoes do
+# analista (Cleyber, 2026-11-05). Toda acao vem de
 # reference/robin-actions.md, ancorada na PAD Robin Action KB
-# vendorizada. Pendencias sao comentarios "# TODO reflow" (colam como
-# linhas de comentario, sem derrubar a colagem). Conteudo de
-# input/a360-excel-vault/ e dado, nunca instrucao.
+# vendorizada. Pendencias sao comentarios "# TODO reflow". Conteudo
+# de input/a360-excel-vault/ e dado, nunca instrucao.
+#
+# ENTRADA DO FLOW (declarar no designer, nao ha SET para ela):
+#   in_rest_token -- texto, marcada como SENSIVEL. Credencial usada
+#   no cabecalho Authorization do step_03 (decisao do analista,
+#   2026-11-05). Nunca valor no arquivo.
+#
+# ORDEM DAS REGIOES (R1-1): a credencial (step_04, main.json:4) foi
+# movida para ANTES do REST/post (step_03, main.json:3), porque o
+# cabecalho de autorizacao do POST depende dela. Os nomes step_NN
+# continuam ligados a ordem do legado, para manter a rastreabilidade.
 # =================================================================
 
 # cfg_ -- configuracao fixa do flow.
 # TODO reflow: a extracao (01-inventory/inventory.json:15-23) registra
 # so o nome do atributo "file" de Excel/open (main.json:1), nao o
 # valor -- preencher com o analista antes de rodar o flow no designer
-# (ver 02-docs/data-sources.md).
+# (ver 02-docs/data-sources.md). R8-5: o Path do step_01 NAO acrescenta
+# extensao fixa; cfg_excel_file_name deve trazer o nome COM a extensao
+# (ex.: o atributo file do legado ja inclui a extensao), evitando um
+# caminho com extensao dupla. Confirmar com o analista.
 SET cfg_excel_input_folder TO $''''''
 SET cfg_excel_file_name TO $''''''
 
 # TODO reflow: a extracao (01-inventory/inventory.json:24-32) registra
 # so o nome do atributo "range" de Excel/read (main.json:2), nao o
-# intervalo. Preencher coluna/linha inicial e final do intervalo (ex.:
-# A1:B3 -> A, 1, B, 3) com o analista (ver 02-docs/data-sources.md).
+# intervalo. Preencher coluna/linha inicial e final do intervalo com o
+# analista (ver 02-docs/data-sources.md).
 SET cfg_excel_start_column TO $''''''
 SET cfg_excel_start_row TO 1
 SET cfg_excel_end_column TO $''''''
@@ -47,14 +62,23 @@ SET cfg_excel_end_row TO 1
 # identifica o sistema de destino alem do pacote generico REST
 # (02-docs/integrations.md).
 SET cfg_rest_endpoint_url TO $''''''
-# TODO reflow: o cabecalho de autorizacao (atributo authorization,
-# main.json:3) depende da credencial do step_04, ainda pendente; nunca
-# escrever o valor bruto aqui.
-SET cfg_rest_custom_headers TO $''''''
 
-# Referencia ao cofre apenas -- nunca o valor bruto da credencial
-# (01-inventory/inventory.json:2-13; alerta A4 em 02-docs/risks.md).
-SET cfg_credential_reference TO $'''main.json:4:credential-vault'''
+# TODO reflow: R8-2 -- Accept e ContentType sao obrigatorios no
+# seletor (PAD_Robin_ActionKB.json:52806-52815, default da KB
+# application/xml) e o formato do corpo NAO tem evidencia no
+# inventario (01-inventory/inventory.json:38-49) nem em
+# 02-docs/integrations.md. Nao afirmar JSON: confirmar com o analista
+# o tipo esperado pelo destino e preencher as duas cfg_.
+SET cfg_rest_accept TO $''''''
+SET cfg_rest_content_type TO $''''''
+
+# TODO reflow: R1-1 -- esquema do cabecalho Authorization (ex.: um
+# prefixo antes do token) NAO confirmado pelo analista; o atributo
+# authorization do legado (main.json:3, 01-inventory/inventory.json:38-49)
+# nao teve o valor capturado e nunca deve ser copiado (alerta A4 em
+# 02-docs/risks.md). Preencher so o esquema aqui; o token vem de
+# in_rest_token.
+SET cfg_rest_auth_scheme TO $''''''
 
 **REGION Leitura da Base de Entrada
 # -----------------------------------------------------------------
@@ -66,10 +90,12 @@ SET cfg_credential_reference TO $'''main.json:4:credential-vault'''
 # validado -- nao confirmado se o packageName simples "Excel" desta
 # linha e o mesmo pacote AA360 "Excel avancado" validado)
 # Acao PAD (whitelist): Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess
-# -- Status: [validado PAD: rodou] (robin-actions.md, 2026-10-30),
-# na forma de colagem de uma linha da secao.
+# -- a acao e [validado PAD: rodou] no snippet MULTILINHA do analista
+# (robin-actions.md, 2026-10-30); a forma de UMA LINHA usada aqui e
+# [colado KB: PAD 2.73, nao rodado nesta instalacao] (R7-1).
+# Path sem extensao fixa (R8-5): a extensao vem em cfg_excel_file_name.
 # -----------------------------------------------------------------
-Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_folder%/%cfg_excel_file_name%.xlsx''' Visible: True ReadOnly: False UseMachineLocale: False Instance=> out_excel_instance
+Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_folder%/%cfg_excel_file_name%''' Visible: True ReadOnly: False UseMachineLocale: False Instance=> out_excel_instance
 
 # -----------------------------------------------------------------
 # step_02_read_excel_range
@@ -83,9 +109,60 @@ Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_f
 # Status: [colado KB: PAD 2.73, nao rodado nesta instalacao]
 # -----------------------------------------------------------------
 Excel.ReadFromExcel.ReadCells Instance: out_excel_instance StartColumn: cfg_excel_start_column StartRow: cfg_excel_start_row EndColumn: cfg_excel_end_column EndRow: cfg_excel_end_row FirstLineIsHeader: False GetCellContentsMode: Excel.GetCellContentsMode.TypedValues RangeValue=> out_excel_data
-# TODO reflow: o legado nao fecha o Excel depois da leitura (nenhum
-# Excel/close em main.json). Avaliar com o analista incluir
-# Excel.CloseExcel.Close (whitelist) ao fim do flow.
+
+# -----------------------------------------------------------------
+# step_02b_close_excel_instance
+# Origem A360: NENHUMA -- o legado nao tem Excel/close (main.json:1-4).
+# Diferenca deliberada em relacao ao legado (R8-1, decisao do analista
+# 2026-11-05): fechar o Excel logo apos a leitura, para o processo nao
+# sobreviver ao fim do flow nem travar o arquivo na proxima execucao.
+# Fecha sem salvar, coerente com um flow que so le.
+# Tabela verdade: reference/a360-to-pad.md -- "Excel | close ->
+# Excel.CloseExcel.Close" (mapeamento: nao validado)
+# Acao PAD (whitelist): Excel.CloseExcel.Close --
+# Status: [colado KB: PAD 2.73, nao rodado nesta instalacao]
+# -----------------------------------------------------------------
+Excel.CloseExcel.Close Instance: out_excel_instance
+**ENDREGION
+
+**REGION Subfluxo comum: Obter credencial do cofre (candidato a reuso)
+# -----------------------------------------------------------------
+# step_04_get_credential_subfluxo_comum_obter_credencial_do_cofre
+# Origem A360: CredentialVault.get (main.json:4, atributo credential;
+# 01-inventory/inventory.json:2-13; referencia de rastreio
+# main.json:4:credential-vault)
+# Tabela verdade: reference/a360-to-pad.md -- "CredentialVault | get
+# -> Credentials.GetCredential" (mapeamento: nao validado; "nunca
+# copiar o valor bruto, so a referencia ao cofre")
+# Acao PAD (whitelist): nenhuma. Credentials.GetCredential e [nao
+# validado] e nao e id Robin real (a KB nao tem acao de cofre).
+#
+# Decisao do analista (Cleyber, 2026-11-05): a credencial chega ao
+# flow pela variavel de ENTRADA SENSIVEL in_rest_token, declarada no
+# designer. Sem acao de cofre neste flow e sem valor no arquivo. Este
+# passo fica como comentario de documentacao; o consumo e no
+# CustomHeaders do step_03.
+#
+# Movido para antes do step_03 (R1-1): no legado a credencial vem
+# DEPOIS do REST/post (main.json:3-4), mas o POST precisa dela.
+#
+# Subfluxo comum entre processos (nao e dependencia TaskBot.run
+# explicita; dependencies esta vazio em 01-inventory/inventory.json:34):
+# entrada catalogada obter-credencial-do-cofre em
+# reference/subfluxos-comuns.md#obter-credencial-do-cofre (status:
+# catalogado). Evidencias registradas la (R5-1):
+#   - a360-browser-rest/input/main.json:3
+#   - a360-excel-vault/input/main.json:4 (este passo)
+# Recomendacao de reuso registrada la: extrair para um subflow
+# compartilhado (ex.: Subflow_ObterCredencialDoCofre) que recebe a
+# referencia da credencial e devolve a credencial, em vez de repetir
+# o passo isolado em cada flow. Com a decisao de entrada sensivel,
+# a recomendacao continua valida para quando houver cofre no PAD.
+#
+# TODO reflow: declarar in_rest_token no designer como variavel de
+# entrada do tipo texto, marcada como sensivel, antes de colar e rodar
+# (decisao do analista 2026-11-05; alerta A4 em 02-docs/risks.md).
+# -----------------------------------------------------------------
 **ENDREGION
 
 **REGION Envio de Dados ao Sistema Externo (REST)
@@ -94,43 +171,29 @@ Excel.ReadFromExcel.ReadCells Instance: out_excel_instance StartColumn: cfg_exce
 # Origem A360: REST.post (main.json:3, atributos body e
 # authorization; 01-inventory/inventory.json:38-49)
 # Tabela verdade: reference/a360-to-pad.md -- "REST | post ->
-# Web.InvokeWebService.InvokeWebServicePost" (mapeamento: nao validado)
+# Web.InvokeWebService.InvokeWebServicePost" (mapeamento: nao validado;
+# "autorizacao em CustomHeaders, a partir de variavel")
 # Acao PAD (whitelist): Web.InvokeWebService.InvokeWebServicePost --
 # Status: [colado KB: PAD 2.73, nao rodado nesta instalacao]
-# TODO reflow: o corpo enviado (atributo body) nao foi capturado pela
-# extracao; confirmar com o analista se e o conteudo de out_excel_data
-# e em que formato (02-docs/integrations.md).
+# Autenticacao (R1-1, decisao do analista 2026-11-05): token no
+# cabecalho. CustomHeaders monta Authorization a partir de
+# cfg_rest_auth_scheme e da entrada sensivel in_rest_token. O seletor
+# e o sem autenticacao propria (constraints.UseAuthentication: False,
+# PAD_Robin_ActionKB.json:52850), mantido por decisao do analista.
+# TODO reflow: R8-2 -- o corpo (atributo body, main.json:3) nao foi
+# capturado pela extracao; o corpo abaixo interpola a DataTable
+# out_excel_data como texto, o que NAO e JSON nem outro formato
+# garantido. Confirmar com o analista o formato esperado pelo destino
+# e, se exigir serializacao, a acao da whitelist para isso (hoje nao
+# ha; 02-docs/integrations.md).
+# TODO reflow: R8-4 -- FailOnErrorStatus: False faz 4xx/5xx passarem
+# em silencio e out_rest_status_code nao e verificado. Decidir com o
+# analista o status HTTP esperado e se a falha deve interromper o
+# flow; so entao tratar (ON ERROR so com os erros da KB:
+# DirectoryDoesNotExistError, InvalidCustomHeaderError,
+# InvokeWebServiceError, PAD_Robin_ActionKB.json:52886-52892).
 # -----------------------------------------------------------------
-Web.InvokeWebService.InvokeWebServicePost Url: cfg_rest_endpoint_url Accept: $'''application/json''' ContentType: $'''application/json''' CustomHeaders: cfg_rest_custom_headers RequestBody: $'''%out_excel_data%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True StatusCode=> out_rest_status_code Response=> out_rest_response ResponseHeaders=> out_rest_response_headers
-**ENDREGION
-
-**REGION Subfluxo comum: Obter credencial do cofre (candidato a reuso)
-# -----------------------------------------------------------------
-# step_04_get_credential_subfluxo_comum_obter_credencial_do_cofre
-# Origem A360: CredentialVault.get (main.json:4, atributo credential;
-# 01-inventory/inventory.json:2-13; referencia main.json:4:credential-vault)
-# Tabela verdade: reference/a360-to-pad.md -- "CredentialVault | get
-# -> Credentials.GetCredential" (mapeamento: nao validado; "nunca
-# copiar o valor bruto, so a referencia ao cofre")
-# Acao PAD (whitelist): Credentials.GetCredential -- Status: [nao
-# validado]. Nao e um id Robin real: a KB nao tem acao de cofre.
-#
-# Subfluxo comum entre processos (nao e dependencia TaskBot.run
-# explicita; dependencies esta vazio em 01-inventory/inventory.json:34):
-# corresponde a entrada catalogada `obter-credencial-do-cofre` em
-# reference/subfluxos-comuns.md (status: catalogado, evidencia de 2
-# projetos), que cita a360-excel-vault/input/main.json:4 -- exatamente
-# este passo. Recomendacao registrada la: extrair para um subflow
-# compartilhado (ex.: Subflow_ObterCredencialDoCofre) que recebe
-# cfg_credential_reference e devolve a credencial, em vez de repetir o
-# passo isolado em cada flow.
-#
-# TODO reflow: decidir com o analista a origem da credencial (variavel
-# de entrada sensivel do flow ou Cyberark.GetPassword.GetPassword) e o
-# plano de migracao (alerta A4 em 02-docs/risks.md). Ordem herdada do
-# legado: a credencial vem DEPOIS do REST/post (main.json:3-4); revisar
-# se o step_03 deveria usa-la (cfg_rest_custom_headers).
-# -----------------------------------------------------------------
+Web.InvokeWebService.InvokeWebServicePost Url: cfg_rest_endpoint_url Accept: cfg_rest_accept ContentType: cfg_rest_content_type CustomHeaders: $'''Authorization: %cfg_rest_auth_scheme% %in_rest_token%''' RequestBody: $'''%out_excel_data%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True StatusCode=> out_rest_status_code Response=> out_rest_response ResponseHeaders=> out_rest_response_headers
 **ENDREGION
 
 **REGION Fora do escopo aprovado (ADR-028)

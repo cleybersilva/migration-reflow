@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T13:06:42+00:00",
+  "generatedAt": "2026-11-05T13:35:33+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -23,6 +23,34 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Piloto a360-excel-vault - auditoria, decisoes do analista e flow de teste (ADR-030)",
+      "title": "Piloto a360-excel-vault - auditoria, decisoes do analista e flow de teste (ADR-030)",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-05",
+      "hora": "12:00 -03:00",
+      "atividade": "Auditar e corrigir o piloto a360-excel-vault com decisoes do analista e gerar o flow de teste",
+      "tags": [
+        "robin",
+        "pad",
+        "piloto",
+        "teste",
+        "seguranca",
+        "adr"
+      ],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "## O que foi modificado\n\n| Arquivo | Mudança | Tipo |\n|---|---|---|\n| `output/a360-excel-vault/04-pad/uc-01-excel-vault/Main.robin` | token por `in_rest_token` no `CustomHeaders`; credencial antes do REST; `Excel.CloseExcel.Close`; Accept/ContentType e esquema em `cfg_` vazias; sem `.xlsx` fixo | alteração |\n| `.../notas-conversao.md`, `README.md`, `review.md` | decisões do analista; auditoria refeita (0 bloqueantes) | alteração |\n| `output/a360-excel-vault/05-test/test_uc-01-excel-vault/` | flow de teste com 5 cenários CT-01..CT-05, resultado vazio | novo |\n| `reflow/security/masking.py` | `is_safe_assignment` aceita valor `%expr%` se o resto do literal/span de código for só expressões | alteração |\n| `tests/unit/test_kb.py` | 4 casos novos do detector | alteração |\n| `docs/decisions.md`, `docs/historico.md`, `README.md` | ADR-030, Fases 27 e 28, roadmap | alteração |\n\n## O que foi implantado\n- Gates: ruff ok, 283 testes, scan, lint-robin --all, kb verify ok.\n\n## Benefícios para o projeto\n- Piloto deixa de enviar o POST sem autenticação e fica pronto para execução no PAD assim que as `cfg_` forem preenchidas.\n- Flow de teste cobre caminho feliz, 401, corpo inválido, arquivo e intervalo inexistentes.\n- Detector deixa de acusar cabeçalho montado só com variáveis, sem afrouxar texto fixo.\n\n## Causa raiz / motivo\nAuditoria semântica mostrou R1-1 (POST sem auth) e escolhas sem dono; o analista decidiu: credencial por entrada sensível, token no cabeçalho, corpo a confirmar, fechar o Excel.\n\n## Como reverter\nReverter o commit desta fase.\n\n## Pendências\n- Analista: declarar `in_rest_token`, preencher `cfg_`, confirmar formato do corpo, esquema de autorização e critério de status HTTP.\n- Achados menores abertos: R3-1 (nome step_02b), R8-6 (esquema vazio), R8-7 (ReadOnly False).\n- Executar o flow e o teste no PAD; só então registrar PASS/FAIL e promover ações."
+    },
     {
       "id": "projects/migration-reflow/PAD Robin Action KB vendorizada e lint de sintaxe Robin como gate (ADR-029)",
       "title": "PAD Robin Action KB vendorizada e lint de sintaxe Robin como gate (ADR-029)",

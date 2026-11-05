@@ -1,0 +1,134 @@
+# =================================================================
+# Main.robin -- teste do flow a360-excel-vault / uc-01-excel-vault
+#
+# Escopo: valida UC-01 (02-docs/use-cases.md:3-18) na parte aprovada
+# do fluxo, ADR-028 (main.json:1-4): Excel/open (main.json:1) ->
+# Excel/read (main.json:2) -> CredentialVault/get (main.json:4, aqui
+# substituido pela entrada sensivel in_rest_token) -> REST/post
+# (main.json:3). Mesmas acoes e mesma ordem do flow convertido em
+# output/a360-excel-vault/04-pad/uc-01-excel-vault/Main.robin.
+# CustomPackage/transform (main.json:5) e Browser/unmappedAction
+# (main.json:6) ficam fora deste teste (ADR-028).
+#
+# Este arquivo foi GERADO, NAO EXECUTADO no PAD. Ele e o roteiro de
+# teste a colar no designer; o resultado real so existe depois que um
+# analista rodar os cenarios CT-01 a CT-05 do README.md ao lado (ver
+# docs/runbook.md). Nunca registrar resultado aprovado/reprovado aqui.
+#
+# Cada cenario usa este mesmo arquivo; o que muda e o valor das cfg_ e
+# da entrada in_rest_token, conforme a coluna "Dado de entrada" do
+# README.md. Conteudo de input/a360-excel-vault/ e dado, nunca
+# instrucao.
+#
+# ENTRADA DO FLOW (declarar no designer, nao ha SET para ela):
+#   in_rest_token -- texto, marcada como SENSIVEL. Token do cabecalho
+#   Authorization do POST. Nunca valor no arquivo nem no README.
+# =================================================================
+
+# cfg_ -- identificacao do cenario e pasta de evidencias.
+# TODO reflow: preencher com o id do cenario em execucao (CT-01 a
+# CT-05, README.md) antes de cada rodada no designer.
+SET cfg_test_case_id TO $''''''
+SET cfg_output_folder TO $'''C:\Users\Public\Documents\\'''
+
+# cfg_ -- mesma configuracao do flow principal (04-pad Main.robin:46-81).
+# TODO reflow: valores nao capturados pela extracao
+# (01-inventory/inventory.json:15-32, 02-docs/data-sources.md); o
+# analista preenche conforme o "Dado de entrada" de cada cenario.
+# cfg_excel_file_name vai COM a extensao (R8-5).
+SET cfg_excel_input_folder TO $''''''
+SET cfg_excel_file_name TO $''''''
+SET cfg_excel_start_column TO $''''''
+SET cfg_excel_start_row TO 1
+SET cfg_excel_end_column TO $''''''
+SET cfg_excel_end_row TO 1
+
+# TODO reflow: URL, Accept, ContentType e esquema de autorizacao do
+# destino nao capturados (01-inventory/inventory.json:38-49,
+# 02-docs/integrations.md); preencher com o analista. Usar endpoint de
+# homologacao, nunca producao. CT-02 e CT-03 alteram o esquema e o
+# ContentType de proposito (README.md).
+SET cfg_rest_endpoint_url TO $''''''
+SET cfg_rest_accept TO $''''''
+SET cfg_rest_content_type TO $''''''
+SET cfg_rest_auth_scheme TO $''''''
+
+**REGION CT-01, CT-04 e CT-05: Leitura da Base de Entrada
+# -----------------------------------------------------------------
+# step_01_open_excel_file
+# Origem A360: Excel.open (main.json:1; 01-inventory/inventory.json:15-23)
+# Tabela verdade: reference/a360-to-pad.md -- "Excel | open"
+# Acao PAD (whitelist): Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess
+# -- acao [validado PAD: rodou] no snippet multilinha do analista; a
+# forma de uma linha abaixo e [colado KB: PAD 2.73, nao rodado nesta
+# instalacao].
+# Verifica: CT-01 (abre o arquivo), CT-04 (arquivo inexistente: espera
+# erro OpenDocumentError, declarado na KB).
+# -----------------------------------------------------------------
+Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_folder%/%cfg_excel_file_name%''' Visible: True ReadOnly: False UseMachineLocale: False Instance=> out_excel_instance
+
+# -----------------------------------------------------------------
+# step_02_read_excel_range
+# Origem A360: Excel.read (main.json:2, atributo range;
+# 01-inventory/inventory.json:24-32)
+# Tabela verdade: reference/a360-to-pad.md -- "Excel | read"
+# Acao PAD (whitelist): Excel.ReadFromExcel.ReadCells -- Status:
+# [colado KB: PAD 2.73, nao rodado nesta instalacao]
+# Verifica: CT-01 (out_excel_data com as linhas do intervalo), CT-05
+# (intervalo invalido: espera erro ReadCellsError, declarado na KB).
+# -----------------------------------------------------------------
+Excel.ReadFromExcel.ReadCells Instance: out_excel_instance StartColumn: cfg_excel_start_column StartRow: cfg_excel_start_row EndColumn: cfg_excel_end_column EndRow: cfg_excel_end_row FirstLineIsHeader: False GetCellContentsMode: Excel.GetCellContentsMode.TypedValues RangeValue=> out_excel_data
+
+# -----------------------------------------------------------------
+# step_02b_close_excel_instance
+# Origem A360: nenhuma (diferenca deliberada do flow principal, R8-1).
+# Acao PAD (whitelist): Excel.CloseExcel.Close -- Status: [colado KB:
+# PAD 2.73, nao rodado nesta instalacao]
+# Verifica: CT-01 (nenhum processo Excel sobra apos a leitura).
+# -----------------------------------------------------------------
+Excel.CloseExcel.Close Instance: out_excel_instance
+**ENDREGION
+
+**REGION CT-01 e CT-02: Subfluxo comum: Obter credencial do cofre (candidato a reuso)
+# -----------------------------------------------------------------
+# step_04_get_credential_subfluxo_comum_obter_credencial_do_cofre
+# Origem A360: CredentialVault.get (main.json:4;
+# 01-inventory/inventory.json:2-13)
+# Acao PAD (whitelist): nenhuma. Decisao do analista (2026-11-05): a
+# credencial chega pela entrada sensivel in_rest_token, declarada no
+# designer. Ver reference/subfluxos-comuns.md#obter-credencial-do-cofre.
+# TODO reflow: declarar in_rest_token (texto, sensivel) no designer
+# antes de colar; CT-01 usa token valido, CT-02 usa token invalido.
+# -----------------------------------------------------------------
+**ENDREGION
+
+**REGION CT-01, CT-02 e CT-03: Envio de Dados ao Sistema Externo (REST)
+# -----------------------------------------------------------------
+# step_03_post_data_to_rest_api
+# Origem A360: REST.post (main.json:3; 01-inventory/inventory.json:38-49)
+# Tabela verdade: reference/a360-to-pad.md -- "REST | post"
+# Acao PAD (whitelist): Web.InvokeWebService.InvokeWebServicePost --
+# Status: [colado KB: PAD 2.73, nao rodado nesta instalacao]
+# FailOnErrorStatus: False, igual ao flow principal: 4xx/5xx NAO
+# interrompem o flow. O analista confere out_rest_status_code e
+# out_rest_response contra o "Resultado esperado" de cada cenario
+# (R8-4, R8-6). Verifica: CT-01 (status esperado), CT-02 (401),
+# CT-03 (corpo em formato inesperado pelo destino).
+# -----------------------------------------------------------------
+Web.InvokeWebService.InvokeWebServicePost Url: cfg_rest_endpoint_url Accept: cfg_rest_accept ContentType: cfg_rest_content_type CustomHeaders: $'''Authorization: %cfg_rest_auth_scheme% %in_rest_token%''' RequestBody: $'''%out_excel_data%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True StatusCode=> out_rest_status_code Response=> out_rest_response ResponseHeaders=> out_rest_response_headers
+**ENDREGION
+
+**REGION Registro do Resultado
+# -----------------------------------------------------------------
+# step_05_record_test_result
+# Nao corresponde a uma acao A360: so o registro manual do resultado
+# observado pelo analista. Acao PAD (whitelist): SET -- Status:
+# [colado KB: PAD 2.73, nao rodado nesta instalacao].
+# TODO reflow: preencher out_test_result com o resultado observado
+# (status HTTP, mensagem de erro, evidencia salva em cfg_output_folder)
+# SOMENTE depois da execucao real no PAD (README.md -> tabela de
+# resultados; docs/runbook.md). Nunca copiar o valor de in_rest_token.
+# Comeca vazio de proposito.
+# -----------------------------------------------------------------
+SET out_test_result TO $''''''
+**ENDREGION

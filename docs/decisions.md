@@ -1170,3 +1170,37 @@ e trata variável `cfg_`/`in_`/`out_`/`step_` nua como referência.
 - Não valida a semântica do flow: um `Main.robin` que passa no lint cola, mas pode não
   fazer o que o legado fazia. Isso continua com o revisor e com o teste real no PAD.
 - O lint não cobre a edição Power Fx (`$fx'...'`): o reflow gera Robin clássico.
+
+## ADR-030: decisões do analista no piloto `a360-excel-vault` e detector de segredo lendo `%expressões%`
+
+A auditoria semântica de 2026-11-05 (`output/a360-excel-vault/04-pad/uc-01-excel-vault/review.md`)
+apontou que o piloto reconvertido pelo ADR-029 colava no PAD mas enviava o POST sem
+autenticação (R1-1, bloqueante) e deixava outras quatro escolhas sem dono. O analista
+(Cleyber, 2026-11-05) decidiu:
+
+| Ponto | Decisão | Efeito no `Main.robin` |
+| --- | --- | --- |
+| Origem da credencial | variável de entrada sensível do flow | `in_rest_token`, declarada no designer; sem ação de cofre |
+| Autenticação do REST | token no cabeçalho | `CustomHeaders` monta `Authorization` com `cfg_rest_auth_scheme` (vazia, TODO) e `in_rest_token`; mesma ação `InvokeWebServicePost` |
+| Formato do corpo | confirmar com o analista | `Accept`/`ContentType` viram `cfg_` vazias com TODO; nada de `application/json` sem evidência |
+| Fechar o Excel | sim | `Excel.CloseExcel.Close` logo após a leitura; diferença deliberada em relação ao legado |
+
+A Região da credencial passou a vir antes do REST (o legado tinha a ordem inversa). Os nomes
+`step_NN` seguem a ordem do legado para manter o rastreio até `main.json`.
+
+### Detector de segredo
+
+O cabeçalho `Authorization: %cfg_rest_auth_scheme% %in_rest_token%` dentro de um literal
+Robin reprovava `reflow scan` e `lint-robin`, porque a regex lia `%cfg_rest_auth_scheme%`
+como valor. `is_safe_assignment` agora aceita um valor que começa com `%expressão%` **só se**
+tudo até o fim do literal (`'''`) ou do span de código Markdown (crase, mesma regra do
+ADR-027) for `%expressões%` e espaço. Texto fixo depois da expressão continua sendo achado
+(teste em `tests/unit/test_kb.py`).
+
+### O que isto não faz
+
+- Não preenche nenhuma `cfg_` com valor do legado.
+- Não decide o esquema de autorização, o formato do corpo nem o critério de status HTTP:
+  ficam como `# TODO reflow` até o analista confirmar.
+- Não executa nada no PAD. O flow de teste (`05-test/`) foi gerado com 5 cenários e
+  resultado vazio.

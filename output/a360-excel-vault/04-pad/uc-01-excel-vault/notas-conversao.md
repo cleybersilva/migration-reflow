@@ -11,12 +11,52 @@ linhas `cfg_x: "..."` e placeholders soltos derrubavam a colagem inteira, 171 ac
 `lint-robin` novo) e usava nomes que não existem no PAD (`Web.InvokeRestApi`,
 `FlowControl.Region`).
 
-- `Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess` — step_01_open_excel_file; equivalente a `Excel.open` (`main.json:1`); único passo `[validado PAD: rodou]` (confirmado pelo analista em 2026-10-30), usado na forma de colagem de uma linha da seção (ver ressalva em `robin-actions.md`); ressalva em `reference/a360-to-pad.md` sobre o `packageName` simples "Excel" (sem "avançado") deste projeto ainda não confirmado como o mesmo pacote AA360 validado.
-- `Excel.ReadFromExcel.ReadCells` — step_02_read_excel_range; equivalente a `Excel.read` (`main.json:2`, atributo `range`); seletor de **intervalo** (`StartColumn`/`StartRow`/`EndColumn`/`EndRow`), que fecha a lacuna deixada pelo ADR-025; status `[colado KB: PAD 2.73, não rodado nesta instalação]`. Não usar `ReadCell` (célula única) nem `ReadAllCells` (planilha inteira), que não correspondem ao atributo `range`.
-- `Web.InvokeWebService.InvokeWebServicePost` — step_03_post_data_to_rest_api; equivalente a `REST.post` (`main.json:3`, atributos `body` e `authorization`); status `[colado KB: PAD 2.73, não rodado nesta instalação]`; URL, corpo e cabeçalho de autorização não capturados pela extração (`02-docs/integrations.md`), por isso vêm de `cfg_` vazias com `# TODO reflow`.
-- `Credentials.GetCredential` — step_04_get_credential_subfluxo_comum_obter_credencial_do_cofre; equivalente a `CredentialVault.get` (`main.json:4`, atributo `credential`); status `[não validado]` (não é id Robin real; a KB não tem ação de cofre), por isso o passo é só `# TODO reflow`; usar só a referência ao cofre (`main.json:4:credential-vault`), nunca o valor bruto. **Subfluxo comum catalogado**: entrada `obter-credencial-do-cofre` em `reference/subfluxos-comuns.md`.
-- `**REGION` — organiza os quatro estágios do flow ("Leitura da Base de Entrada", "Envio de Dados ao Sistema Externo (REST)", "Subfluxo comum: Obter credencial do cofre (candidato a reuso)", "Fora do escopo aprovado (ADR-028)"); status `[colado KB: PAD 2.73, não rodado nesta instalação]`.
+Corrigido em 2026-11-05 a partir da auditoria semântica
+(`04-pad/uc-01-excel-vault/review.md`) e das decisões do analista listadas abaixo.
+
+- `Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess` — step_01_open_excel_file; equivalente a `Excel.open` (`main.json:1`); a ação é `[validado PAD: rodou]` no snippet **multilinha** do analista (2026-10-30), e a forma de **uma linha** usada no `Main.robin` é `[colado KB: PAD 2.73, não rodado nesta instalação]` (R7-1); `Path` sem extensão fixa, a extensão vem em `cfg_excel_file_name` (R8-5); ressalva em `reference/a360-to-pad.md` sobre o `packageName` simples "Excel" (sem "avançado") ainda não confirmado como o mesmo pacote AA360 validado.
+- `Excel.ReadFromExcel.ReadCells` — step_02_read_excel_range; equivalente a `Excel.read` (`main.json:2`, atributo `range`); seletor de **intervalo** (`StartColumn`/`StartRow`/`EndColumn`/`EndRow`); status `[colado KB: PAD 2.73, não rodado nesta instalação]`. Não usar `ReadCell` (célula única) nem `ReadAllCells` (planilha inteira).
+- `Excel.CloseExcel.Close` — step_02b_close_excel_instance; **sem origem no legado** (não há `Excel/close` em `main.json:1-4`): diferença deliberada em relação ao legado, por decisão do analista (R8-1), logo após a leitura, sem salvar; status `[colado KB: PAD 2.73, não rodado nesta instalação]`.
+- `Web.InvokeWebService.InvokeWebServicePost` — step_03_post_data_to_rest_api; equivalente a `REST.post` (`main.json:3`, atributos `body` e `authorization`); status `[colado KB: PAD 2.73, não rodado nesta instalação]`; `CustomHeaders` monta `Authorization` a partir de `cfg_rest_auth_scheme` (vazia, TODO) e da entrada sensível `in_rest_token` (R1-1); `Accept`/`ContentType` são obrigatórios no seletor e vêm de `cfg_rest_accept`/`cfg_rest_content_type` vazias com TODO, sem afirmar JSON (R8-2); corpo mantido como `out_excel_data` interpolado, com TODO de formato (R8-2); tratamento de status HTTP em TODO, sem `ON ERROR` (R8-4).
+- `**REGION` — organiza os estágios do flow, na ordem "Leitura da Base de Entrada", "Subfluxo comum: Obter credencial do cofre (candidato a reuso)", "Envio de Dados ao Sistema Externo (REST)", "Fora do escopo aprovado (ADR-028)"; status `[colado KB: PAD 2.73, não rodado nesta instalação]`.
 - `SET` — configuração `cfg_` no topo; status `[colado KB: PAD 2.73, não rodado nesta instalação]`.
+
+`Credentials.GetCredential` (seção `[não validado]` da whitelist, não é id Robin real)
+**não é mais usada** nem como placeholder: o step_04 documenta que a credencial chega por
+entrada sensível `in_`, sem ação de cofre.
+
+## Decisões do analista (Cleyber, 2026-11-05)
+
+1. **Credencial**: vem da variável de entrada sensível `in_rest_token`, declarada no
+   designer (tipo texto, marcada sensível). Nunca valor no arquivo. O step_04 virou
+   comentário de documentação, sem ação de cofre. `cfg_credential_reference` foi
+   **removida** (ficaria sem uso); a referência `main.json:4:credential-vault` continua
+   só como comentário de rastreio no step_04.
+2. **Autenticação do REST**: token no cabeçalho, dentro de `CustomHeaders` da ação POST
+   atual (seletor mantido, sem trocar para o irmão com autenticação própria, que não tem
+   seção na whitelist; isso também encerra a dúvida de R8-3). Esquema (ex.: prefixo antes
+   do token) **não confirmado**: fica em `cfg_rest_auth_scheme` vazia com TODO.
+   Regiões reordenadas: a credencial (step_04) vem antes do REST (step_03); os nomes
+   `step_NN` continuam ligados à ordem do legado (R1-1).
+3. **Corpo do POST**: a confirmar com o analista. Corpo mantido, com TODO explícito de
+   formato; `Accept`/`ContentType` não podem ser omitidos (obrigatórios na KB,
+   `PAD_Robin_ActionKB.json:52835-52847`), então viraram `cfg_` vazias com TODO (R8-2).
+4. **Fechar Excel**: sim, `Excel.CloseExcel.Close` logo após a leitura (R8-1).
+
+## Achados da auditoria tratados
+
+- **R1-1**: autenticação por `in_rest_token` em `CustomHeaders`; Região da credencial
+  movida para antes do REST, com comentário do motivo no topo e no step_04.
+- **R5-1**: comentário do step_04 cita `reference/subfluxos-comuns.md#obter-credencial-do-cofre`
+  e as duas evidências (`a360-browser-rest/input/main.json:3`,
+  `a360-excel-vault/input/main.json:4`).
+- **R7-1**: step_01 descrito como ação validada no snippet multilinha, forma de uma linha
+  `[colado KB: PAD 2.73, não rodado nesta instalação]` (Main.robin, notas e README).
+- **R8-1**: `Excel.CloseExcel.Close` incluído.
+- **R8-2**: `Accept`/`ContentType` em `cfg_` vazias; TODO de formato do corpo.
+- **R8-4**: TODO pedindo critério de status HTTP e se a falha interrompe o flow; nenhum
+  `ON ERROR` inventado.
+- **R8-5**: `Path` sem `.xlsx` fixo; TODO diz que `cfg_excel_file_name` vai com extensão.
 
 ## Fora da whitelist / fora do escopo (não citados acima de propósito)
 
@@ -30,32 +70,33 @@ aparecem no `Main.robin` só como comentário dentro da Região "Fora do escopo 
 ## Subfluxo comum sinalizado
 
 O **step_04** corresponde à entrada `obter-credencial-do-cofre`, catalogada (status
-`catalogado`, evidência de 2 projetos) em `reference/subfluxos-comuns.md`. A própria
-evidência observada ali já cita este projeto (`a360-excel-vault/input/main.json:4`).
-Recomendação registrada no catálogo: extrair para um subflow compartilhado (ex.:
-`Subflow_ObterCredencialDoCofre`) que recebe `cfg_credential_reference` e devolve a
-credencial, em vez de repetir o passo isolado a cada conversão.
+`catalogado`) em `reference/subfluxos-comuns.md#obter-credencial-do-cofre`, com as
+evidências `a360-browser-rest/input/main.json:3` e `a360-excel-vault/input/main.json:4`
+(este passo). Recomendação registrada no catálogo: extrair para um subflow compartilhado
+(ex.: `Subflow_ObterCredencialDoCofre`) que recebe a referência da credencial e devolve a
+credencial, em vez de repetir o passo isolado a cada conversão. Com a decisão de entrada
+sensível, a recomendação continua válida para quando houver cofre no PAD.
 
 Não há dependência `TaskBot.run`/`CALL` neste projeto — `dependencies` está vazio em
 `01-inventory/inventory.json:34` — então essa sinalização é exclusivamente do catálogo
-de padrões repetidos entre processos.
+de padrões repetidos entre processos. Nenhum candidato a novo subfluxo comum identificado.
+
+## Variáveis de entrada a declarar no designer
+
+- Entrada `in_rest_token`: texto, **sensível**. Token usado no cabeçalho `Authorization` do
+  step_03.
 
 ## Pendências antes de rodar no designer
 
-- **Credencial** (alerta A4 em `02-docs/risks.md`): decidir a origem real no PAD
-  (variável de entrada sensível do flow ou `Cyberark.GetPassword.GetPassword`) e o plano
-  de migração antes de montar `step_04`.
 - **Valores não capturados** pela extração determinística (`01-inventory/inventory.json`,
-  `02-docs/data-sources.md`, `02-docs/integrations.md`): `file` (`main.json:1`), `range`
-  (`main.json:2`), URL, corpo e autorização de `REST.post` (`main.json:3`). Preencher
-  `cfg_excel_input_folder`, `cfg_excel_file_name`, `cfg_excel_start_column`,
+  `02-docs/data-sources.md`, `02-docs/integrations.md`): preencher com o analista
+  `cfg_excel_input_folder`, `cfg_excel_file_name` (com extensão), `cfg_excel_start_column`,
   `cfg_excel_start_row`, `cfg_excel_end_column`, `cfg_excel_end_row`,
-  `cfg_rest_endpoint_url` e `cfg_rest_custom_headers` com o analista.
-- **Ordem herdada do legado**: a credencial (`main.json:4`) vem depois do `REST/post`
-  (`main.json:3`). Revisar com o analista se a autenticação do step_03 deveria usá-la.
-- **Fechamento do Excel**: o legado não fecha a planilha; avaliar incluir
-  `Excel.CloseExcel.Close` ao fim do flow.
-- Tabela verdade (`reference/a360-to-pad.md`): as linhas "Excel | open" e "Excel | read" ainda têm a
-  ressalva do `packageName` simples `Excel` (sem "avançado"); reavaliar com um export real.
+  `cfg_rest_endpoint_url`, `cfg_rest_accept`, `cfg_rest_content_type` e
+  `cfg_rest_auth_scheme`.
+- **Formato do corpo** do POST (R8-2) e eventual serialização da DataTable.
+- **Critério de sucesso HTTP** (R8-4).
+- Tabela verdade (`reference/a360-to-pad.md`): as linhas "Excel | open" e "Excel | read"
+  ainda têm a ressalva do `packageName` simples `Excel` (sem "avançado").
 - **A1** (`02-docs/risks.md`): `Browser/unmappedAction` (fora do escopo) pode depender
   de extensão de navegador específica, só relevante se entrar em escopo no futuro.
