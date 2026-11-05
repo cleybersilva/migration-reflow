@@ -1543,3 +1543,11 @@ mão em 2026-10-21, antes do ADR-020, com `approved_at` e sem `inputs_fingerprin
 
 - Não validou o conteúdo das fases; só a ordem em relação ao `extract`.
 - Não regravou o checkpoint legado de `a360-browser-rest`.
+
+### Adendo: deploy do Pages
+
+O deploy do commit desta fase deu timeout no GitHub Pages. Reexecutar só o job falhou com
+"Multiple artifacts named github-pages" (o rerun sobe um segundo artefato na mesma execução),
+e uma execução nova por `workflow_dispatch` pulava o deploy, que só rodava em `push`. O job
+de deploy agora também roda em `workflow_dispatch` na main (`.github/workflows/ci.yml`):
+recuperação é `gh workflow run ci.yml --ref main`.

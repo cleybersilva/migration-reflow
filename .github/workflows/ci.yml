@@ -80,10 +80,15 @@ jobs:
   # frontend passarem, e só em push na main (nunca em pull_request) — PR de
   # fora não publica nada. `needs` nos dois faz o Actions desenhar a
   # pipeline completa (checks → frontend → deploy) num único grafo visual.
+  # `workflow_dispatch` na main também publica: reexecutar só o job de deploy
+  # falha com "Multiple artifacts named github-pages", então uma execução nova
+  # disparada à mão é o caminho de recuperação quando o Pages dá timeout.
   deploy:
     name: deploy (GitHub Pages)
     needs: [checks, frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >-
+      github.ref == 'refs/heads/main'
+      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       pages: write
