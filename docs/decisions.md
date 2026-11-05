@@ -1208,3 +1208,43 @@ ADR-027) for `%expressões%` e espaço. Texto fixo depois da expressão continua
   ficam como `# TODO reflow` até o analista confirmar.
 - Não executa nada no PAD. O flow de teste (`05-test/`) foi gerado com 5 cenários e
   resultado vazio.
+
+## ADR-031: decisões do analista em `a360-browser-rest` (UC-01 mantido no PAD)
+
+**Data:** 2026-11-05. **Status:** aceito.
+
+### Contexto
+
+A auditoria da Fase 30 (`output/a360-browser-rest/04-pad/uc-01-browser-rest/review.md`)
+deixou quatro pontos para o analista. Um deles (R8-2) podia tirar o UC-01 do PAD:
+`03-classification/classification.md:72-74` manda reavaliar para NOT_PAD se a chamada REST
+for independente da sessão do navegador.
+
+### Decisões (Cleyber, 2026-11-05)
+
+| Ponto | Decisão | Efeito no `Main.robin` |
+| --- | --- | --- |
+| R8-2 sessão web | a API é independente da sessão do navegador | UC-01 continua no PAD; `Web.InvokeWebService.InvokeWebService` sem instância de navegador |
+| R1-1 credencial | token no cabeçalho, padrão do ADR-030 | entrada sensível `in_rest_token` + `cfg_rest_auth_prefix` vazia com TODO em `CustomHeaders`; Região da credencial antes do REST |
+| R8-3 status HTTP | confirmar com o analista | `# TODO reflow`, sem `ON ERROR` inventado |
+| R7-1 formato | `cfg_` vazias com TODO | `cfg_rest_accept`/`cfg_rest_content_type` |
+
+Sem decisão pendente, a mesma rodada também fechou R4-1 (README do flow), R4-2 (variáveis sem
+consumidor), R5-1 (sinalização do subfluxo comum `obter-credencial-do-cofre`) e R8-1
+(`WebAutomation.CloseWebBrowser` no `step_05_close_browser`, próximo número livre depois dos
+passos do legado).
+
+### Consequência registrada (R1-2)
+
+Manter o UC-01 no PAD contraria a recomendação de reavaliação da classificação; esta ADR é o
+registro do motivo (decisão do analista). Efeito prático: o `step_01` abre uma página que
+nenhum passo lê, fiel ao legado, e mantém a exigência A1 (extensão do PAD no navegador).
+Se o analista concluir que a página não tem efeito de negócio, o passo pode sair numa rodada
+futura, e a reavaliação para NOT_PAD volta à mesa.
+
+### O que isto não faz
+
+- Não preenche `cfg_` nem `in_` com valor do legado.
+- Não altera `classification.md` nem o checkpoint; o checkpoint do projeto é legado (sem
+  `recorded_at`/fingerprint) e só quem decide pode regravá-lo pela CLI.
+- Não executa nada no PAD.

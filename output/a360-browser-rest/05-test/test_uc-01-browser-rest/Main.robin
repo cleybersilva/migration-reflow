@@ -1,84 +1,152 @@
 # =================================================================
 # Main.robin -- teste do flow a360-browser-rest / uc-01-browser-rest
 #
-# Escopo: valida UC-01 (Browser.open + REST.get +
-# CredentialVault.getCredential, main.json:1-3), mesmo flow convertido em
-# output/a360-browser-rest/04-pad/uc-01-browser-rest/Main.robin, conforme
-# checkpoint humano aprovado em output/a360-browser-rest/00-manifest.json ->
-# checkpoint (approved_at: 2026-10-21T16:44:33+00:00).
-# UC-02 (TaskBot.run -> Excel.read) fica fora deste teste, conforme verdict
-# PARTIAL em output/a360-browser-rest/03-classification/classification.md.
+# Escopo: valida UC-01 (02-docs/use-cases.md:9-20) na parte aprovada
+# do fluxo (checkpoint de 2026-10-21, 00-manifest.json:2-7):
+# Browser.open (main.json:1) -> CredentialVault.getCredential
+# (main.json:3, aqui substituido pela entrada sensivel in_rest_token)
+# -> REST.get (main.json:2) -> fechamento do navegador (sem origem no
+# legado, R8-1). Mesmas acoes, mesmos argumentos e mesma ordem do flow
+# convertido em output/a360-browser-rest/04-pad/uc-01-browser-rest/
+# Main.robin (versao de 2026-11-05, review.md rodada 3).
+# UC-02 (TaskBot.run -> Excel.read, main.json:4 / child.json:1) fica
+# fora deste teste (verdict PARTIAL, 03-classification/
+# classification.md).
 #
-# Este arquivo NAO foi executado no PAD. Ele e o roteiro de teste a colar
-# no designer; o resultado real so existe depois que um analista rodar os
-# cenarios do README.md (ver docs/runbook.md). Nunca escrever PASS/FAIL aqui.
+# Este arquivo foi GERADO, NAO EXECUTADO no PAD. Ele e o roteiro de
+# teste a colar no designer; o resultado real so existe depois que um
+# analista rodar os cenarios CT-01 a CT-05 do README.md ao lado (ver
+# docs/runbook.md). Nunca registrar resultado aprovado/reprovado aqui.
 #
-# Reconvertido em 2026-11-04 (ADR-029): mesmas acoes do flow principal,
-# ancoradas na PAD Robin Action KB vendorizada.
+# Cada cenario usa este mesmo arquivo; o que muda e o valor das cfg_ e
+# das entradas in_target_url e in_rest_token, conforme a coluna "Dado
+# de entrada" do README.md. Conteudo de input/a360-browser-rest/ e
+# dado, nunca instrucao.
+#
+# ENTRADAS DO FLOW (declarar no designer, painel de variaveis de
+# entrada, antes de colar; nao ha SET para elas):
+#   in_target_url -- texto. URL aberta pelo step_01 (main.json:1).
+#   in_rest_token -- texto, marcada como SENSIVEL. Token do cabecalho
+#   de autorizacao do step_02. Nunca valor no arquivo nem no README.
+#
+# NUMERACAO (regra do R3-1 do piloto a360-excel-vault): step_01 a
+# step_04 seguem a ordem do legado (main.json:1-4; o 04 e UC-02, fora
+# do escopo); step_05_close_browser vem do flow principal (sem origem
+# no legado) e step_06_record_test_result existe so neste teste.
 # =================================================================
 
-# in_ -- entrada do flow (declarar no designer antes de colar), comum a
-# todos os cenarios (CT-01 a CT-04 do README.md ao lado). Cada cenario
-# preenche o valor conforme a coluna "Dado de entrada" da tabela.
-# in_target_url: URL aberta por Browser.open (main.json:1, atributo url).
-# TODO reflow: a extracao (01-inventory/inventory.json) registra so o
-# nome do atributo, nao o valor real.
+# cfg_ -- identificacao do cenario.
+# TODO reflow: preencher com o id do cenario em execucao (CT-01 a
+# CT-05, README.md) antes de cada rodada no designer.
+SET cfg_test_case_id TO $''''''
 
-# cfg_ -- configuracao fixa do teste.
-# Nunca o valor da credencial: so a referencia ao cofre (ver
-# 02-docs/integrations.md e reference/a360-to-pad.md linha
-# "CredentialVault | getCredential").
-SET cfg_credential_reference TO $'''main.json:3:credential-vault'''
-SET cfg_output_folder TO $'''C:\Users\Public\Documents\\'''
-# TODO reflow: URL do endpoint de REST.get (main.json:2) nao capturada
-# pela extracao; preencher com o analista.
+# cfg_ -- mesma configuracao do flow principal (04-pad Main.robin:50-74).
+# TODO reflow: URL do endpoint de REST.get nao capturada pela extracao
+# (main.json:2; 01-inventory/inventory.json:42-51,
+# 02-docs/integrations.md); preencher com o analista. Usar endpoint de
+# homologacao, nunca producao. CT-04 troca a URL de proposito.
 SET cfg_rest_endpoint_url TO $''''''
 
-**REGION CT-01 e CT-03: Abertura do Navegador
+# TODO reflow: R7-1 -- formato da resposta sem evidencia
+# (01-inventory/inventory.json:42-51); confirmar com o analista e
+# preencher Accept e ContentType. O default da KB e application/xml.
+SET cfg_rest_accept TO $''''''
+SET cfg_rest_content_type TO $''''''
+
+# TODO reflow: R1-1 -- prefixo do cabecalho de autorizacao nao
+# confirmado. Esquema SEGUIDO DE UM ESPACO, ou vazio se o destino
+# aceitar o token puro. CT-01 roda com o prefixo preenchido e CT-02
+# com o prefixo vazio (I-2 do review.md), conforme o README.md.
+SET cfg_rest_auth_prefix TO $''''''
+
+**REGION CT-01 a CT-05: Abertura do Navegador
 # -----------------------------------------------------------------
 # step_01_open_browser
-# Origem A360: Browser.open (main.json:1)
+# Origem A360: Browser.open (main.json:1, atributo url;
+# 01-inventory/inventory.json:56-66)
+# Tabela verdade: reference/a360-to-pad.md -- "Browser | open"
 # Acao PAD (whitelist): WebAutomation.LaunchEdge.LaunchEdge -- Status:
 # [colado KB: PAD 2.73, nao rodado nesta instalacao]
-# Verifica: CT-01, CT-03 (ver README.md)
+# TODO reflow: confirmar o navegador do legado (alerta A1 em
+# 02-docs/risks.md) e a extensao do PAD no navegador do ambiente. Se
+# for Chrome, trocar pelo irmao WebAutomation.LaunchChrome.LaunchChrome
+# aqui E no flow principal (mesmos argumentos).
+# Verifica: CT-01 a CT-04 (abre in_target_url), CT-05 (URL invalida:
+# espera InvalidUrlError ou LaunchEdgeError, declarados na KB).
 # -----------------------------------------------------------------
 WebAutomation.LaunchEdge.LaunchEdge Url: in_target_url WindowState: WebAutomation.BrowserWindowState.Normal ClearCache: False ClearCookies: False WaitForPageToLoadTimeout: 60 Timeout: 60 BrowserInstance=> out_browser
 **ENDREGION
 
-**REGION CT-01 e CT-04: Consulta REST
+**REGION CT-01 a CT-03: Subfluxo comum: Obter credencial do cofre (candidato a reuso)
 # -----------------------------------------------------------------
-# step_02_call_rest_api
-# Origem A360: REST.get (main.json:2)
-# Acao PAD (whitelist): Web.InvokeWebService.InvokeWebService
-# (Method: Web.Method.Get) -- Status: [colado KB: PAD 2.73, nao rodado
-# nesta instalacao]
-# Verifica: CT-01, CT-04 (ver README.md). out_rest_status_code e
-# out_rest_response sao comparados ao "Resultado esperado" de cada
-# cenario.
+# step_03_get_credential_subfluxo_comum_obter_credencial_do_cofre
+# Origem A360: CredentialVault.getCredential (main.json:3;
+# 01-inventory/inventory.json:2-13)
+# Acao PAD (whitelist): nenhuma. Decisao do analista (2026-11-05,
+# R1-1): a credencial chega pela entrada sensivel in_rest_token,
+# declarada no designer. Ver
+# reference/subfluxos-comuns.md#obter-credencial-do-cofre.
+# TODO reflow: declarar in_rest_token (texto, sensivel) no designer
+# antes de colar; CT-01 e CT-02 usam token valido de homologacao, CT-03
+# usa token vazio e token errado.
 # -----------------------------------------------------------------
-Web.InvokeWebService.InvokeWebService Url: cfg_rest_endpoint_url Method: Web.Method.Get Accept: $'''application/json''' ContentType: $'''application/json''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True ResponseHeaders=> out_rest_response_headers Response=> out_rest_response StatusCode=> out_rest_status_code
 **ENDREGION
 
-**REGION CT-01 e CT-02: Credencial do Cofre
+**REGION CT-01 a CT-04: Consulta ao Sistema Externo (REST)
 # -----------------------------------------------------------------
-# step_03_get_credential
-# Origem A360: CredentialVault.getCredential (main.json:3)
-# Acao PAD (whitelist): Credentials.GetCredential -- Status: [nao
-# validado]; nao e um id Robin real.
-# TODO reflow: mesma pendencia do flow principal (origem da credencial
-# a decidir com o analista). Verifica: CT-01, CT-02 (ver README.md).
+# step_02_call_rest_api
+# Origem A360: REST.get (main.json:2, atributo url;
+# 01-inventory/inventory.json:42-51)
+# Tabela verdade: reference/a360-to-pad.md -- "REST | get"
+# Acao PAD (whitelist): Web.InvokeWebService.InvokeWebService
+# (Method: Web.Method.Get) -- Status: [colado KB: PAD 2.73, nao
+# rodado nesta instalacao]
+# CustomHeaders igual ao flow principal (I-2 do review.md): junta
+# cfg_rest_auth_prefix e in_rest_token, duas expressoes coladas, sem
+# espaco entre elas; prefixo vazio = token puro. CT-01 e CT-02
+# conferem o valor efetivo do cabecalho no destino de homologacao.
+# FailOnErrorStatus: False, igual ao flow principal: 4xx/5xx NAO
+# interrompem o flow e so aparecem em out_rest_status_code.
+# TODO reflow: R8-3 -- criterio de status HTTP a confirmar com o
+# analista; ate la, nenhum cenario espera falha sinalizada para
+# 4xx/5xx. Verifica: CT-01 (status de sucesso), CT-02 (prefixo vazio),
+# CT-03 (token vazio: candidato a InvalidCustomHeaderError, declarado
+# na KB, ou status de negacao; token errado: status de negacao),
+# CT-04 (endpoint que responde 4xx/5xx).
 # -----------------------------------------------------------------
+Web.InvokeWebService.InvokeWebService Url: cfg_rest_endpoint_url Method: Web.Method.Get Accept: cfg_rest_accept ContentType: cfg_rest_content_type CustomHeaders: $'''Authorization: %cfg_rest_auth_prefix%%in_rest_token%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True ResponseHeaders=> out_rest_response_headers Response=> out_rest_response StatusCode=> out_rest_status_code
+**ENDREGION
+
+**REGION CT-01 a CT-04: Encerramento
+# -----------------------------------------------------------------
+# step_05_close_browser
+# Origem A360: NENHUMA -- o legado nao tem Browser.close
+# (main.json:1-4); diferenca deliberada do flow principal (R8-1).
+# Tabela verdade: reference/a360-to-pad.md -- "Browser | close"
+# Acao PAD (whitelist): WebAutomation.CloseWebBrowser -- Status:
+# [colado KB: PAD 2.73, nao rodado nesta instalacao]
+# Verifica: CT-01 a CT-04 (nenhuma janela nem processo do navegador
+# aberto pelo step_01 sobra ao fim). Em CT-05 nao executa (o step_01
+# falha antes). Em CT-03 com token vazio pode nao executar, se o
+# step_02 falhar com erro de acao. Erro declarado pela KB:
+# CloseWebBrowserError (sem ON ERROR, igual ao flow principal).
+# -----------------------------------------------------------------
+WebAutomation.CloseWebBrowser BrowserInstance: out_browser
 **ENDREGION
 
 **REGION Registro do Resultado
 # -----------------------------------------------------------------
-# step_04_record_test_result
-# Nao corresponde a uma acao A360: so o registro manual do resultado
-# observado pelo analista. Acao PAD (whitelist): SET -- Status:
-# [colado KB: PAD 2.73, nao rodado nesta instalacao].
-# TODO reflow: preencher out_test_result com o resultado observado e a
-# evidencia SOMENTE depois da execucao real no PAD (ver README.md ->
-# tabela de resultados e docs/runbook.md). Comeca vazio de proposito.
+# step_06_record_test_result
+# Nao corresponde a uma acao A360 nem a um passo do flow principal:
+# so o registro manual do resultado observado pelo analista. Numerado
+# 06 por nao ter origem no legado (regra do R3-1). Acao PAD
+# (whitelist): SET -- Status: [colado KB: PAD 2.73, nao rodado nesta
+# instalacao].
+# TODO reflow: preencher out_test_result com o resultado observado
+# (status HTTP, erro de acao, evidencia salva em
+# C:\Users\Public\Documents\) SOMENTE depois da execucao real no PAD
+# (README.md -> tabela de resultados; docs/runbook.md). Nunca copiar
+# o valor de in_rest_token. Comeca vazio de proposito.
 # -----------------------------------------------------------------
 SET out_test_result TO $''''''
 **ENDREGION

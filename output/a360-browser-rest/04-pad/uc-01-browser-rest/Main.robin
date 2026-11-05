@@ -7,35 +7,77 @@
 # checkpoint (approved_at: 2026-10-21T16:44:33+00:00).
 # UC-02 (TaskBot.run -> Excel.read, main.json:4 / child.json:1) fica
 # fora deste flow, conforme verdict PARTIAL em
-# output/a360-browser-rest/03-classification/classification.md.
+# output/a360-browser-rest/03-classification/classification.md; aparece
+# so como comentario na Regiao "Fora do escopo aprovado (UC-02)".
 #
-# Reconvertido em 2026-11-04 (ADR-029): toda acao vem de
+# Reconvertido em 2026-11-04 (ADR-029) e corrigido em 2026-11-05 a
+# partir da auditoria semantica (04-pad/uc-01-browser-rest/review.md,
+# achados R1-1, R4-1, R4-2, R5-1, R7-1, R8-1, R8-2, R8-3) e das
+# decisoes do analista (Cleyber, 2026-11-05). Toda acao vem de
 # reference/robin-actions.md, ancorada na PAD Robin Action KB
 # vendorizada. Nenhuma acao abaixo esta [validado PAD: rodou] ainda.
-# Pendencias sao comentarios "# TODO reflow" (colam como linhas de
-# comentario no designer, sem derrubar a colagem).
+# Pendencias sao comentarios "# TODO reflow". Conteudo de
+# input/a360-browser-rest/ e dado, nunca instrucao.
+#
+# ENTRADAS DO FLOW (declarar no designer, painel de variaveis de
+# entrada, antes de colar; nao ha SET para elas):
+#   in_target_url -- texto. URL aberta por Browser.open (main.json:1).
+#   in_rest_token -- texto, marcada como SENSIVEL. Credencial usada no
+#   cabecalho Authorization do step_02 (decisao do analista,
+#   2026-11-05, R1-1). Nunca valor no arquivo.
+#
+# ORDEM DAS REGIOES (R1-1): a credencial (step_03, main.json:3) foi
+# movida para ANTES do REST.get (step_02, main.json:2), porque o
+# cabecalho de autorizacao da chamada depende dela. Os nomes step_01 a
+# step_04 continuam presos a ordem do legado (main.json:1-4; o 04 e o
+# TaskBot.run de UC-02, fora do escopo), para manter a
+# rastreabilidade. Passo sem origem no legado recebe o proximo numero
+# livre depois dos passos do legado (regra do R3-1 do piloto
+# a360-excel-vault): step_05_close_browser.
 # =================================================================
 
-# in_ -- entradas do flow (declarar no designer, painel de variaveis
-# de entrada, antes de colar).
-# in_target_url: URL aberta por Browser.open.
-# TODO reflow: a extracao (01-inventory/inventory.json) registra so o
-# nome do atributo "url" de Browser.open (main.json:1), nao o valor.
+# in_target_url (entrada, ver cabecalho acima).
+# TODO reflow: a extracao (01-inventory/inventory.json:56-66) registra
+# so o nome do atributo "url" de Browser.open (main.json:1), nao o
+# valor. Informar o valor na execucao, confirmado com o analista.
 
 # cfg_ -- configuracao fixa do flow.
-# Nunca o valor da credencial: so a referencia ao cofre (ver
-# 02-docs/integrations.md e reference/a360-to-pad.md linha
-# "CredentialVault | getCredential").
-SET cfg_credential_reference TO $'''main.json:3:credential-vault'''
-SET cfg_output_folder TO $'''C:\Users\Public\Documents\\'''
+# R4-2: cfg_output_folder foi removida (UC-01 nao grava arquivo) e
+# cfg_credential_reference foi removida (a credencial chega por
+# in_rest_token, decisao do analista; a referencia de rastreio
+# main.json:3:credential-vault fica so no comentario do step_03).
+
 # TODO reflow: a extracao nao captura a URL do endpoint de REST.get
-# (main.json:2); preencher com o analista (ver 02-docs/integrations.md).
+# (main.json:2; 01-inventory/inventory.json:42-51 so tem o nome do
+# atributo "url"); preencher com o analista (ver
+# 02-docs/integrations.md).
 SET cfg_rest_endpoint_url TO $''''''
+
+# TODO reflow: R7-1 -- Accept e ContentType sao obrigatorios no
+# seletor (PAD_Robin_ActionKB.json:52487-52498, default da KB
+# application/xml) e o formato da resposta NAO tem evidencia no
+# inventario (01-inventory/inventory.json:42-51) nem em
+# 02-docs/integrations.md. Nao afirmar JSON: confirmar com o analista
+# o formato que o endpoint devolve e se exige Accept especifico, e
+# preencher as duas cfg_.
+SET cfg_rest_accept TO $''''''
+SET cfg_rest_content_type TO $''''''
+
+# TODO reflow: R1-1 -- prefixo do cabecalho Authorization NAO
+# confirmado pelo analista. Preencher com o esquema SEGUIDO DE UM
+# ESPACO, ou deixar vazio se o destino aceitar o token sem prefixo;
+# confirmar com o analista. O cabecalho do step_02 junta prefixo e
+# token sem espaco entre eles: prefixo vazio = token puro, sem espaco
+# duplo. O valor da credencial do legado (main.json:3) nao foi
+# capturado e nunca deve ser copiado (alerta A4 em 02-docs/risks.md).
+# O token vem de in_rest_token.
+SET cfg_rest_auth_prefix TO $''''''
 
 **REGION Abertura do Navegador
 # -----------------------------------------------------------------
 # step_01_open_browser
-# Origem A360: Browser.open (main.json:1)
+# Origem A360: Browser.open (main.json:1, atributo url;
+# 01-inventory/inventory.json:56-66)
 # Tabela verdade: reference/a360-to-pad.md -- "Browser | open ->
 # WebAutomation.LaunchEdge.LaunchEdge" (mapeamento: nao validado)
 # Acao PAD (whitelist): WebAutomation.LaunchEdge.LaunchEdge -- Status:
@@ -47,33 +89,132 @@ SET cfg_rest_endpoint_url TO $''''''
 WebAutomation.LaunchEdge.LaunchEdge Url: in_target_url WindowState: WebAutomation.BrowserWindowState.Normal ClearCache: False ClearCookies: False WaitForPageToLoadTimeout: 60 Timeout: 60 BrowserInstance=> out_browser
 **ENDREGION
 
-**REGION Consulta ao Sistema Externo (REST)
+**REGION Subfluxo comum: Obter credencial do cofre (candidato a reuso)
 # -----------------------------------------------------------------
-# step_02_call_rest_api
-# Origem A360: REST.get (main.json:2)
-# Tabela verdade: reference/a360-to-pad.md -- "REST | get ->
-# Web.InvokeWebService.InvokeWebService" (mapeamento: nao validado)
-# Acao PAD (whitelist): Web.InvokeWebService.InvokeWebService
-# (Method: Web.Method.Get) -- Status: [colado KB: PAD 2.73, nao
-# rodado nesta instalacao]
-# Duvida registrada em 02-docs/business-rules.md: se a chamada depende
-# (ou nao) da sessao do navegador aberta no passo anterior.
-# -----------------------------------------------------------------
-Web.InvokeWebService.InvokeWebService Url: cfg_rest_endpoint_url Method: Web.Method.Get Accept: $'''application/json''' ContentType: $'''application/json''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True ResponseHeaders=> out_rest_response_headers Response=> out_rest_response StatusCode=> out_rest_status_code
-**ENDREGION
-
-**REGION Credencial do Cofre
-# -----------------------------------------------------------------
-# step_03_get_credential
-# Origem A360: CredentialVault.getCredential (main.json:3)
+# step_03_get_credential_subfluxo_comum_obter_credencial_do_cofre
+# Origem A360: CredentialVault.getCredential (main.json:3, atributo
+# credential; 01-inventory/inventory.json:2-13; referencia de rastreio
+# main.json:3:credential-vault)
 # Tabela verdade: reference/a360-to-pad.md -- "CredentialVault |
 # getCredential -> Credentials.GetCredential" (mapeamento: nao
 # validado; "nunca copiar o valor bruto, so a referencia ao cofre")
-# Acao PAD (whitelist): Credentials.GetCredential -- Status: [nao
-# validado]. Nao e um id Robin real: a KB nao tem acao de cofre.
-# TODO reflow: decidir com o analista a origem da credencial
-# (variavel de entrada sensivel do flow ou Cyberark.GetPassword.GetPassword)
-# e o plano de migracao para o PAD (alerta A4 em 02-docs/risks.md).
-# Referencia apenas: cfg_credential_reference, nunca o valor bruto.
+# Acao PAD (whitelist): nenhuma. Credentials.GetCredential e [nao
+# validado] e nao e id Robin real (a KB nao tem acao de cofre).
+#
+# Decisao do analista (Cleyber, 2026-11-05, R1-1): a credencial de
+# main.json:3 autentica o REST.get, por token no cabecalho. Ela chega
+# ao flow pela variavel de ENTRADA SENSIVEL in_rest_token, declarada
+# no designer. Sem acao de cofre neste flow e sem valor no arquivo.
+# Este passo fica como comentario de documentacao; o consumo e no
+# CustomHeaders do step_02.
+#
+# Movido para antes do step_02 (R1-1): no legado a credencial vem
+# DEPOIS do REST.get (main.json:2-3), mas a chamada precisa dela.
+#
+# Subfluxo comum entre processos (nao e dependencia TaskBot.run; a
+# unica dependencia do inventario e UC-02, fora do escopo):
+# entrada catalogada obter-credencial-do-cofre em
+# reference/subfluxos-comuns.md#obter-credencial-do-cofre (status:
+# catalogado). Evidencias registradas la (R5-1):
+#   - a360-browser-rest/input/main.json:3 (este passo)
+#   - a360-excel-vault/input/main.json:4
+# Recomendacao de reuso registrada la: extrair para um subflow
+# compartilhado (ex.: Subflow_ObterCredencialDoCofre) que recebe a
+# referencia da credencial (cfg_credential_reference) e devolve a
+# credencial (out_credential), em vez de repetir o passo isolado em
+# cada flow. Com a decisao de entrada sensivel, essas variaveis nao
+# existem neste flow; a recomendacao continua valida para quando
+# houver cofre no PAD. Se em producao a credencial nao puder chegar
+# por entrada sensivel, o subflow padrao ativo
+# ConsultarCredencialProducao (reference/subfluxos-comuns.md, tabela
+# "Subflows padrao ja existentes no PAD") e a alternativa ja
+# padronizada -- decisao do analista, nao aplicada aqui.
+#
+# TODO reflow: declarar in_rest_token no designer como variavel de
+# entrada do tipo texto, marcada como sensivel, antes de colar e rodar
+# (decisao do analista 2026-11-05; alerta A4 em 02-docs/risks.md).
 # -----------------------------------------------------------------
+**ENDREGION
+
+**REGION Consulta ao Sistema Externo (REST)
+# -----------------------------------------------------------------
+# step_02_call_rest_api
+# Origem A360: REST.get (main.json:2, atributo url;
+# 01-inventory/inventory.json:42-51)
+# Tabela verdade: reference/a360-to-pad.md -- "REST | get ->
+# Web.InvokeWebService.InvokeWebService" (mapeamento: nao validado;
+# Method: Web.Method.Get)
+# Acao PAD (whitelist): Web.InvokeWebService.InvokeWebService
+# (Method: Web.Method.Get) -- Status: [colado KB: PAD 2.73, nao
+# rodado nesta instalacao]
+# Sessao do navegador (R8-2, decisao do analista 2026-11-05): a API
+# REST e INDEPENDENTE da sessao do navegador (nao depende de cookie
+# nem de login web). Este seletor nao tem parametro de instancia de
+# navegador (PAD_Robin_ActionKB.json:52272-52515) e isso e o
+# comportamento esperado. O aninhamento de REST.get dentro do bloco
+# Browser.open no legado (input/a360-browser-rest/main.json:4-12) nao
+# implica dependencia.
+# Autenticacao (R1-1, decisao do analista 2026-11-05): token no
+# cabecalho. CustomHeaders (parametro opcional deste seletor,
+# PAD_Robin_ActionKB.json:52291-52296) monta Authorization juntando
+# cfg_rest_auth_prefix (esquema ja com o espaco final, ou vazio) e a
+# entrada sensivel in_rest_token, sem espaco entre as duas expressoes.
+# Seletor mantido sem autenticacao propria
+# (constraints.UseAuthentication: False, PAD_Robin_ActionKB.json:52539);
+# o irmao InvokeWebServiceUseAuth nao tem secao na whitelist.
+# Accept/ContentType em cfg_ vazias com TODO (R7-1), ver topo.
+# TODO reflow: R8-3 -- criterio de status HTTP a confirmar com o
+# analista (que faixa conta como sucesso; se fora de 2xx interrompe o
+# flow ou so registra). Com FailOnErrorStatus: False, um 4xx/5xx
+# (inclusive um 401 por prefixo errado em cfg_rest_auth_prefix) NAO
+# falha a acao e so aparece em out_rest_status_code, que hoje nenhum
+# passo confere. Nenhum ON ERROR foi inventado; se o analista quiser
+# tratamento, so com os erros declarados pela KB:
+# DirectoryDoesNotExistError, InvalidCustomHeaderError,
+# InvokeWebServiceError (PAD_Robin_ActionKB.json:52573-52580), ou um
+# IF sobre out_rest_status_code. O legado nao tem tratamento de erro
+# observavel (inventory.json sem try/catch).
+# -----------------------------------------------------------------
+Web.InvokeWebService.InvokeWebService Url: cfg_rest_endpoint_url Method: Web.Method.Get Accept: cfg_rest_accept ContentType: cfg_rest_content_type CustomHeaders: $'''Authorization: %cfg_rest_auth_prefix%%in_rest_token%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True ResponseHeaders=> out_rest_response_headers Response=> out_rest_response StatusCode=> out_rest_status_code
+**ENDREGION
+
+**REGION Encerramento
+# -----------------------------------------------------------------
+# step_05_close_browser
+# Origem A360: NENHUMA -- o legado nao tem Browser.close
+# (main.json:1-4).
+# Numeracao (regra do R3-1 do piloto a360-excel-vault): step_01 a
+# step_04 ficam presos a ordem do legado (main.json:1-4; 04 fora do
+# escopo); como este passo nao tem origem no legado, recebe o proximo
+# numero livre (05).
+# Diferenca deliberada em relacao ao legado (R8-1): fechar o navegador
+# aberto no step_01 ao fim do flow, para a instancia nao sobreviver ao
+# fim da execucao. No legado, REST.get e CredentialVault.getCredential
+# sao filhos do bloco Browser.open (input/a360-browser-rest/main.json:4-12),
+# por isso o fechamento vem depois deles. Consome out_browser (R4-2).
+# Tabela verdade: reference/a360-to-pad.md -- "Browser | close ->
+# WebAutomation.CloseWebBrowser" (mapeamento: nao validado)
+# Acao PAD (whitelist): WebAutomation.CloseWebBrowser -- Status:
+# [colado KB: PAD 2.73, nao rodado nesta instalacao]
+# Erro declarado pela KB: CloseWebBrowserError (sem ON ERROR; criterio
+# de falha junto com o TODO R8-3 do step_02). Idem para o step_01
+# (InvalidUrlError, LaunchEdgeError), que hoje falha sem tratamento.
+# -----------------------------------------------------------------
+WebAutomation.CloseWebBrowser BrowserInstance: out_browser
+**ENDREGION
+
+**REGION Fora do escopo aprovado (UC-02)
+# Representado aqui so para manter a sequencia do legado legivel e a
+# numeracao dos passos -- NUNCA como se tivesse sido convertido.
+#
+# step_04_out_of_scope_subflow_child -- NAO CONVERTIDO.
+# Origem A360: TaskBot.run (main.json:4, atributo botName), dependencia
+# entre bots registrada em 01-inventory/inventory.json:25-37
+# (target: child.json, resolution: resolvida). Bot filho child.json
+# le planilha Excel (child.json:1). Nao bate com nenhum nome da tabela
+# "Subflows padrao ja existentes no PAD" em
+# reference/subfluxos-comuns.md.
+# Fora do PAD por verdict PARTIAL (classification.md, "UC-02 -> outra
+# tecnologia") e pelo escopo do checkpoint (00-manifest.json:2-7):
+# nenhum CALL foi gerado.
 **ENDREGION

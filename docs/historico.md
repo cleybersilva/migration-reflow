@@ -1480,3 +1480,27 @@ resposta de R8-2 pode tirar o UC-01 do PAD.
   decisões do analista.
 - Não regenerou o `05-test/`, que também está desatualizado (cita ids que não existem no
   PAD e espera comportamento que o flow não produz).
+
+## Fase 31 — `a360-browser-rest`: reconversão com as decisões do analista
+
+Nova rodada de `reflow-convert` sobre o UC-01, aplicando as decisões do ADR-031 e os achados
+sem decisão pendente da Fase 30. Depois, `fix-robin-eol`, `lint-robin`, `reflow scan`,
+nova auditoria semântica e `05-test/` regenerado.
+
+### Resultado
+
+- `Main.robin`: 3 ações da whitelist (`WebAutomation.LaunchEdge.LaunchEdge`,
+  `Web.InvokeWebService.InvokeWebService`, `WebAutomation.CloseWebBrowser`), todas
+  `[colado KB: PAD 2.73, não rodado nesta instalação]`; 7 `# TODO reflow`, todos pendência do
+  analista; entradas `in_target_url` e `in_rest_token` (sensível).
+- Auditoria (rodada 3): os 8 achados da Fase 30 resolvidos; 1 menor novo (R1-2, decisão do
+  analista contra a recomendação da classificação, registrada no ADR-031) e informativos.
+- `reference/subfluxos-comuns.md`: evidências de `obter-credencial-do-cofre` corrigidas (no
+  legado a credencial vem depois do REST; no `Main.robin`, antes).
+- `05-test/test_uc-01-browser-rest/` regenerado, resultado vazio.
+
+### O que esta fase não fez (honestidade)
+
+- Não executou nada no PAD.
+- Não preencheu `cfg_` nem decidiu o critério de status HTTP.
+- Não regravou o checkpoint legado do projeto.

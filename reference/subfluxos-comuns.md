@@ -60,9 +60,11 @@ evidência `projeto:arquivo:linha` real, não uma suposição.
   HTTP autenticada, login numa aplicação, etc.).
 - **Evidência observada**:
   - `a360-browser-rest/input/main.json:3` (`CredentialVault.getCredential`,
-    antes de `REST.get` em `main.json:2`).
+    usada pela chamada `REST.get` em `main.json:2`; no legado vem depois do
+    REST, no `Main.robin` passa a vir antes por decisão do analista, Fase 31).
   - `a360-excel-vault/input/main.json:4` (`CredentialVault.getCredential`,
-    usada pela chamada `REST.post` em `main.json:3`).
+    usada pela chamada `REST.post` em `main.json:3`; mesma inversão de ordem
+    no `Main.robin`, ADR-030).
 - **Recomendação de reuso**: extrair para um subflow compartilhado (ex.:
   `Subflow_ObterCredencialDoCofre`) que recebe `cfg_credential_reference`
   como entrada e devolve `out_credential`; qualquer flow que precise de uma
