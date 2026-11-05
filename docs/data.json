@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T18:40:44+00:00",
+  "generatedAt": "2026-11-05T20:01:30+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -85,6 +85,27 @@
         "retention": "permanente"
       },
       "content": "# a360-browser-rest - reconversao com decisoes do analista (Fase 31, ADR-031)\n\n## O que foi modificado\n| Arquivo | Mudanca | Tipo |\n| --- | --- | --- |\n| output/a360-browser-rest/04-pad/uc-01-browser-rest/Main.robin | credencial antes do REST (in_rest_token + cfg_rest_auth_prefix em CustomHeaders), Accept/ContentType em cfg_ vazias, step_05_close_browser (WebAutomation.CloseWebBrowser), subfluxo comum sinalizado, Regiao UC-02 so comentario | implementacao |\n| .../README.md, notas-conversao.md | ids reais, decisoes do analista, variaveis in_ | implementacao |\n| .../review.md | auditoria rodada 3: 8 achados anteriores resolvidos, 1 menor (R1-2) | diagnostico |\n| output/a360-browser-rest/05-test/test_uc-01-browser-rest/ | regenerado, 5 cenarios CT-01..CT-05, resultado vazio | implementacao |\n| reference/subfluxos-comuns.md | evidencias de obter-credencial-do-cofre corrigidas (ordem legado vs PAD) | correcao |\n| docs/decisions.md | ADR-031 | implementacao |\n| docs/historico.md, README.md | Fase 31 e roadmap | manutencao |\n\n## O que foi implantado\nGates: fix-robin-eol, lint-robin --all, reflow scan, kb verify, ruff check/format, pytest 283 passed.\n\n## Beneficios para o projeto\nSegundo robo com Main.robin auditado sem bloqueantes e teste coerente com o flow; mesmo padrao de autenticacao do piloto (ADR-030).\n\n## Causa raiz / motivo\nAuditoria da Fase 30 apontou credencial sem uso, navegador nunca fechado, README desatualizado e 05-test com ids inexistentes.\n\n## Como reverter\ngit revert do commit da Fase 31.\n\n## Pendencias\n- Analista: declarar in_target_url e in_rest_token, preencher cfg_, confirmar navegador (A1) e criterio de status HTTP (R8-3), rodar no PAD.\n- Checkpoint legado sem recorded_at/fingerprint: regravar via CLI so por quem decide.\n- 00-manifest.json ainda lista 04-pad e 05-test em stale_phases (gerido pela CLI, nao editado a mao).\n- R1-2: UC-01 mantido no PAD contra recomendacao da classificacao (registrado no ADR-031)."
+    },
+    {
+      "id": "projects/migration-reflow/Deploy do Pages destravado e cancelamento da CI so em PR (Fase 34)",
+      "title": "Deploy do Pages destravado e cancelamento da CI so em PR (Fase 34)",
+      "project": "migration-reflow",
+      "categoria": "correcao",
+      "categoriaLabel": "Correção",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-05",
+      "hora": "16:40 -03:00",
+      "atividade": "recupera o deploy do GitHub Pages bloqueado por deployment em andamento e restringe cancel-in-progress a PR",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "media",
+        "retention": "permanente"
+      },
+      "content": "# Deploy do Pages destravado e cancelamento da CI so em PR (Fase 34)\n\n## O que foi modificado\n| Arquivo | Mudanca | Tipo |\n| --- | --- | --- |\n| .github/workflows/ci.yml | cancel-in-progress do workflow so em pull_request | correcao |\n| docs/runbook.md | secao \"Deploy do GitHub Pages falhou\" | manutencao |\n| README.md | troubleshooting e roadmap (checkpoint legado de a360-browser-rest) | manutencao |\n| docs/historico.md | Fase 34 | manutencao |\n\n## O que foi implantado\nRun 42093051725 (workflow_dispatch) verde com deploy do Pages. Artifact privado ressincronizado (pipeline.json). ruff ok, pytest 292 passed, sync_agents e sync_copilot sem diferenca.\n\n## Beneficios para o projeto\nPush novo na main nao derruba mais um deploy do Pages no meio; runbook tem o caminho de recuperacao do HTTP 400.\n\n## Causa raiz / motivo\nDeploy de a0ea8d2 ficou \"in progress\" no Pages; os seguintes recebiam HTTP 400. O concurrency do job nao protegia contra o cancel-in-progress do workflow. Causa do timeout original nao confirmada (confidence media).\n\n## Como reverter\ngit revert do commit da Fase 34.\n\n## Pendencias\n- Checkpoint legado de a360-browser-rest: regravar so por quem aprova.\n- Decisoes do analista (cfg_, status HTTP, navegador) e execucao real no PAD."
     },
     {
       "id": "projects/migration-reflow/a360-browser-rest - auditoria refeita sobre a versao reconvertida (Fase 30)",

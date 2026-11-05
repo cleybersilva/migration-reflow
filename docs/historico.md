@@ -1551,3 +1551,37 @@ O deploy do commit desta fase deu timeout no GitHub Pages. Reexecutar só o job 
 e uma execução nova por `workflow_dispatch` pulava o deploy, que só rodava em `push`. O job
 de deploy agora também roda em `workflow_dispatch` na main (`.github/workflows/ci.yml`):
 recuperação é `gh workflow run ci.yml --ref main`.
+
+## Fase 34 — Deploy do Pages destravado e cancelamento da CI só em PR
+
+O commit da Fase 33 deu timeout no deploy do Pages, e as cinco execuções seguintes
+(`d14e99e`, por push e por `workflow_dispatch`) falharam com HTTP 400: "Deployment request
+failed ... due to in progress deployment. Please cancel a0ea8d2 first". O deploy anterior
+continuava "em andamento" do lado do Pages mesmo com o job já encerrado.
+
+### O que mudou
+
+- Recuperação: `gh api .../pages/deployments/a0ea8d2...` já respondia
+  `deployment_cancelled`; uma execução nova (`gh workflow run ci.yml --ref main`, run
+  42093051725) passou inteira, deploy incluído. O painel privado (Artifact) foi
+  ressincronizado com o `pipeline.json` dessa run.
+- `.github/workflows/ci.yml`: `cancel-in-progress` do workflow agora só vale para
+  `pull_request`. Antes, um push novo na main cancelava a execução inteira, inclusive um
+  deploy do Pages no meio, apesar do `concurrency: pages` do job (que não protege contra o
+  cancelamento em nível de workflow). Deploy derrubado no meio é o que deixa o Pages com
+  deployment "em andamento" e recusa os seguintes.
+- `docs/runbook.md`: seção "Deploy do GitHub Pages falhou" (timeout, HTTP 400, consulta e
+  cancelamento pela API, ressincronização do Artifact). `README.md`: troubleshooting e
+  roadmap (checkpoint legado de `a360-browser-rest`).
+
+### Validação
+
+ruff ok, pytest 292 passed, `sync_agents.py` e `sync_copilot.py` sem diferença (paridade
+dos três harnesses intacta).
+
+### O que esta fase não fez (honestidade)
+
+- Não provou que o timeout original foi causado por cancelamento: a mudança fecha uma
+  causa possível, não a única (o Pages também dá timeout por conta própria).
+- Não regravou o checkpoint legado de `a360-browser-rest` nem tomou nenhuma decisão do
+  analista (`cfg_`, critério de status HTTP, navegador): continuam no roadmap.

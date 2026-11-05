@@ -55,6 +55,22 @@ nunca misture fases de projetos diferentes na mesma conversa. Se um projeto
 tiver muitos arquivos de entrada, extraia-o isoladamente antes de pedir
 documentação.
 
+## Deploy do GitHub Pages falhou
+
+O job `deploy (GitHub Pages)` só roda depois de `checks` e `frontend`, em push ou
+`workflow_dispatch` na main.
+
+- **Timeout no deploy:** não reexecute só o job (falha com "Multiple artifacts named
+  github-pages"). Dispare uma execução nova: `gh workflow run ci.yml --ref main`.
+- **HTTP 400 "due to in progress deployment. Please cancel <sha> first":** um deploy
+  anterior ainda consta como em andamento do lado do Pages. Consulte o estado com
+  `gh api repos/cleybersilva/migration-reflow/pages/deployments/<sha>`; se ainda estiver
+  em andamento, cancele com `gh api -X POST .../pages/deployments/<sha>/cancel` (ou espere
+  o timeout). Quando aparecer `deployment_cancelled` ou terminal, dispare uma execução
+  nova como acima.
+- Depois de publicar, ressincronize o painel privado (Artifact): copie o
+  `docs/data.json` e regrave o `pipeline.json` com a run verde.
+
 ## Reextração invalidou uma fase posterior
 
 Normal — `00-manifest.json` marca as fases já existentes como `stale_phases`

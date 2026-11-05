@@ -20,9 +20,14 @@ on:
 permissions:
   contents: read
 
+# Só PR cancela a execução anterior. Na main, cancelar a execução inteira
+# derrubaria também um deploy do Pages em andamento (o `concurrency` do job
+# não o protege do cancelamento em nível de workflow), e um deploy derrubado
+# no meio pode ficar "in progress" do lado do Pages e recusar os seguintes
+# com HTTP 400 (Fase 34, docs/runbook.md).
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:

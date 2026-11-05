@@ -460,7 +460,8 @@ pesada nova — ver ADR em [`docs/decisions.md`](docs/decisions.md).
 
 Ver [`docs/runbook.md`](docs/runbook.md): origem não suportada, IAra
 indisponível, Robin não cola no PAD, ação `[não validado]` falhou, contexto
-grande demais.
+grande demais, deploy do GitHub Pages falhou (timeout ou HTTP 400 por deploy
+anterior "em andamento"), reextração que invalida fases posteriores.
 
 ## 📘 Glossário
 
@@ -486,7 +487,9 @@ grande demais.
 - Rodar no PAD `a360-browser-rest` (reconvertido na Fase 31 com as decisões do ADR-031,
   auditoria sem bloqueantes, `05-test/` regenerado sem resultado): falta declarar
   `in_target_url` e `in_rest_token`, preencher as `cfg_`, confirmar o navegador (A1) e o
-  critério de status HTTP.
+  critério de status HTTP. O checkpoint dele ainda está no formato legado (gravado à mão
+  em 2026-10-21, sem `inputs_fingerprint`): quem aprova deve regravá-lo com
+  `reflow checkpoint a360-browser-rest --approve`.
 - Rodar a extração contra exports A360 reais (hoje só fixtures sintéticas).
 - Ampliar `reference/a360-to-pad.md` a partir de `unknown_commands` reais.
 - Agente próprio (harness `refold`, plano B secundário) reaproveitando as
