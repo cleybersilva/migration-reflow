@@ -79,7 +79,10 @@ Disponíveis também: `uv run python -m reflow extract <projeto>`,
 quebra de linha de todo `Main.robin` já gerado para CRLF — rodar depois de
 qualquer conversão/geração de teste, antes do `lint-robin`), `uv run python
 -m reflow scan [--staged]` e `uv run python -m reflow lint-robin
-[<projeto>|--all]` — os dois últimos são gates: falham de forma restritiva e
+[<projeto>|--all]`, `uv run python -m reflow kb verify` (confere a KB Robin vendorizada
+contra o sha256 do `manifest.json`) e `uv run python -m reflow kb show <actionId>`
+(exemplo, parâmetros, seletores irmãos e erros de uma ação da KB) — scan, lint-robin e
+kb verify são gates: falham de forma restritiva e
 o hook de pre-commit os roda antes de qualquer commit.
 Consulte o estado real em `README.md`; não declare funcionalidades futuras prontas.
 

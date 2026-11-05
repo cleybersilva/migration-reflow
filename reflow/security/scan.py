@@ -16,18 +16,28 @@ Uma linha com o marcador `reflow:allow-secret` só é pulada dentro de
 detector (`reflow/security/scan.py`, `reflow/security/masking.py`); fora
 disso o marcador é ignorado — nunca é uma forma livre de silenciar um
 segredo real em qualquer outro arquivo do repositório.
+
+Única outra isenção, também estreita: os arquivos de terceiros vendorizados
+em `reference/vendor/pad-robin-kb/` (KB Robin, CC BY 4.0) são pulados só
+enquanto o conteúdo bater byte a byte com o sha256 travado em
+`manifest.json` (ver `reflow/robin/kb.py` e ADR-029). Os exemplos de lá
+trazem argumentos Robin de senha seguidos de um literal `$'''...'''` de
+exemplo, que a regex lê como atribuição de segredo. Qualquer edição no arquivo derruba a isenção e
+ele volta a ser varrido normalmente; o manifesto e o README da pasta são
+sempre varridos.
 Os achados são reportados já mascarados (ver security/masking.py) — o próprio
 scan nunca ecoa um segredo real no terminal.
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .masking import CNPJ_RE, CPF_RE, SECRET_ASSIGNMENT_RE, is_placeholder_value, mask
+from .masking import CNPJ_RE, CPF_RE, SECRET_ASSIGNMENT_RE, is_safe_assignment, mask
 
 IGNORED_DIR_NAMES = {".git", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
 INTERNAL_DOMAIN_RE = re.compile(r"(?i)\bitau[a-zç]*\b|\.corp\b")  # reflow:allow-secret
@@ -106,6 +116,18 @@ def _read_staged_blob(root: Path, relative: str) -> bytes | None:
     return result.stdout
 
 
+def _pinned_vendor_hashes(root: Path) -> dict[str, str]:
+    # Import tardio: reflow.robin importa este módulo (Finding).
+    from ..robin.kb import pinned_hashes
+
+    return pinned_hashes(root)
+
+
+def _is_pinned_vendor_file(relative: str, content: bytes, pinned: dict[str, str]) -> bool:
+    expected = pinned.get(relative.replace("\\", "/"))
+    return expected is not None and hashlib.sha256(content).hexdigest() == expected
+
+
 def _allow_marker_is_permitted(relative: str) -> bool:
     normalized = relative.replace("\\", "/")
     if normalized in ALLOW_MARKER_PERMITTED_FILES:
@@ -123,7 +145,7 @@ def _scan_line(relative: str, lineno: int, text: str) -> list[Finding]:
     if INTERNAL_DOMAIN_RE.search(text):
         findings.append(Finding(relative, lineno, "dominio_interno", excerpt))
     for match in SECRET_ASSIGNMENT_RE.finditer(text):
-        if not is_placeholder_value(match.group("value")):
+        if not is_safe_assignment(text, match):
             findings.append(Finding(relative, lineno, "segredo_atribuido", excerpt))
     return findings
 
@@ -148,14 +170,18 @@ def scan_repository(root: Path) -> list[Finding]:
     """Varre a working tree de tudo que seria versionado — ver módulo para o
     contraste com `scan_staged` (índice)."""
     findings: list[Finding] = []
+    pinned = _pinned_vendor_hashes(root)
     for path in _candidate_files(root):
         if not path.is_file():
             continue
+        relative = str(path.relative_to(root)).replace("\\", "/")
         try:
-            text = path.read_text(encoding="utf-8")
+            content = path.read_bytes()
+            text = content.decode("utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        relative = str(path.relative_to(root)).replace("\\", "/")
+        if _is_pinned_vendor_file(relative, content, pinned):
+            continue
         for lineno, line in enumerate(text.splitlines(), start=1):
             findings.extend(_scan_line(relative, lineno, line))
     return findings
@@ -176,9 +202,12 @@ def scan_staged(root: Path) -> list[Finding]:
     que não leu.
     """
     findings: list[Finding] = []
+    pinned = _pinned_vendor_hashes(root)
     for relative in _staged_file_names(root):
         content = _read_staged_blob(root, relative)
         if content is None:
+            continue
+        if _is_pinned_vendor_file(relative, content, pinned):
             continue
         try:
             text = content.decode("utf-8")

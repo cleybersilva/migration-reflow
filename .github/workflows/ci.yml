@@ -58,6 +58,8 @@ jobs:
         run: uv run python -m pytest
       - name: Scan de segredo/PII (working tree)
         run: uv run python -m reflow scan
+      - name: Integridade da KB Robin vendorizada
+        run: uv run python -m reflow kb verify
       - name: Lint Robin (estrutura dos .robin)
         run: uv run python -m reflow lint-robin --all
 

@@ -18,6 +18,7 @@ from .inventory import Inventory
 from .limits import check_input_budget
 from .report import build_batch_report, read_verdict
 from .robin import fix_robin_eol, lint_robin_files
+from .robin.kb import load_action_kb, load_manifest, verify_kb
 from .security.paths import reject_unsafe_links
 from .security.scan import Finding, StagedScanError, scan_repository, scan_staged
 
@@ -46,6 +47,12 @@ def _build_parser() -> argparse.ArgumentParser:
     lint = sub.add_parser("lint-robin")
     lint.add_argument("project", nargs="?", default=None)
     lint.add_argument("--all", action="store_true")
+
+    kb = sub.add_parser("kb", help="PAD Robin Action KB vendorizada (reference/vendor/).")
+    kb_sub = kb.add_subparsers(dest="kb_command", required=True)
+    kb_sub.add_parser("verify", help="Confere os hashes da cópia contra manifest.json.")
+    kb_show = kb_sub.add_parser("show", help="Mostra o registro de uma ação pelo actionId.")
+    kb_show.add_argument("action_id")
 
     fix_eol = sub.add_parser("fix-robin-eol")
     fix_eol.add_argument("project", nargs="?", default=None)
@@ -305,6 +312,40 @@ def _report_findings(findings: list[Finding], command: str) -> None:
     print(f"{command} falhou: {len(findings)} achado(s).", file=sys.stderr)
 
 
+def _cmd_kb(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    if args.kb_command == "verify":
+        findings = verify_kb(root)
+        if findings:
+            _report_findings(findings, "kb verify")
+            return 2
+        manifest = load_manifest(root)
+        print(
+            f"kb verify ok: {manifest['name']} {manifest['tag']} "
+            f"(KB {manifest['kb_version']}, PAD {manifest['pad_build']}), hashes conferem."
+        )
+        return 0
+
+    action = load_action_kb(root).get(args.action_id.lower())
+    if action is None:
+        print(f"kb show: ação desconhecida na KB: {args.action_id}", file=sys.stderr)
+        return 1
+    print(f"actionId:     {action.action_id}  (kind: {action.kind})")
+    print(f"exemplo:      {action.golden_example}")
+    for param in action.input_params:
+        required = "obrigatório" if param.get("required") else "opcional"
+        enum = f" valores: {', '.join(param['enumValues'])}" if param.get("enumValues") else ""
+        print(f"  entrada     {param['name']}: {param.get('type')} ({required}){enum}")
+    for param in action.output_params:
+        print(f"  saída       {param['name']}=> {param.get('defaultVariable', '')}")
+    print(f"irmãos:       {', '.join(action.sibling_selectors) or '—'}")
+    errors = ", ".join(action.errors) or "—"
+    print(f"ON ERROR:     {'sim' if action.on_error else 'não'} (erros: {errors})")
+    print(f"UI selector:  {'sim (exemplo usa placeholder)' if action.needs_ui_selector else 'não'}")
+    print(f"validação:    {action.validation}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -353,6 +394,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "report":
         return _cmd_report()
+
+    if args.command == "kb":
+        return _cmd_kb(args)
 
     parser.print_help()
     return 2

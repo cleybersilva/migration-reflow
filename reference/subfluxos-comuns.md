@@ -5,7 +5,7 @@ Catálogo de **padrões de passos que se repetem entre processos diferentes**
 compartilhado em vez de serem remontados do zero a cada conversão.
 
 Isto é diferente da convenção de dependência entre bots já descrita em
-[`robin-conventions.md`](robin-conventions.md) e na ação `Flow.RunSubflow`
+[`robin-conventions.md`](robin-conventions.md) e na instrução `CALL`
 de [`robin-actions.md`](robin-actions.md): aquela cobre uma chamada
 **explícita** no legado (A360 `TaskBot.run` apontando para outro bot,
 registrada em `dependencies` do inventário). Este catálogo cobre o caso
@@ -29,7 +29,7 @@ abaixo.
    - Comentário imediatamente acima do passo citando: o nome do padrão, o
      link para a entrada aqui (`reference/subfluxos-comuns.md#<slug>`) e a
      recomendação de reuso registrada na entrada.
-   - Quando possível, envolver o passo na sua própria `FlowControl.Region`
+   - Quando possível, envolver o passo na sua própria `**REGION`
      rotulada `Subfluxo comum: <nome do padrão> (candidato a reuso)`.
    - Registrar o mesmo apontamento em `notas-conversao.md`.
 3. **Nunca** sinalize uma entrada com status `proposto` como se já fosse
@@ -70,7 +70,7 @@ evidência `projeto:arquivo:linha` real, não uma suposição.
   vez de repetir o passo `Credentials.GetCredential` isolado.
 - **Como sinalizar no `Main.robin`**: nome do passo
   `step_NN_subfluxo_comum_obter_credencial_do_cofre`; comentário citando
-  esta entrada e as duas evidências acima; `FlowControl.Region` rotulada
+  esta entrada e as duas evidências acima; `**REGION` rotulada
   `Subfluxo comum: Obter credencial do cofre (candidato a reuso)`.
 - **Status**: `catalogado` (evidência de 2 projetos).
 

@@ -45,10 +45,12 @@ converta.
 Depois do checkpoint aprovado, chama o agent **reflow-pad-converter** (criado
 na Fase 6 — se ainda não existir, avise em vez de simular) para gerar
 `output/<projeto>/04-pad/<flow>/Main.robin` **só com ações da whitelist**.
-Ação fora da whitelist vira `TODO reflow` no lugar do snippet — nunca invente
-sintaxe Robin. Os passos são organizados em `FlowControl.Region` por estágio
-do processo, e toda chamada a outro Task Bot/subflow (A360 `TaskBot.run` →
-PAD `Flow.RunSubflow`) é marcada de forma explícita — ver
+O agent não escreve Robin: preenche os templates da whitelist, ancorados na
+PAD Robin Action KB vendorizada (ADR-029), trocando só os valores. Ação fora
+da whitelist vira comentário `# TODO reflow: ...` no lugar do snippet —
+nunca invente sintaxe Robin. Os passos são organizados em `**REGION` por
+estágio do processo, e toda chamada a outro Task Bot/subflow (A360
+`TaskBot.run` → PAD `CALL`) é marcada de forma explícita — ver
 `reference/robin-conventions.md`. Todo passo que corresponder a um padrão
 já **catalogado** em `reference/subfluxos-comuns.md` (sequência de passos
 que se repete entre processos diferentes, sem chamada explícita no legado)

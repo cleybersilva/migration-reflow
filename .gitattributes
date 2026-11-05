@@ -10,3 +10,6 @@
 *.mp4 binary
 *.xlsx binary
 *.docx binary
+# KB Robin de terceiros (reference/vendor/): bytes exatos, travados por sha256
+# em manifest.json. Sem conversão de EOL, senão o hash muda no checkout.
+reference/vendor/pad-robin-kb/** -text

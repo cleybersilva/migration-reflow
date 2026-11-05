@@ -83,6 +83,10 @@ Corrigido um bug real herdado: a ação `"shell"` não existe; é `"bash"`.
 
 ## ADR-012 — Lint Robin nunca interpreta sintaxe Robin
 
+> **Revogado pelo ADR-029 (2026-11-04).** Com a PAD Robin Action KB vendorizada, a sintaxe
+> passou a ter fonte verificável, e o `lint-robin` agora a interpreta. Mantido aqui como
+> histórico.
+
 `robin/lint.py` não tenta reconhecer qual ação PAD um `Main.robin` usa —
 isso exigiria conhecer a sintaxe interna do Robin, que não está validada
 (proibido por `AGENTS.md`). Em vez disso, o lint valida a estrutura que o
@@ -1074,3 +1078,95 @@ JSON.
   só o `checkpoint` no manifesto mudou.
 - Não gerou nenhum `Main.robin` ainda — a conversão em si
   (`reflow-pad-converter`) é o próximo passo, de posse desta aprovação.
+
+## ADR-029: PAD Robin Action KB vendorizada como base de sintaxe (fase 1 de 5)
+
+Pedido do usuário: usar a [PAD Robin Action KB](https://github.com/joeG592/pad-robin-action-kb)
+(Joe Green, CC BY 4.0) para dar robustez ao reflow. A KB tem 1.086 ações Robin, cada uma com um
+exemplo que colou no PAD Designer 2.73 sem erro, parâmetros tipados, seletores irmãos e
+`error_handling`, mais 24 regras de sintaxe provadas por 456 colagens de teste.
+
+### O que a KB revelou sobre o estado atual
+
+- O `Main.robin` de `a360-excel-vault` não cola: usa comentários `//` e linhas `cfg_x: "..."`.
+  Robin só aceita `#` e `SET x TO ...`, e uma linha inválida faz o PAD descartar a colagem
+  inteira, sem erro visível.
+- Os snippets `proposto` de `ReadAllCells` e `CloseExcel.Close` usam `Instance: %var%`. A regra
+  3 da KB diz que `%...%` fora de string derruba a colagem; o certo é `Instance: var`.
+- Sete nomes da whitelist não existem no PAD: `Browser.*`, `UI.*`, `Web.InvokeRestApi`,
+  `Text.Concatenate`, `Credentials.GetCredential`, `Flow.RunSubflow` (`CALL`) e
+  `FlowControl.Region` (`**REGION`).
+- As 4 ações `[validado PAD: rodou]` (ADR-027) batem com a KB.
+
+### Decisões do usuário (2026-11-04)
+
+1. Ação ancorada na KB ganha um **status próprio**, acima de `proposto` e abaixo de
+   `[validado PAD: rodou]`: o PAD do autor aceitou a sintaxe, mas ninguém rodou neste ambiente.
+2. O **ADR-012 será revogado** na fase 3: `lint-robin` passa a interpretar a sintaxe Robin com
+   base nas regras da KB e reprova de forma restritiva (gate de commit).
+
+### Fase 1 (esta): cópia vendorizada com proveniência
+
+- `reference/vendor/pad-robin-kb/`: 6 arquivos do upstream, sem edição (ActionKB,
+  TypeReference, `robin-rules.json`, `probe-corpus.json`, `PROMPT.md`, `LICENSE`), mais
+  `manifest.json` (repo, tag `v3.8.0`, commit, sha256 de cada arquivo) e `README.md` com a
+  atribuição exigida pela CC BY. Edição Power Fx fora: o reflow gera Robin clássico.
+- `.gitattributes`: `-text` na pasta, para o checkout não trocar EOL e quebrar o hash.
+- `reflow/robin/kb.py`: loader só de JSON e `verify_kb` (arquivo ausente, extra, fora do
+  conjunto fechado ou com hash divergente vira achado).
+- `reflow kb verify` (gate novo no pre-commit e na CI) e `reflow kb show <actionId>`.
+
+### Isenção estreita no scan, e por quê
+
+O `reflow scan` reprovava 155 linhas da KB: num argumento de senha seguido de um literal
+Robin `$'''...'''`, a regex captura só o `$` como valor. Os arquivos vendorizados são pulados **só enquanto o sha256 bater com o manifesto**;
+qualquer edição derruba a isenção. O manifesto não consegue isentar arquivo fora de um conjunto
+fechado de 6 nomes, e o `manifest.json` e o `README.md` da pasta são sempre varridos. Testes em
+`tests/unit/test_kb.py` cobrem os dois lados.
+
+O mesmo achado mostra uma lacuna real: o scan não entendia literais Robin. Ele acusava o `$`
+de qualquer literal num argumento de senha e nunca olhava o conteúdo. Corrigido na fase 5
+(`is_safe_assignment` em `reflow/security/masking.py`).
+
+### Fases 2 a 5 (concluídas no mesmo dia)
+
+**2. Whitelist e tabela verdade ancoradas na KB.** Cada cabeçalho de `robin-actions.md` passa
+a ser o id Robin real (`Módulo.Ação.Seletor` da KB, ou a instrução da linguagem). Novo status
+`[colado KB: PAD 2.73, não rodado nesta instalação]`. Os 4 snippets validados pelo analista
+ficaram **intactos**; ao lado de cada um entrou a forma de colagem de uma linha. Nenhuma
+colagem do corpus quebra argumentos em linhas, então fica um `TODO reflow (revisão humana)`
+para confirmar como eles foram colados. Lacunas fechadas: intervalo do Excel
+(`ReadCells`), escrita (`WriteCell`, `WriteText`, `WriteCSV`), REST/SOAP, navegador, janela,
+banco. `Credentials.GetCredential` segue `[não validado]`: a KB não tem ação de cofre.
+Testes novos reprovam cabeçalho de ação ausente da KB, argumento ou saída fora do seletor
+e `%` fora de string em qualquer snippet.
+
+**3. `reflow/robin/syntax.py`.** Implementação própria (não é tradução do `check-flows.js`,
+cujo código não tem licença declarada) das regras documentadas em `robin-rules.json`.
+Contra as 456 colagens do corpus: 107/107 rejeitadas detectadas, 22/27 com erro detectadas,
+316/322 limpas aceitas. As 6 restantes reprovam **por política**, mais estrita que o PAD:
+segredo literal em argumento de senha e `\%`, que o PAD cola descartando o `%`. Os três
+números são testes (`tests/unit/test_robin_syntax.py`). O lint também cruza as ações **usadas
+no texto** com a whitelist. Convenção nova: pendência é comentário `# TODO reflow: ...`
+(cola como linha de comentário), nunca placeholder solto. Variáveis `in_` são entradas do
+flow, declaradas no designer.
+
+**4. Agents.** Conversor vira "preenchedor de template" (método do `PROMPT.md` da KB),
+revisor ganha a checagem semântica contra a KB (seletor certo, fechar o que abre,
+tratamento de erro só com erros declarados), tester segue as mesmas regras. Fonte em
+`.opencode/agents/`, espelhos regenerados por `sync_agents.py` e `sync_copilot.py`.
+
+**5. Reconversão.** Os 3 `Main.robin` versionados (`a360-excel-vault`, `a360-browser-rest`
+e o teste dele) tinham 323 achados no lint novo: o PAD descartaria cada um inteiro. Foram
+reconvertidos com o mesmo escopo e as mesmas evidências (ADR-028 respeitado) e passam no
+gate. No caminho, o scanner ganhou `is_safe_assignment`: lê o literal Robin em vez do `$`,
+e trata variável `cfg_`/`in_`/`out_`/`step_` nua como referência.
+
+### O que isto não faz
+
+- Não promove nenhuma ação a `[validado PAD: rodou]`: colar no PAD do autor da KB não é
+  rodar neste ambiente.
+- Não altera nenhum snippet validado pelo analista.
+- Não valida a semântica do flow: um `Main.robin` que passa no lint cola, mas pode não
+  fazer o que o legado fazia. Isso continua com o revisor e com o teste real no PAD.
+- O lint não cobre a edição Power Fx (`$fx'...'`): o reflow gera Robin clássico.

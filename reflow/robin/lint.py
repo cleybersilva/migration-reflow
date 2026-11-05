@@ -1,7 +1,11 @@
-"""Lint real do `Main.robin` gerado — sem nunca interpretar a sintaxe interna do
-Robin, que não está validada (ver AGENTS.md: "nunca inventar sintaxe Robin").
+"""Lint real do `Main.robin` gerado.
 
-As checagens olham só o que o próprio pipeline controla:
+Desde o ADR-029 (que revoga o ADR-012), o lint **interpreta a sintaxe Robin** com as
+regras da PAD Robin Action KB vendorizada (ver `syntax.py`): instrução que derruba a
+colagem, ação ou argumento inexistente, `ON ERROR` inválido, segredo literal. Também
+cruza as ações **usadas no texto** com a whitelist, não só as citadas nas notas.
+
+As checagens estruturais de antes continuam:
 - `notas-conversao.md` (lista as ações usadas) cruzado contra a whitelist;
 - `README.md` do flow (precisa de um cabeçalho `# <nome do flow>`);
 - o texto puro do `Main.robin`, para segredo atribuído, caminho UNC (nunca
@@ -18,8 +22,10 @@ import ntpath
 import re
 from pathlib import Path
 
-from ..security.masking import SECRET_ASSIGNMENT_RE, is_placeholder_value, mask
+from ..security.masking import SECRET_ASSIGNMENT_RE, is_safe_assignment, mask
 from ..security.scan import Finding
+from .kb import KbAction, load_action_kb
+from .syntax import analyze_robin
 from .whitelist import RobinAction, load_whitelist
 
 WHITELIST_PATH = Path("reference") / "robin-actions.md"
@@ -38,7 +44,7 @@ def _check_secrets(relative: str, text: str) -> list[Finding]:
     findings: list[Finding] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
         for match in SECRET_ASSIGNMENT_RE.finditer(line):
-            if not is_placeholder_value(match.group("value")):
+            if not is_safe_assignment(line, match):
                 findings.append(
                     Finding(relative, lineno, "segredo_no_robin", mask(line.strip())[:120])
                 )
@@ -167,12 +173,37 @@ def fix_robin_eol(root: Path, project: str | None = None) -> list[Path]:
     return changed
 
 
-def _lint_one(root: Path, robin_file: Path, whitelist: dict[str, RobinAction]) -> list[Finding]:
+def _check_syntax(
+    relative: str, text: str, kb: dict[str, KbAction], whitelist: dict[str, RobinAction]
+) -> list[Finding]:
+    issues, used = analyze_robin(text, kb)
+    findings = [Finding(relative, issue.line, issue.code, issue.message) for issue in issues]
+    allowed = {name.lower() for name in whitelist}
+    for line, action_id in used:
+        if action_id.lower() in kb and action_id.lower() not in allowed:
+            findings.append(
+                Finding(
+                    relative,
+                    line,
+                    "acao_fora_da_whitelist",
+                    f"ação usada no Main.robin mas ausente da whitelist: {action_id}",
+                )
+            )
+    return findings
+
+
+def _lint_one(
+    root: Path,
+    robin_file: Path,
+    whitelist: dict[str, RobinAction],
+    kb: dict[str, KbAction],
+) -> list[Finding]:
     relative = _relative(root, robin_file)
     raw = robin_file.read_bytes()
     text = raw.decode("utf-8")
     findings = _check_secrets(relative, text) + _check_absolute_paths(relative, text)
     findings += _check_robin_eol(relative, raw)
+    findings += _check_syntax(relative, text, kb, whitelist)
     findings += _check_actions_against_whitelist(
         root, robin_file.parent / "notas-conversao.md", whitelist
     )
@@ -197,7 +228,19 @@ def lint_robin_files(root: Path, project: str | None = None) -> list[Finding]:
             )
         ]
 
+    try:
+        kb = load_action_kb(root)
+    except (OSError, ValueError, KeyError) as exc:
+        return [
+            Finding(
+                "reference/vendor/pad-robin-kb/PAD_Robin_ActionKB.json",
+                1,
+                "kb_ausente",
+                f"KB Robin vendorizada ausente ou ilegível; sintaxe não verificável ({exc})"[:160],
+            )
+        ]
+
     findings: list[Finding] = []
     for robin_file in robin_files:
-        findings.extend(_lint_one(root, robin_file, whitelist))
+        findings.extend(_lint_one(root, robin_file, whitelist, kb))
     return findings

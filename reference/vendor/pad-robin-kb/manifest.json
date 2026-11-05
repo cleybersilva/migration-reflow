@@ -1,0 +1,51 @@
+{
+  "name": "pad-robin-action-kb",
+  "source": "https://github.com/joeG592/pad-robin-action-kb",
+  "tag": "v3.8.0",
+  "commit": "799f3d9dfd57c0da2e72b1857717f03eab2beb2f",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "author": "Joe Green",
+  "retrieved_at": "2026-11-04",
+  "kb_version": "3.4.0",
+  "pad_build": "2.73.00155.26278",
+  "modified": false,
+  "files": [
+    {
+      "path": "PAD_Robin_ActionKB.json",
+      "upstream_path": "PAD_Robin_ActionKB.json",
+      "sha256": "248d29e5ef2e5a647f8f16cb6237703f69d3918131b296930f02a4e6ebc18b30",
+      "bytes": 2889794
+    },
+    {
+      "path": "PAD_Robin_TypeReference.json",
+      "upstream_path": "PAD_Robin_TypeReference.json",
+      "sha256": "0452c41edd514d0694609d9d80d12574c6f29cd200e388be08638a710e5c3072",
+      "bytes": 12099
+    },
+    {
+      "path": "robin-rules.json",
+      "upstream_path": "rules/robin-rules.json",
+      "sha256": "117c6af6014bf556dd67f87291a12706baff7f3373aea00e8350c5a49bd73de0",
+      "bytes": 26981
+    },
+    {
+      "path": "probe-corpus.json",
+      "upstream_path": "rules/probe-corpus.json",
+      "sha256": "f7bd99852d9a89e1076692ee8b5c87294719ad6ba9b3d0d576671744a5c3b106",
+      "bytes": 415920
+    },
+    {
+      "path": "PROMPT.md",
+      "upstream_path": "PROMPT.md",
+      "sha256": "a01c047ee55d4e278d1c58133e9682a06aa7aadb69faba5dfc39a2d9ff55b9df",
+      "bytes": 5686
+    },
+    {
+      "path": "LICENSE",
+      "upstream_path": "LICENSE",
+      "sha256": "fdf75fa0de3b35803768e508e846fd9883e355aea75c543f785d46dc372303f8",
+      "bytes": 989
+    }
+  ]
+}

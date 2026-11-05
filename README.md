@@ -258,6 +258,9 @@ uv run python -m reflow report
 uv run python -m reflow checkpoint <projeto> --status   # pendente / aprovado / rejeitado
 uv run python -m reflow checkpoint <projeto> --approve  # grava a decisão humana (--reject para rejeitar)
 uv run python -m reflow fix-robin-eol <projeto>          # ou --all; CRLF antes de colar no PAD
+uv run python -m reflow lint-robin <projeto>             # ou --all; sintaxe Robin + estrutura
+uv run python -m reflow kb show <actionId>               # registro de uma ação na KB Robin
+uv run python -m reflow kb verify                        # integridade da KB vendorizada
 ```
 
 Dentro do opencode ou do Claude Code (mesmas skills, mesmos comandos):
@@ -301,18 +304,28 @@ projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
    `Main.robin` para CRLF, exigido pelo PAD no Windows; sem isso, colar o
    arquivo (ou um trecho dele) pode juntar linhas ou falhar silenciosamente.
    `lint-robin` reprova (`eol_lf_sem_cr`) se esse passo for esquecido.
-3. Abra `output/<projeto>/04-pad/<flow>/Main.robin`, selecione tudo, copie.
-4. No designer do PAD, clique no corpo do `Main` e cole (Ctrl+V).
-5. Rode o flow. Saída esperada sempre em `C:\Users\Public\Documents\`.
-6. Repita com `05-test/test_<flow>/Main.robin` para o flow de teste; leia os
+3. Rode `uv run python -m reflow lint-robin <projeto>`. Ele aplica as regras
+   de sintaxe da PAD Robin Action KB: quase todo erro de Robin faz o PAD
+   descartar a colagem **inteira**, sem mostrar erro. Lint verde = o flow
+   cola; não prova que ele faz o que o legado fazia.
+4. Declare no designer as variáveis de entrada `in_` citadas no topo do
+   `Main.robin` e preencha as `cfg_` marcadas com `# TODO reflow`.
+5. Abra `output/<projeto>/04-pad/<flow>/Main.robin`, selecione tudo, copie.
+6. No designer do PAD, clique no corpo do `Main` e cole (Ctrl+V).
+7. Rode o flow. Saída esperada sempre em `C:\Users\Public\Documents\`.
+8. Repita com `05-test/test_<flow>/Main.robin` para o flow de teste; leia os
    cenários `CT-xx` no `README.md` ao lado e registre manualmente
    PASS/FAIL — o pipeline nunca escreve isso por você.
 
 ## ✅ Tabela verdade e whitelist
 
-[`reference/robin-actions.md`](reference/robin-actions.md) (whitelist, por
-módulo) e [`reference/a360-to-pad.md`](reference/a360-to-pad.md) (A360 → PAD)
-nascem conservadoras — toda ação começa `[não validado]`. Para promover:
+[`reference/robin-actions.md`](reference/robin-actions.md) (whitelist, um id Robin
+real por seção) e [`reference/a360-to-pad.md`](reference/a360-to-pad.md) (A360 → PAD)
+são ancoradas na [PAD Robin Action KB](reference/vendor/pad-robin-kb/README.md)
+(Joe Green, CC BY 4.0), vendorizada e travada por hash (ADR-029). Status, do mais fraco
+ao mais forte: `[não validado]`, `[proposto]`, `[colado KB: PAD 2.73, não rodado nesta
+instalação]` (o PAD do autor aceitou a linha) e `[validado PAD: rodou]` (rodou **neste**
+ambiente). Para promover para `rodou`:
 
 1. Monte a ação manualmente no designer do PAD e confirme que funciona.
 2. Copie o texto gerado (Ctrl+C) e cole no lugar do placeholder em

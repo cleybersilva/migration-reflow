@@ -6,6 +6,10 @@ if ! uv run python -m reflow scan --staged; then
     echo 'Commit bloqueado: scan do indice (staged) falhou ou achou segredo/PII.' >&2
     exit 1
 fi
+if ! uv run python -m reflow kb verify; then
+    echo 'Commit bloqueado: copia vendorizada da KB Robin diverge do manifest.json.' >&2
+    exit 1
+fi
 if ! uv run python -m reflow lint-robin --all; then
     echo 'Commit bloqueado: validação Robin falhou ou ainda não está disponível.' >&2
     exit 1

@@ -10,6 +10,7 @@ import pytest
 
 from reflow import limits
 from reflow.cli import main
+from reflow.robin.kb import KB_DIR
 from tests.link_support import make_unsafe_link
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -63,6 +64,7 @@ def test_lint_robin_passes_without_any_robin_file(workspace: Path) -> None:
 
 def test_fix_robin_eol_cli_normalizes_a_bare_lf_main_robin(workspace: Path) -> None:
     (workspace / "reference").mkdir(exist_ok=True)
+    shutil.copytree(ROOT / KB_DIR, workspace / KB_DIR)
     (workspace / "reference" / "robin-actions.md").write_text(
         "### `Variables.SetVariable`\n- Status: [não validado]\n\n```robin\nTODO\n```\n",
         encoding="utf-8",
@@ -70,7 +72,7 @@ def test_fix_robin_eol_cli_normalizes_a_bare_lf_main_robin(workspace: Path) -> N
     flow_dir = workspace / "output" / "quote-scraper" / "04-pad" / "main-flow"
     flow_dir.mkdir(parents=True)
     robin_path = flow_dir / "Main.robin"
-    robin_path.write_bytes(b"step_01\nstep_02\n")
+    robin_path.write_bytes(b"# step_01\n# step_02\n")
     (flow_dir / "README.md").write_text("# quote-scraper\n", encoding="utf-8")
     (flow_dir / "notas-conversao.md").write_text(
         "- `Variables.SetVariable` — passo 1\n", encoding="utf-8"
@@ -83,7 +85,7 @@ def test_fix_robin_eol_cli_normalizes_a_bare_lf_main_robin(workspace: Path) -> N
     require(
         main(["fix-robin-eol", "quote-scraper"]) == 0, "fix-robin-eol deveria concluir sem erro."
     )
-    require(robin_path.read_bytes() == b"step_01\r\nstep_02\r\n", "EOL deveria virar CRLF.")
+    require(robin_path.read_bytes() == b"# step_01\r\n# step_02\r\n", "EOL deveria virar CRLF.")
 
     with pytest.raises(SystemExit) as lint_after:
         main(["lint-robin", "quote-scraper"])

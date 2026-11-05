@@ -83,6 +83,35 @@ def is_placeholder_value(value: str) -> bool:
     return "synthetic" in lowered or lowered.startswith("not-a-real")
 
 
+# Variável com prefixo de convenção do reflow (`robin-conventions.md`): em Robin, um
+# argumento com valor nu é **referência** a variável, nunca o segredo em si.
+_REFLOW_VARIABLE_RE = re.compile(r"(?:cfg|in|out|step)_\w+")
+_ROBIN_EXPRESSION_RE = re.compile(r"%[^%]*%")
+
+
+def is_safe_assignment(line: str, match: re.Match[str]) -> bool:
+    """Como `is_placeholder_value`, mas entende os dois valores Robin que não são
+    segredo (ADR-029). Sem isto, num argumento de senha seguido de literal Robin
+    `$'''...'''`, a regex lê só o `$` como valor: acusa qualquer literal, inclusive
+    um feito só de `%in_senha%`, e nunca olha o conteúdo.
+
+    - literal `$'''...'''`: seguro só se vazio ou feito só de `%expressões%`;
+      um literal com texto fixo continua sendo achado;
+    - variável `cfg_`/`in_`/`out_`/`step_` nua: referência, não valor.
+    """
+    value = match.group("value")
+    if is_placeholder_value(value):
+        return True
+    if _REFLOW_VARIABLE_RE.fullmatch(value):
+        return True
+    rest = line[match.end() :]
+    if value == "$" and rest.startswith("'''"):
+        end = rest.find("'''", 3)
+        literal = rest[3:end] if end >= 0 else rest[3:]
+        return not _ROBIN_EXPRESSION_RE.sub("", literal).strip()
+    return False
+
+
 def mask_secrets(text: str) -> str:
     """Troca o valor atribuído a uma chave sensível por `***`, preservando a chave."""
 

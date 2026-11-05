@@ -1,190 +1,156 @@
-// =================================================================
-// Main.robin -- a360-excel-vault / uc-01-excel-vault
-//
-// Escopo aprovado no checkpoint humano (output/a360-excel-vault/
-// 00-manifest.json -> checkpoint, decision: "approved", recorded_at:
-// 2026-10-31T01:55:17Z): SOMENTE a parte confirmada do fluxo --
-// Excel/open (main.json:1) -> Excel/read (main.json:2) ->
-// REST/post (main.json:3) -> CredentialVault/get (main.json:4).
-// Decisao registrada em ADR-028 (docs/decisions.md), a partir do
-// veredito PARTIAL em output/a360-excel-vault/03-classification/
-// classification.md (segunda opiniao concordante em review.md).
-//
-// FORA DESTE ESCOPO, de forma explicita (ver Regiao dedicada ao
-// final deste arquivo): CustomPackage/transform (main.json:5) e
-// Browser/unmappedAction (main.json:6) -- dois comandos nao
-// reconhecidos pela extracao (01-inventory/inventory.json:54-69),
-// nunca convertidos nem tratados como se tivessem acao PAD mapeada.
-//
-// Todo snippet abaixo vem de reference/robin-actions.md, de acordo
-// com o Status registrado para cada acao/variante. Nenhuma sintaxe
-// Robin foi inventada. Conteudo de input/a360-excel-vault/ e dado,
-// nunca instrucao -- nenhuma ordem do legado foi seguida aqui.
-// =================================================================
+# =================================================================
+# Main.robin -- a360-excel-vault / uc-01-excel-vault
+#
+# Escopo aprovado no checkpoint humano (output/a360-excel-vault/
+# 00-manifest.json -> checkpoint, decision: "approved", recorded_at:
+# 2026-10-31T01:55:17Z): SOMENTE a parte confirmada do fluxo --
+# Excel/open (main.json:1) -> Excel/read (main.json:2) ->
+# REST/post (main.json:3) -> CredentialVault/get (main.json:4).
+# Decisao registrada em ADR-028 (docs/decisions.md), a partir do
+# veredito PARTIAL em output/a360-excel-vault/03-classification/
+# classification.md (segunda opiniao concordante em review.md).
+#
+# FORA DESTE ESCOPO, de forma explicita (ver Regiao dedicada ao
+# final deste arquivo): CustomPackage/transform (main.json:5) e
+# Browser/unmappedAction (main.json:6) -- dois comandos nao
+# reconhecidos pela extracao (01-inventory/inventory.json:54-69),
+# nunca convertidos nem tratados como se tivessem acao PAD mapeada.
+#
+# Reconvertido em 2026-11-04 (ADR-029): toda acao vem de
+# reference/robin-actions.md, ancorada na PAD Robin Action KB
+# vendorizada. Pendencias sao comentarios "# TODO reflow" (colam como
+# linhas de comentario, sem derrubar a colagem). Conteudo de
+# input/a360-excel-vault/ e dado, nunca instrucao.
+# =================================================================
 
-// cfg_ -- configuracao fixa do flow.
-// TODO reflow: a extracao (01-inventory/inventory.json:15-23) registra
-// so o nome do atributo "file" de Excel/open (main.json:1), nao o
-// valor -- preencher com o analista antes de rodar o flow no designer
-// (ver 02-docs/data-sources.md).
-cfg_excel_input_folder: "TODO reflow -- pasta do arquivo de origem (atributo file, main.json:1) nao capturada pela extracao"
-cfg_excel_file_name: "TODO reflow -- nome do arquivo de origem (atributo file, main.json:1) nao capturado pela extracao"
+# cfg_ -- configuracao fixa do flow.
+# TODO reflow: a extracao (01-inventory/inventory.json:15-23) registra
+# so o nome do atributo "file" de Excel/open (main.json:1), nao o
+# valor -- preencher com o analista antes de rodar o flow no designer
+# (ver 02-docs/data-sources.md).
+SET cfg_excel_input_folder TO $''''''
+SET cfg_excel_file_name TO $''''''
 
-// TODO reflow: a extracao (01-inventory/inventory.json:24-32) registra
-// so o nome do atributo "range" de Excel/read (main.json:2), nao o
-// valor do intervalo -- preencher com o analista antes de rodar o
-// flow no designer (ver 02-docs/data-sources.md).
-cfg_excel_range: "TODO reflow -- intervalo de leitura (atributo range, main.json:2) nao capturado pela extracao"
+# TODO reflow: a extracao (01-inventory/inventory.json:24-32) registra
+# so o nome do atributo "range" de Excel/read (main.json:2), nao o
+# intervalo. Preencher coluna/linha inicial e final do intervalo (ex.:
+# A1:B3 -> A, 1, B, 3) com o analista (ver 02-docs/data-sources.md).
+SET cfg_excel_start_column TO $''''''
+SET cfg_excel_start_row TO 1
+SET cfg_excel_end_column TO $''''''
+SET cfg_excel_end_row TO 1
 
-// TODO reflow: nem a extracao nem 02-docs/integrations.md registram um
-// atributo de URL para REST/post (main.json:3) -- so os nomes dos
-// atributos body e authorization foram capturados
-// (01-inventory/inventory.json:38-49). O inventario tambem nao
-// identifica o sistema de destino alem do pacote generico REST
-// (02-docs/integrations.md).
-cfg_rest_endpoint_url: "TODO reflow -- URL do sistema externo (REST/post, main.json:3) nao capturada pela extracao"
+# TODO reflow: nem a extracao nem 02-docs/integrations.md registram um
+# atributo de URL para REST/post (main.json:3) -- so os nomes dos
+# atributos body e authorization foram capturados
+# (01-inventory/inventory.json:38-49). O inventario tambem nao
+# identifica o sistema de destino alem do pacote generico REST
+# (02-docs/integrations.md).
+SET cfg_rest_endpoint_url TO $''''''
+# TODO reflow: o cabecalho de autorizacao (atributo authorization,
+# main.json:3) depende da credencial do step_04, ainda pendente; nunca
+# escrever o valor bruto aqui.
+SET cfg_rest_custom_headers TO $''''''
 
-// Referencia ao cofre apenas -- nunca o valor bruto da credencial
-// (01-inventory/inventory.json:2-13; alerta A4 em 02-docs/risks.md).
-cfg_credential_reference: "main.json:4:credential-vault"
+# Referencia ao cofre apenas -- nunca o valor bruto da credencial
+# (01-inventory/inventory.json:2-13; alerta A4 em 02-docs/risks.md).
+SET cfg_credential_reference TO $'''main.json:4:credential-vault'''
 
-// =================================================================
-// Regiao: Leitura da Base de Entrada
-// FlowControl.Region -- rotulo "Leitura da Base de Entrada"
-// Acao PAD (whitelist): FlowControl.Region -- Status: [nao validado]
-// =================================================================
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (abertura e fechamento da Região, rótulo "Leitura da Base de Entrada")]
+**REGION Leitura da Base de Entrada
+# -----------------------------------------------------------------
+# step_01_open_excel_file
+# Origem A360: Excel.open (main.json:1, atributo file;
+# 01-inventory/inventory.json:15-23)
+# Tabela verdade: reference/a360-to-pad.md -- "Excel | open ->
+# Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess" (mapeamento: nao
+# validado -- nao confirmado se o packageName simples "Excel" desta
+# linha e o mesmo pacote AA360 "Excel avancado" validado)
+# Acao PAD (whitelist): Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess
+# -- Status: [validado PAD: rodou] (robin-actions.md, 2026-10-30),
+# na forma de colagem de uma linha da secao.
+# -----------------------------------------------------------------
+Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess Path: $'''%cfg_excel_input_folder%/%cfg_excel_file_name%.xlsx''' Visible: True ReadOnly: False UseMachineLocale: False Instance=> out_excel_instance
 
-// -----------------------------------------------------------------
-// step_01_open_excel_file
-// Origem A360: Excel.open (main.json:1, atributo file;
-// 01-inventory/inventory.json:15-23)
-// Tabela verdade: reference/a360-to-pad.md -- "Excel | open ->
-// Excel.LaunchExcel" (status da linha: nao validado -- observacao:
-// nao confirmado se o packageName simples "Excel" desta linha e o
-// mesmo pacote AA360 "Excel avancado" cuja acao PAD foi validada)
-// Acao PAD (whitelist): Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess
-// -- Status: [validado PAD: rodou] (robin-actions.md, 2026-10-30)
-// -----------------------------------------------------------------
-Excel.LaunchExcel.LaunchAndOpenUnderExistingProcess
-    Path:              $'''%cfg_excel_input_folder%/%cfg_excel_file_name%.xlsx'''
-    Visible:           True
-    ReadOnly:          False
-    UseMachineLocale:  False
-    Instance=>         out_excel_instance
+# -----------------------------------------------------------------
+# step_02_read_excel_range
+# Origem A360: Excel.read (main.json:2, atributo range;
+# 01-inventory/inventory.json:24-32)
+# Tabela verdade: reference/a360-to-pad.md -- "Excel | read ->
+# Excel.ReadFromExcel.ReadCells" (mapeamento: nao validado -- mesma
+# ressalva de packageName da linha acima)
+# Acao PAD (whitelist): Excel.ReadFromExcel.ReadCells -- variante
+# "intervalo especifico", equivalente ao atributo range deste passo --
+# Status: [colado KB: PAD 2.73, nao rodado nesta instalacao]
+# -----------------------------------------------------------------
+Excel.ReadFromExcel.ReadCells Instance: out_excel_instance StartColumn: cfg_excel_start_column StartRow: cfg_excel_start_row EndColumn: cfg_excel_end_column EndRow: cfg_excel_end_row FirstLineIsHeader: False GetCellContentsMode: Excel.GetCellContentsMode.TypedValues RangeValue=> out_excel_data
+# TODO reflow: o legado nao fecha o Excel depois da leitura (nenhum
+# Excel/close em main.json). Avaliar com o analista incluir
+# Excel.CloseExcel.Close (whitelist) ao fim do flow.
+**ENDREGION
 
-// -----------------------------------------------------------------
-// step_02_read_excel_range
-// Origem A360: Excel.read (main.json:2, atributo range;
-// 01-inventory/inventory.json:24-32)
-// Tabela verdade: reference/a360-to-pad.md -- "Excel | read ->
-// Excel.ReadFromWorksheet" (status da linha: nao validado -- mesma
-// ressalva de packageName da linha acima)
-// Acao PAD (whitelist): Excel.ReadFromWorksheet -- variante
-// "intervalo especifico" (Start column/Start row/End column/End row,
-// equivalente ao atributo range deste passo) -- Status: [nao
-// validado]. Variavel de saida pretendida: out_excel_data.
-// -----------------------------------------------------------------
-[não validado — TODO reflow: confirmar no PAD o nome exato da sub-ação de Excel.ReadFromExcel para intervalo específico (Start column/Start row/End column/End row), depois colar o texto copiado aqui]
+**REGION Envio de Dados ao Sistema Externo (REST)
+# -----------------------------------------------------------------
+# step_03_post_data_to_rest_api
+# Origem A360: REST.post (main.json:3, atributos body e
+# authorization; 01-inventory/inventory.json:38-49)
+# Tabela verdade: reference/a360-to-pad.md -- "REST | post ->
+# Web.InvokeWebService.InvokeWebServicePost" (mapeamento: nao validado)
+# Acao PAD (whitelist): Web.InvokeWebService.InvokeWebServicePost --
+# Status: [colado KB: PAD 2.73, nao rodado nesta instalacao]
+# TODO reflow: o corpo enviado (atributo body) nao foi capturado pela
+# extracao; confirmar com o analista se e o conteudo de out_excel_data
+# e em que formato (02-docs/integrations.md).
+# -----------------------------------------------------------------
+Web.InvokeWebService.InvokeWebServicePost Url: cfg_rest_endpoint_url Accept: $'''application/json''' ContentType: $'''application/json''' CustomHeaders: cfg_rest_custom_headers RequestBody: $'''%out_excel_data%''' ConnectionTimeout: 30 FollowRedirection: True ClearCookies: False FailOnErrorStatus: False EncodeRequestBody: True Encoding: Web.Encoding.AutoDetect AcceptUntrustedCertificates: False TrimRequestBody: True StatusCode=> out_rest_status_code Response=> out_rest_response ResponseHeaders=> out_rest_response_headers
+**ENDREGION
 
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (fechamento da Região "Leitura da Base de Entrada")]
+**REGION Subfluxo comum: Obter credencial do cofre (candidato a reuso)
+# -----------------------------------------------------------------
+# step_04_get_credential_subfluxo_comum_obter_credencial_do_cofre
+# Origem A360: CredentialVault.get (main.json:4, atributo credential;
+# 01-inventory/inventory.json:2-13; referencia main.json:4:credential-vault)
+# Tabela verdade: reference/a360-to-pad.md -- "CredentialVault | get
+# -> Credentials.GetCredential" (mapeamento: nao validado; "nunca
+# copiar o valor bruto, so a referencia ao cofre")
+# Acao PAD (whitelist): Credentials.GetCredential -- Status: [nao
+# validado]. Nao e um id Robin real: a KB nao tem acao de cofre.
+#
+# Subfluxo comum entre processos (nao e dependencia TaskBot.run
+# explicita; dependencies esta vazio em 01-inventory/inventory.json:34):
+# corresponde a entrada catalogada `obter-credencial-do-cofre` em
+# reference/subfluxos-comuns.md (status: catalogado, evidencia de 2
+# projetos), que cita a360-excel-vault/input/main.json:4 -- exatamente
+# este passo. Recomendacao registrada la: extrair para um subflow
+# compartilhado (ex.: Subflow_ObterCredencialDoCofre) que recebe
+# cfg_credential_reference e devolve a credencial, em vez de repetir o
+# passo isolado em cada flow.
+#
+# TODO reflow: decidir com o analista a origem da credencial (variavel
+# de entrada sensivel do flow ou Cyberark.GetPassword.GetPassword) e o
+# plano de migracao (alerta A4 em 02-docs/risks.md). Ordem herdada do
+# legado: a credencial vem DEPOIS do REST/post (main.json:3-4); revisar
+# se o step_03 deveria usa-la (cfg_rest_custom_headers).
+# -----------------------------------------------------------------
+**ENDREGION
 
-// =================================================================
-// Regiao: Envio de Dados ao Sistema Externo (REST)
-// FlowControl.Region -- rotulo "Envio de Dados ao Sistema Externo (REST)"
-// Acao PAD (whitelist): FlowControl.Region -- Status: [nao validado]
-// =================================================================
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (abertura e fechamento da Região, rótulo "Envio de Dados ao Sistema Externo (REST)")]
-
-// -----------------------------------------------------------------
-// step_03_post_data_to_rest_api
-// Origem A360: REST.post (main.json:3, atributos body e
-// authorization; 01-inventory/inventory.json:38-49)
-// Tabela verdade: reference/a360-to-pad.md -- "REST | post ->
-// Web.InvokeRestApi" (status: nao validado)
-// Acao PAD (whitelist): Web.InvokeRestApi -- Status: [nao validado]
-// Variavel de saida pretendida: out_rest_response. Cabecalho de
-// autorizacao e corpo da requisicao dependem de cfg_rest_endpoint_url
-// e de out_credential (step_04 abaixo, nunca o valor bruto da
-// credencial).
-// -----------------------------------------------------------------
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
-
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (fechamento da Região "Envio de Dados ao Sistema Externo (REST)")]
-
-// =================================================================
-// Regiao: Subfluxo comum: Obter credencial do cofre (candidato a reuso)
-// FlowControl.Region -- rotulo "Subfluxo comum: Obter credencial do
-// cofre (candidato a reuso)"
-// Acao PAD (whitelist): FlowControl.Region -- Status: [nao validado]
-//
-// Sinalizacao de subfluxo comum entre processos (catalogo de padroes
-// que se repetem entre projetos diferentes -- nao e uma dependencia
-// TaskBot.run/Flow.RunSubflow explicita; dependencies esta vazio em
-// 01-inventory/inventory.json:34): este passo corresponde a entrada
-// catalogada `obter-credencial-do-cofre` em
-// reference/subfluxos-comuns.md (status: catalogado, evidencia de 2
-// projetos), cuja propria evidencia observada cita
-// `a360-excel-vault/input/main.json:4` -- exatamente este passo.
-// Recomendacao registrada la: extrair para um subflow compartilhado
-// (ex.: Subflow_ObterCredencialDoCofre) que recebe
-// cfg_credential_reference como entrada e devolve out_credential, em
-// vez de repetir Credentials.GetCredential isolado em cada flow.
-// =================================================================
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (abertura e fechamento da Região, rótulo "Subfluxo comum: Obter credencial do cofre (candidato a reuso)")]
-
-// -----------------------------------------------------------------
-// step_04_get_credential_subfluxo_comum_obter_credencial_do_cofre
-// Origem A360: CredentialVault.get (main.json:4, atributo credential;
-// 01-inventory/inventory.json:2-13; referencia main.json:4:credential-vault)
-// Tabela verdade: reference/a360-to-pad.md -- "CredentialVault | get
-// -> Credentials.GetCredential" (status: nao validado; observacao:
-// "nunca copiar o valor bruto, so a referencia ao cofre")
-// Acao PAD (whitelist): Credentials.GetCredential -- Status: [nao
-// validado]. Variavel de saida pretendida: out_credential (nunca o
-// valor bruto -- so a referencia cfg_credential_reference acima).
-// Subfluxo comum catalogado (ver comentario da Regiao acima) --
-// candidato a reuso via subflow compartilhado, nunca remontado do
-// zero a cada conversao.
-// -----------------------------------------------------------------
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD]
-
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (fechamento da Região "Subfluxo comum: Obter credencial do cofre (candidato a reuso)")]
-
-// =================================================================
-// Regiao: Fora do escopo aprovado (ADR-028)
-// FlowControl.Region -- rotulo "Fora do escopo aprovado (ADR-028)"
-// Acao PAD (whitelist): FlowControl.Region -- Status: [nao validado]
-//
-// Representados aqui so para manter a sequencia do processo legivel
-// (conforme 02-docs/process-flow.md, passos 5 e 6) -- NUNCA como se
-// tivessem sido convertidos. Os dois comandos abaixo sao
-// `unknown_commands` (01-inventory/inventory.json:54-69), pendentes
-// de classificacao (reference/a360-to-pad.md, status "pendente de
-// classificacao"), explicitamente fora do escopo aprovado no
-// checkpoint (ADR-028, docs/decisions.md) -- nenhuma acao da
-// whitelist foi inventada para eles.
-// =================================================================
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (abertura e fechamento da Região, rótulo "Fora do escopo aprovado (ADR-028)")]
-
-// step_05_out_of_scope_custom_package_transform -- NAO CONVERTIDO.
-// Origem A360: CustomPackage.transform (main.json:5;
-// 01-inventory/inventory.json:54-61). Sem acao PAD equivalente na
-// tabela verdade (reference/a360-to-pad.md: "sem equivalente" /
-// "pendente de classificacao"). Fora do checkpoint aprovado
-// (ADR-028) -- requer revisao humana e nova entrada em
-// reference/a360-to-pad.md antes de qualquer conversao futura.
-TODO reflow -- fora do escopo aprovado (ADR-028): CustomPackage.transform (main.json:5) nao foi convertido; nenhuma acao Robin foi atribuida a este passo.
-
-// step_06_out_of_scope_browser_unmapped_action -- NAO CONVERTIDO.
-// Origem A360: Browser.unmappedAction (main.json:6;
-// 01-inventory/inventory.json:62-69). Sem acao PAD equivalente na
-// tabela verdade (reference/a360-to-pad.md: "sem equivalente" /
-// "pendente de classificacao"); alerta A1 em 02-docs/risks.md (nao
-// se sabe se depende de extensao de navegador especifica). Fora do
-// checkpoint aprovado (ADR-028) -- requer revisao humana e nova
-// entrada em reference/a360-to-pad.md antes de qualquer conversao
-// futura.
-TODO reflow -- fora do escopo aprovado (ADR-028): Browser.unmappedAction (main.json:6) nao foi convertido; nenhuma acao Robin foi atribuida a este passo.
-
-[não validado — TODO reflow: colar aqui o texto copiado do designer do PAD (fechamento da Região "Fora do escopo aprovado (ADR-028)")]
+**REGION Fora do escopo aprovado (ADR-028)
+# Representados aqui so para manter a sequencia do processo legivel
+# (conforme 02-docs/process-flow.md, passos 5 e 6) -- NUNCA como se
+# tivessem sido convertidos. Os dois comandos abaixo sao
+# unknown_commands (01-inventory/inventory.json:54-69), pendentes de
+# classificacao (reference/a360-to-pad.md), explicitamente fora do
+# escopo aprovado no checkpoint (ADR-028) -- nenhuma acao da
+# whitelist foi inventada para eles.
+#
+# step_05_out_of_scope_custom_package_transform -- NAO CONVERTIDO.
+# Origem A360: CustomPackage.transform (main.json:5;
+# 01-inventory/inventory.json:54-61).
+# TODO reflow: requer revisao humana e nova entrada em
+# reference/a360-to-pad.md antes de qualquer conversao futura.
+#
+# step_06_out_of_scope_browser_unmapped_action -- NAO CONVERTIDO.
+# Origem A360: Browser.unmappedAction (main.json:6;
+# 01-inventory/inventory.json:62-69); alerta A1 em 02-docs/risks.md.
+# TODO reflow: requer revisao humana e nova entrada em
+# reference/a360-to-pad.md antes de qualquer conversao futura.
+**ENDREGION

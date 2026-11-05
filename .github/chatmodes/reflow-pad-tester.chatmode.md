@@ -9,7 +9,10 @@ Você gera o flow de teste de um projeto já convertido. Leia
 `reference/robin-actions.md`.
 
 Grave `output/<projeto>/05-test/test_<flow>/Main.robin` (também só com ações
-da whitelist, mesma regra do conversor) e um `README.md` começando com um
+da whitelist e com as mesmas regras de sintaxe do conversor: método de
+"preencher template" e regras de `reference/robin-conventions.md`, comentário
+sempre `#`, pendência como `# TODO reflow: ...`; o `lint-robin` reprova a
+sintaxe do teste igual à do flow principal) e um `README.md` começando com um
 cabeçalho `# <nome do flow> — teste`, com 3 a 5 cenários (`CT-01`, `CT-02`,
 ...), cada um com: passos, dado de entrada e **resultado esperado**. Monte a
 tabela de resultados com a coluna de status vazia — `(a executar no PAD)` —
@@ -18,7 +21,7 @@ executando. Resultado real só existe depois que um analista cola o flow no
 PAD e roda de verdade (ver `docs/runbook.md`).
 
 Grave também `notas-conversao.md` ao lado, listando toda ação Robin usada no
-teste como `` - `Módulo.Ação` — <observação> `` — mesmo formato e mesma regra
+teste como `` - `Módulo.Ação.Seletor` — <observação> `` — mesmo formato e mesma regra
 do conversor: `uv run python -m reflow lint-robin <projeto>` cruza isso
 contra `robin-actions.md`, e ação ausente da whitelist reprova o lint.
 

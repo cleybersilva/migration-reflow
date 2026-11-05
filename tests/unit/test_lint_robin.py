@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
 
+from reflow.robin.kb import KB_DIR
 from reflow.robin.lint import fix_robin_eol, lint_robin_files, normalize_robin_eol
+
+ROOT = Path(__file__).resolve().parents[2]
 
 WHITELIST = """\
 ### `Browser.LaunchNewBrowser`
@@ -28,7 +32,7 @@ def require(condition: bool, message: str) -> None:
 def _make_flow(
     tmp_path: Path,
     *,
-    robin_text: str = "[não validado — TODO reflow]\r\n",
+    robin_text: str = "# TODO reflow: passo pendente de validação\r\n",
     readme_text: str = "# quote-scraper — fluxo principal\n",
     notes_text: str = "# Notas de conversão\n\n- `Browser.LaunchNewBrowser` — abre o navegador\n",
     with_whitelist: bool = True,
@@ -36,6 +40,7 @@ def _make_flow(
     with_readme: bool = True,
 ) -> Path:
     (tmp_path / "reference").mkdir(exist_ok=True)
+    shutil.copytree(ROOT / KB_DIR, tmp_path / KB_DIR, dirs_exist_ok=True)
     if with_whitelist:
         (tmp_path / "reference" / "robin-actions.md").write_text(WHITELIST, encoding="utf-8")
 

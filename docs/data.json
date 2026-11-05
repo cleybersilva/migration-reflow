@@ -1,9 +1,13 @@
 {
-  "generatedAt": "2026-11-01T20:27:17+00:00",
+  "generatedAt": "2026-11-05T13:06:42+00:00",
   "projects": [
     {
       "id": "migration-reflow",
       "label": "migration-reflow"
+    },
+    {
+      "id": "ai-engineering-os",
+      "label": "ai-engineering-os"
     },
     {
       "id": "mpes-calendario",
@@ -19,6 +23,219 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/PAD Robin Action KB vendorizada e lint de sintaxe Robin como gate (ADR-029)",
+      "title": "PAD Robin Action KB vendorizada e lint de sintaxe Robin como gate (ADR-029)",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-05",
+      "hora": "00:30 -03:00",
+      "atividade": "Vendorizar a PAD Robin Action KB (CC BY 4.0) e transformar lint-robin em gate de sintaxe real",
+      "tags": [
+        "robin",
+        "pad",
+        "kb",
+        "lint",
+        "whitelist",
+        "adr"
+      ],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "## O que foi modificado\n\n| Arquivo | Mudança | Tipo |\n|---|---|---|\n| `reference/vendor/pad-robin-kb/` | KB v3.8.0 de joeG592/pad-robin-action-kb (commit 799f3d9), 6 arquivos intactos + manifest.json (sha256) + README pt-BR | novo |\n| `reflow/robin/kb.py` | loader, `verify_kb`, `pinned_hashes` (conjunto fechado) | novo |\n| `reflow/robin/syntax.py` | checador próprio das regras de colagem Robin (tokenizer + ~40 códigos `robin_*`) | novo |\n| `reflow/robin/lint.py` | lint passa a interpretar Robin (revoga ADR-012) e exige KB | alteração |\n| `reflow/security/scan.py`, `masking.py` | isenção por hash do vendor; `is_safe_assignment` lê literal `$'''...'''` | alteração |\n| `reflow/cli.py` | `reflow kb verify` e `reflow kb show <id>` | alteração |\n| `.githooks/pre-commit`, `ci.yml` | gate `kb verify` antes do lint-robin | alteração |\n| `reference/robin-actions.md`, `a360-to-pad.md`, `robin-conventions.md`, `subfluxos-comuns.md` | ids Robin reais; status `[colado KB: PAD 2.73, não rodado nesta instalação]` | alteração |\n| agents (3 harnesses) e skill reflow-convert | regras novas, paridade mantida | alteração |\n| `output/a360-*` | Main.robin reconvertidos (piloto, browser-rest, teste) | alteração |\n| `docs/decisions.md` | ADR-029; ADR-012 revogado | alteração |\n\n## O que foi implantado\n- Gates verdes: ruff check/format, 279 testes, `reflow scan`, `lint-robin --all`, `kb verify`.\n- Corpus da KB: 107/107 colagens rejeitadas acusadas; nas aceitas, só códigos de política (segredo literal, barra antes de %).\n\n## Benefícios para o projeto\n- Flow que não cola no PAD (falha silenciosa) é bloqueado antes do commit.\n- Whitelist ancorada em ids reais; 7 nomes inexistentes no PAD corrigidos.\n- Scanner deixou de ignorar o conteúdo de literais Robin.\n\n## Causa raiz / motivo\nOs Main.robin anteriores tinham 323 achados (comentário `//`, `%` fora de string, linhas `cfg_x:`) e seriam descartados pelo PAD sem erro visível.\n\n## Como reverter\nReverter o commit; remover `reference/vendor/pad-robin-kb/` e o passo `kb verify` do hook/CI.\n\n## Pendências\n- Confirmar no PAD a forma de uma linha dos 4 snippets validados (multilinha sem evidência na KB).\n- Decidir a origem da credencial (variável sensível ou `Cyberark.GetPassword.GetPassword`).\n- Preencher os `cfg_` do piloto com o analista.\n- Node checker do upstream não foi executado (código sem licença declarada)."
+    },
+    {
+      "id": "projects/ai-engineering-os/hardening-fase-10",
+      "title": "hardening-fase-10",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-03",
+      "hora": "21:15 -03:00",
+      "atividade": "Fase 10: hardening, validação global (aios verify 15/15), testes integrados, revisão de segurança, documentação final, v1.0.0",
+      "tags": [
+        "aios",
+        "fase-10",
+        "hardening",
+        "seguranca"
+      ],
+      "meta": {
+        "source_tool": "claude-code",
+        "project_id": "4890661f233b",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "# Fase 10: hardening e validação global (v1.0.0)\n\n## O que foi modificado\n| Arquivo | Mudança | Tipo |\n|---|---|---|\n| src/aios/verify.py | 15 critérios da seção 26 com evidência; pendentes de autenticação à parte | implementacao |\n| tests/integration/test_e2e.py | 6 testes da CLI em subprocesso num perfil falso | implementacao |\n| src/aios/sync.py, doctor.py | planejadores e áreas isolados; config ilegível bloqueia apply | correcao |\n| src/aios/automation.py | assinatura ts.delivery.corpo, replay por corpo, cota por hora, untrusted | correcao |\n| src/aios/orchestrator.py | etapa untrusted só no Claude travado (strict-mcp-config, disallowedTools) | correcao |\n| src/aios/telemetry.py | OTLP sem userinfo, https remoto, sem redirect; Host validado; timeout | correcao |\n| src/aios/backup.py | restore com id, caminho e destinos validados | correcao |\n| src/aios/mcp.py | aios mcp harden (prévia e --apply com backup + initialize) | implementacao |\n| .github/workflows/tests.yml | actions por SHA, persist-credentials false, varredura de segredos | configuracao |\n| docs/*.md | 10 documentos da seção 24 com 8 diagramas Mermaid | implementacao |\n\n## O que foi implantado\n- aios verify completo: 15/15 ok (docs/state/2026-11-03-validacao-global.md).\n- 173 testes OK; varredura de segredos 0 achados.\n\n## Benefícios para o projeto\n- Aceitação reproduzível por comando; recuperação de config corrompida testada; 5 achados de segurança fechados.\n\n## Causa raiz / motivo\n- Seção 25 (Fase 10) e critérios da seção 26 do prompt mestre.\n\n## Como reverter\n- git revert do commit da Fase 10; configs dos clientes não foram tocadas nesta fase.\n\n## Pendências\n- Aprovação do usuário: aios mcp harden --apply; mesclar config/claude-permissions.json no settings.json.\n- Pendentes de autenticação: AIOS_WEBHOOK_SECRET, AIOS_OTLP_ENDPOINT, Datadog.\n- host.docker.internal no Host ainda não validado ao vivo com n8n e Prometheus.\n\n## Atualização 2026-11-03 22:05: harden aplicado (v1.0.1)\n- `aios mcp harden --apply` com aprovação do usuário; backups 20261103-215834, 220101 e 220239 (pre-mcp-harden).\n- Achado no apply real: kubernetes-mcp-server 0.0.68+ não tem `--read-only`; o initialize recusou e nada foi gravado. Correção: `--config config/mcp/kubernetes-mcp-server.toml` (read_only = true), também para binário global.\n- Audit: 17 avisos para 4 (dockerhub descontinuado, fetch e azure sem versão fixa: decisão manual). Initialize ok em todos os servidores alterados; 174 testes OK; verify 15/15.\n- Reverter: `aios restore <id-pre-mcp-harden> --apply`.\n\n## Atualização 2026-11-04 09:00: permissões do Claude mescladas\n- 12 regras de `config/claude-permissions.json` acrescentadas em `~/.claude/settings.json` (permissions.allow), com aprovação do usuário; hooks, plugins e autoMode intactos.\n- Backup: 20261104-090020-918739-pre-claude-permissions. Reverter: `aios restore <id> --apply`.\n- Doctor: \"permissões do auto mode: regras do AIOS presentes\"; verify 15/15.\n- Pendências restantes: dockerhub (descontinuado, remoção exige pedido), fetch e azure sem versão fixa.\n\n## Atualização 2026-11-04 09:05: dockerhub removido do Claude\n- `claude mcp remove dockerhub -s user` com aprovação do usuário (pacote hub-mcp descontinuado).\n- Backup: `backups/20261104-090405-pre-remove-dockerhub/` (cópia do ~/.claude.json e da entrada; contém env da entrada, fora do Git). Reverter: `claude mcp add-json dockerhub '<entry>' -s user`.\n- Audit: 2 avisos (opencode fetch e azure sem versão fixa); verify 15/15.\n\n## Atualização 2026-11-04 09:30: pendências fechadas (v1.0.2, commit 190b272, CI verde)\n- Correção do registro: o pacote npm `hub-mcp` NÃO é o docker/hub-mcp oficial; é um agregador de terceiros (mcp-tools-lab, 78 ferramentas sem relação com Docker, Pro encaminhado a gateway hospedado), descontinuado. O `dockerhub` removido do Claude era esse pacote. Entrada sem env (o backup não tem token). Docker Hub oficial segue no OpenCode (compilado da fonte).\n- fetch `mcp-server-fetch@2026.10.28` e azure `@azure/mcp@3.0.0` fixados (latest do npm aponta para beta). Audit 0 avisos.\n- `aios run cancel` conclui na hora sem executor ativo (bug: execução parada ficava awaiting_approval). 5 runs de teste canceladas, pastas preservadas.\n- Validação ao vivo `integrations/n8n/live-check/run.py`: 5/5 (202, 409, 202 host.docker.internal, 421, 401).\n- 175 testes OK; verify 15/15; doctor 0 falhas e 0 avisos.\n- Restam só pendentes de autenticação: AIOS_WEBHOOK_SECRET, AIOS_OTLP_ENDPOINT, Datadog.\n\n## 2026-11-04: Datadog ativo pelo Collector\n- `DD_API_KEY` (escopo User) validada em api.us5.datadoghq.com; `DD_SITE=us5.datadoghq.com`. Duas chaves expostas no chat foram revogadas (validate devolve 403).\n- `docker compose up -d otel-collector` (sobe Tempo junto) com `AIOS_COLLECTOR_CONFIG=collector-datadog.yaml`; exporter datadog: \"API key validation successful\" para traces e métricas.\n- `AIOS_OTLP_ENDPOINT=http://127.0.0.1:4318` (User). Span `mcp.initialize` de teste exportado (OTLP ok) e encontrado no Tempo.\n- Alias `otlp/tempo` renomeado para `otlp_grpc/tempo` nos dois collector*.yaml (aviso de depreciação no 0.164.0).\n- Pendente: o Collector só recebe a chave se subir num shell com `DD_API_KEY` no ambiente; `restart: unless-stopped` mantém os valores do container atual.\n\n## 2026-11-04: webhooks do GitHub ligados (n8n)\n- Segredos gerados com RandomNumberGenerator (48 hex): AIOS_WEBHOOK_SECRET (User + .env), GITHUB_WEBHOOK_SECRET e N8N_ENCRYPTION_KEY (.env, ignorado pelo Git). Valores nunca impressos.\n- n8n 2.46.4 no ar (127.0.0.1:5678), 3 templates importados, só `aiosgithubtoaios` publicado (`n8n publish:workflow` + restart).\n- Novo `integrations/n8n/webhook_gate.py` (127.0.0.1:5679): só POST /webhook/github-aios; editor e /rest devolvem 404. O túnel aponta para o portão, nunca para o n8n.\n- cloudflared instalado (winget, escopo user). Quick tunnel iniciado pelo usuário (o auto mode bloqueia túnel de entrada iniciado pelo agente).\n- Webhook 707406571 em cleybersilva/ai-engineering-os (pull_request, workflow_run, json); ping entregue com 200.\n- Testes locais: PR assinado vira pr-review (auto_execute read-only; run de teste R-20261104-135721-7922 cancelada), segredo errado barrado no n8n.\n- Limitações: URL trycloudflare muda a cada execução; receptor e portão rodam como processos da sessão. Permanente: túnel nomeado + tarefas agendadas.\n- Armadilha: em PowerShell `R` é alias de Invoke-History; função `R` gera valores vazios.\n\n## 2026-11-04: auditoria de segurança e proteção da main\n- Varredura: 0 achados; nenhum valor real (7 segredos, incluindo as 2 chaves DD revogadas) no histórico Git; .env/state/backups ignorados; repo privado, sem colaboradores nem deploy keys; secret scanning indisponível (sem GHAS).\n- `.env` do n8n: ACL sem herança, só usuário, SYSTEM e Administradores (antes CodexSandboxUsers lia).\n- webhook_gate: timeout 10 s e sem versão do Python no cabeçalho (commit a371792).\n- Proteção da main: PR obrigatório (0 aprovações, solo), 4 checks `unit (...)` obrigatórios e atualizados (strict), enforce_admins, histórico linear, sem force push nem exclusão, conversas resolvidas. A partir daqui, mudanças só por branch + PR (o PR também dispara o pr-review automático).\n\n## 2026-11-04: v1.0.3, README padronizado e untrusted sem Bash\n- PR #1 (4b909f9) e #2 (28ca0c9): README no padrão do mpes-calendario com seção Autor; #2 corrigiu achados do primeiro pr-review automático real (âncora com U+FE0F, gatilho do CI, estado do túnel).\n- PR #3 (1534bdc): etapas untrusted só com Read/Grep/Glob e Bash negado (git diff/log/show aceitam --output=<arquivo>). `fetch_pr_diff` (gh pr diff, entradas validadas, até 2 MB) grava em state/runs/<id>/context/ e a etapa recebe `--add-dir` só desse diretório. 177 testes.\n- Replay por corpo bloqueia reenvio do mesmo evento (409), inclusive redelivery do GitHub já aceita antes. Teste ao vivo do diff anexado fica para o próximo evento de PR.\n- Receptor reiniciado com o código novo; processos (receptor, portão) e quick tunnel continuam dependentes da sessão.\n\n## 2026-11-04: serviços persistentes (PR #4, v1.0.4, em revisão)\n- `aios automation service list|install|uninstall [receptor|portao|tunel] [--apply]`: tarefas no logon, sem elevação, reinício automático. Instaladas: `AIOS Servico receptor` e `AIOS Servico portao` (evento assinado aceito com 202 pela tarefa).\n- Descobertas em operação: (1) SO_REUSEADDR no Windows deixou receptor antigo escutar na mesma porta e atender evento com código velho; agora `aios/httpserver.py` com SO_EXCLUSIVEADDRUSE (receptor, métricas, portão). (2) Stop-ScheduledTask mata só o conhost e deixa python órfão; install/uninstall encerram pelo padrão exato da linha de comando.\n- n8n com restart unless-stopped. `cloudflared.yml.example` (ingress só ^/webhook/github-aios$), `cloudflared.yml` fora do Git; serviço `tunel` aparece quando o arquivo existe.\n- Pendente: túnel nomeado exige `cloudflared tunnel login` e domínio na conta Cloudflare do usuário; quick tunnel caiu de novo (synchronize do PR #4 com 530, reentregar quando houver túnel).\n\n\n## Apêndice 2026-11-04 (tarde): túnel nomeado permanente\n- Domínios do produto (marca AIEngOS): `aiengos.com` e `aiengos.dev` na Cloudflare. Túnel `aios-webhook` (id b882e9d3-...), hostname `hook.aiengos.dev`, tarefa `AIOS Servico tunel` no logon rodando.\n- Webhook 707406571 aponta para `https://hook.aiengos.dev/webhook/github-aios`. Verificado pela internet: `/`, `/rest/workflows` e GET no webhook = 404; só POST passa ao portão.\n- Armadilhas: (1) `tunnel login` autorizou a zona errada (aiengos.com), `route dns` criou `hook.aiengos.dev.aiengos.com`; corrigido com CNAME manual no painel. (2) `PATCH /hooks/{id}/config` sem `secret` fez o GitHub assinar com outro valor (n8n: assinatura inválida); regravado a partir do `.env` sem imprimir. (3) Resolvedor local guardou NXDOMAIN; testar com `curl --doh-url https://1.1.1.1/dns-query`.\n- Bug corrigido (branch feat/servicos-persistentes, não commitado): evento do n8n sem `sha` do head fazia o anti-repetição (hash do corpo, 72 h) recusar todo push novo no mesmo PR. Gerador + workflow vivo no n8n atualizados; teste `test_new_push_same_pr_is_not_replay`.\n- Bug corrigido: `TestServices` gravava `tunnel: x` no `cloudflared.yml` real (cfg.root = repo real); agora patch de `TUNNEL_CONFIG` para caminho temporário. Backup do arquivo real em `~/.aios/backups/cloudflared.yml.20261104-real.bak`.\n- 182 testes OK. Pendente: commit e push no PR #4, que dispara o `synchronize` com sha novo e valida ao vivo a revisão com diff.\n\n\n## Apêndice 2026-11-04 (noite): validação ao vivo e 1.0.5\n- Cadeia validada ponta a ponta: push no PR #4 > túnel nomeado > portão > n8n > receptor > pr-review com diff anexado (R-20261104-171904-5ee5, cerca de US$ 1,38, 3 min). O PR #4 foi mesclado (87b5e75) antes do push das correções; elas foram para o PR #5 (branch fix/achados-pr-review, v1.0.5, CI verde, 186 testes).\n- Revisão automática do PR #5 (R-20261104-173949-864d) achou: padrões de encerramento sem tolerância a caminho entre aspas (perfil com espaço), `schedule` com sub-ação inválida saindo 0, RuntimeError sem tratamento no uninstall, prévia do uninstall listando tarefa inexistente, falta de teste do `list`. Segurança: o portão não confere a assinatura do GitHub; POST forjado chega ao n8n e é gravado (proposta: HMAC no portão lendo o segredo do .env do n8n).\n- n8n recriado com poda de execuções (7 dias, 2000, sucesso sem histórico).\n\n- 2026-11-04 (noite): PR #5 mesclado (91d0219) antes das correções da 2ª revisão; elas foram para o PR #6 (fix/portao-assinatura, v1.0.6, 192 testes). Portão agora confere HMAC do GitHub (segredo de GITHUB_WEBHOOK_SECRET ou do .env do n8n) e recusa com 401; validado ao vivo (forjado 401, ping 200, zero erro novo no n8n). Serviço portao reinstalado com o código novo. Plugin egm@egm (google/elephant-goldfish-model, só agentes, sem hooks/MCP) instalado no Claude a pedido.\n- Lição: o usuário mescla o PR assim que o CI fica verde; antes de empurrar correções num PR aberto, conferir o estado (gh pr view --json state).\n\n- 2026-11-04 (noite): PR #6 (v1.0.6) mesclado. Revisão do #6 (R-20261104-190905-b671): sem achado crítico; ajustes de robustez feitos no PR #7 (fix/portao-robustez, v1.0.7, 197 testes): .env do n8n como fonte do segredo (divergência com o ambiente impede subir), leitura igual ao Compose (BOM, export, comentário), install portao confere segredo antes, HMAC comparado em bytes (não ASCII = 401), padrões exatos com e sem aspas, OSError do pwsh tratado. Portão reinstalado e validado ao vivo (401/401/200, zero erro novo no n8n).\n\n- 2026-11-04 (noite): PR #7 (v1.0.7) mesclado. PR #8 (aberto pelo usuário a partir da branch antiga fix/achados-pr-review) fechado sem merge: desfaria a 1.0.7. Revisão do #7 (R-20261104-192121-e2a4) achou leitura errada de valor entre aspas seguido de comentário; corrigido no PR #9 (fix/env-aspas-comentario, v1.0.8, 198 testes): valor até a aspa de fechamento, tab+# é comentário, segredo com $, \\ ou espaço recusado, comparação ambiente x .env em bytes. Portão reinstalado e validado (401/200)."
+    },
+    {
+      "id": "projects/ai-engineering-os/observabilidade-fase-9",
+      "title": "observabilidade-fase-9",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-03",
+      "hora": "20:50 -03:00",
+      "atividade": "Fase 9: observabilidade leve com spans OpenTelemetry, métricas Prometheus, OTLP opcional e Datadog",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "# Fase 9: observabilidade (v0.8.0, ADR-0008)\n\n## O que foi modificado\n| arquivo | mudança | tipo |\n|---|---|---|\n| src/aios/telemetry.py | spans OTel em stdlib, JSONL local, mascaramento, OTLP/HTTP JSON, métricas, Prometheus, Datadog status | novo |\n| config/observability.toml | telemetry, otlp, metrics, stack, datadog | novo |\n| src/aios/orchestrator.py | spans aios.request, orchestrator.plan/execute, agent.execute, skill.load, agent.invoke, execution.result; trace no run.json | instrumentação |\n| src/aios/automation.py | span automation.event | instrumentação |\n| src/aios/cli.py | aios telemetry status/metrics/serve/traces/trace; span mcp.initialize no mcp check | novo comando |\n| src/aios/doctor.py | telemetry_checks | check |\n| integrations/observability/ | compose (collector 0.164.0, tempo 3.1.1, prometheus v3.15.1, grafana 13.3.0), collector-datadog.yaml, dashboard, configs do Datadog Agent | novo |\n| tests/unit/test_telemetry.py | 22 testes | teste |\n\n## O que foi implantado\n- Execução real R-20261103-203404-0749 (code-reviewer via Claude): rastro completo, tokens e custo informados (US$ 0,9866, claude-opus-5-5), 7/7 spans exportados para receptor OTLP local, /metrics por HTTP, mcp.initialize real (codex/basic-memory).\n- Suíte: 151 testes OK. Compose validado com docker compose config (não iniciado, imagens não baixadas).\n\n## Benefícios para o projeto\n- Métricas da seção 13 sem serviço ligado; tokens e custo nunca estimados (Codex/OpenCode contam como não reportado).\n- Rastro contínuo entre processos (plan e execute separados) e do evento do receptor até o resultado.\n- Datadog plugável por Agent local (OTLP + openmetrics) ou Collector (DD_API_KEY), sem chave em arquivo.\n\n## Causa raiz / motivo\nSeção 13 do master prompt (instrumentação leve com OpenTelemetry e mascaramento) e pedido do usuário de incluir Datadog.\n\n## Como reverter\n`enabled = false` em config/observability.toml desliga tudo; ou reverter o commit da v0.8.0.\n\n## Pendências\n- Datadog: instalar/configurar Agent ou definir DD_API_KEY (pendente de autenticação).\n- Subir a stack opcional quando quiser (pull das imagens; regras estreitas em config/claude-permissions.json).\n- MCP chamado de dentro dos clientes não passa pelo AIOS (fora do rastro).\n- A revisão real achou 3 riscos no telemetry.py (linha corrompida, saída não-objeto do Claude, rotação reduzindo counters): corrigidos com teste."
+    },
+    {
+      "id": "projects/ai-engineering-os/automacao-fase-8",
+      "title": "automacao-fase-8",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-03",
+      "hora": "20:30 -03:00",
+      "atividade": "Fase 8 automação: workflows reutilizáveis, receptor de eventos assinado, n8n preparado",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "## O que foi modificado\n| arquivo | mudança | tipo |\n|---|---|---|\n| config/automation.toml | 7 workflows da seção 12, eventos, n8n, agendamento semanal (desligado) | novo |\n| src/aios/automation.py | validate, trigger, verify (HMAC GitHub e genérico), Replay, route, handle, servidor loopback, agendamentos | novo |\n| src/aios/cli.py | `aios automation list|show|validate|trigger|serve|events|drafts|apply-draft|sign|schedule` | alteração |\n| src/aios/doctor.py | automation_checks | alteração |\n| integrations/n8n/ | compose n8nio/n8n:2.46.4 loopback, 3 templates, gerador, README | novo |\n| docs/architecture/ADR-0007-automacao.md | decisões | novo |\n| tests/unit/test_automation.py | 17 testes | novo |\n\n## O que foi implantado\nCommit f8ec7cb, CI success, 129 testes. Nada ligado por padrão: receptor sobe só com `aios automation serve`; agendamento `enabled=false`; n8n não iniciado.\n\nValidação real: receptor com notify (202), task (plano awaiting_approval R-20261103-201547-2bbd), knowledge (rascunho D-20261103-201548-2cdd, não aplicado), assinatura forjada 401, repetição 409. Código JS dos templates n8n executado no Node contra o receptor: HMAC compatível (202), evento não mapeado ignorado, assinatura GitHub forjada barrada.\n\n## Benefícios para o projeto\nQualquer fonte integra com POST assinado; execução continua sob as aprovações da Fase 6; nenhum serviço sempre ligado.\n\n## Causa raiz / motivo\nAuto mode bloqueou `docker compose pull` do n8n (Code from External): regra `Bash(docker pull n8nio/n8n:2.46.4)` adicionada em config/claude-permissions.json.\n\n## Como reverter\n`git revert f8ec7cb`; `aios automation schedule uninstall --apply` se instalado.\n\n## Pendências\n- Subir o n8n de verdade e importar templates (depende da regra de permissão ou do usuário rodar o pull).\n- Rascunho D-20261103-201548-2cdd e run R-20261103-201547-2bbd são de teste: descartar.\n- Mesclar config/claude-permissions.json (8 regras) no ~/.claude/settings.json.\n\n- relates_to [[mcp-fase-7]]"
+    },
+    {
+      "id": "projects/ai-engineering-os/mcp-fase-7",
+      "title": "mcp-fase-7",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "em-andamento",
+      "statusLabel": "Em andamento",
+      "data": "2026-11-03",
+      "hora": "18:00 -03:00",
+      "atividade": "Fase 7 MCP: registro central, auditoria, health check e distribuição validada",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "## O que foi modificado\n| arquivo | mudança | tipo |\n|---|---|---|\n| config/mcp-registry.toml | 23 servidores com campos da seção 11, versões fixadas | novo |\n| config/mcp/kubernetes-mcp-server.toml | read_only, disable_destructive | novo |\n| config/claude-permissions.json | regras estreitas do auto mode (aios, npm view, npx fixados) | novo |\n| src/aios/mcp.py | registro, inventário, audit, probes stdio/HTTP, matriz | novo |\n| src/aios/sync.py | grupo mcp-servers (só acrescenta, guard de initialize) | alteração |\n| src/aios/doctor.py | mcp_checks + claude_permissions | alteração |\n| src/aios/cli.py | aios mcp validate, list, inspect, audit, check | alteração |\n| docs/architecture/ADR-0006-mcp.md | decisões | novo |\n\n## O que foi implantado\nNada aplicado nos clientes ainda. 112 testes OK. Initialize real ok: basic-memory, github (/readonly), context7, deepwiki, aws-knowledge; supabase e notion pendentes de autenticação.\n\n## Causa raiz / motivo\nAuto mode bloqueou `npx -y kubernetes-mcp-server@0.1.1` (Code from External) e a edição do settings.json (Self-Modification): regras ficam no repo e o doctor avisa.\n\n## Como reverter\nRemover o bloco `# >>> AIOS managed: mcp-servers` do ~/.codex/config.toml; `mcp.registry.sync = false`.\n\n## Aplicado em 2026-11-03\n- `aios sync --apply --only mcp-servers`: bloco gerenciado no ~/.codex/config.toml (github /readonly, playwright 0.0.84, kubernetes 0.1.1 read-only, context7, deepwiki). Backup em backups/20261103-195613-519858-pre-sync.\n- `aios mcp check --client codex`: 8/8 initialize ok.\n- Commits a047310 (Fase 7) e d43964a (corrida no probe_stdio: escrita no stdin de processo morto dava EINVAL no Windows e escondia o stderr; fechar pipe com leitura em curso derrubava a thread). CI success.\n\n## Pendências\n- Usuário mesclar config/claude-permissions.json em ~/.claude/settings.json.\n- Achados do audit: versões @latest, hub-mcp, server-postgres, filesystem OpenCode no perfil, k8s sem read-only, terraform do Claude via Docker."
+    },
+    {
+      "id": "projects/ai-engineering-os/orquestracao-fase-6",
+      "title": "orquestracao-fase-6",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-03",
+      "hora": "16:20 -03:00",
+      "atividade": "Orquestrador aios run (planejador, aprovações, executores, checkpoints, retomada, relatório)",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "project_id": "4890661f233b",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "# Orquestração (fase 6)\n\n## O que foi modificado\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `src/aios/orchestrator.py` | motor PLAN → EXECUTE → VALIDATE → REPORT com estado em `state/runs/<id>/` | criado |\n| `config/orchestration.toml` | palavras-chave por agente, estágios da seção 20, políticas, timeout e retries | criado |\n| `src/aios/cli.py` | `aios run plan/list/show/approve/execute/resume/cancel/retry/submit/report/record`; corrige `memory validate` | alterado |\n| `src/aios/agents.py` | `SAFE_BASH_DENY` (`*--pre*`, `*--output*`, `*>*`) depois das liberações no OpenCode | correção |\n| `docs/architecture/ADR-0005-orquestracao.md` | decisões, validação real, limitações | criado |\n\n## O que foi implantado\nCódigo e testes (96 OK). Validação real com Claude: execução `R-20261103-155407-1727`, duas etapas read-only `done`\nem cerca de 2 min cada. Resumo de sessão gravado em `sessoes/` por `aios run record --apply`.\nRegras `deny` dos agentes OpenCode: no repositório; distribuição pendente de `aios sync --apply --only agents`.\n\n## Benefícios para o projeto\n- As três ferramentas executam o mesmo plano com os mesmos agentes; aprovação e efeito externo ficam fora do modelo.\n- Retomada após queda, cancelamento, retry limitado e idempotência sem dependência nova (sem LangGraph).\n- Primeiro uso real já achou e corrigiu um furo de read-only da Fase 4 (rg --pre, git --output).\n\n## Causa raiz / motivo\nFase 6 do master prompt. Bug achado na validação: `stdout=PIPE` lido só no fim travava o `claude -p` (buffer cheio).\n\n## Como reverter\n`git revert` do commit da v0.5.0. Estado das execuções em `state/runs/` (fora do Git) pode ser arquivado.\n\n## Pendências\n- [x] Sync dos agentes aplicado em 2026-11-03 16:15 (backup `20261103-161547-427118-pre-sync`), 13/13 com `deny`.\n  Teste real no OpenCode: `rg --pre=echo` → `Permission denied`; `git status` liberado roda. Comando embrulhado\n  pelo modelo em `bash -lc '...'` não casa com a liberação e cai em `ask` (recusado no headless): falha segura.\n- [ ] Mover `state/` para fora da árvore do repositório do AIOS.\n- [ ] Lock da execução também em approve, submit e retry.\n- [ ] Execução paralela com git worktrees (só quando houver necessidade real)."
+    },
+    {
+      "id": "projects/ai-engineering-os/memoria-fase-5",
+      "title": "memoria-fase-5",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-03",
+      "hora": "15:30 -03:00",
+      "atividade": "Camada de memória (contrato, ficha de projeto, validação, busca híbrida com avaliação) e serviço HTTP único do Basic Memory",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "project_id": "4890661f233b",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "# Memória (fase 5)\n\n## O que foi modificado\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `src/aios/service.py` | serviço HTTP (probe MCP, tarefa no logon via conhost --headless, cliente MCP mínimo) | criado |\n| `src/aios/memory.py` | contrato, ficha `_projeto.md`, record com barreiras, validate, search híbrida, eval | reescrito |\n| `src/aios/sync.py` | grupo `memory-service` (tarefa + Claude/Codex/OpenCode via URL) e `revert_memory_service` | alterado |\n| `config/memory-evals.toml` | 14 casos PT, 6 sem vocabulário em comum | criado |\n| `prompts/global/memory-protocol.md` | campos do contrato e seções de sessão | alterado |\n| `docs/architecture/ADR-0004-memoria.md` | decisões e avaliação | criado |\n\n## O que foi implantado\nCommit `5eceb03` (v0.4.0), 72 testes OK. Protocolo novo aplicado no bloco do Codex (backup `20261103-152549-587628-pre-sync`).\nServiço HTTP testado com processo manual na porta 38765; Claude, Codex e OpenCode chamaram `search_notes` por ele\ncom config temporária. Tarefa agendada e troca dos clientes: pendentes de aprovação.\n\n## Benefícios para o projeto\n- Handshake do basic-memory cai de 5 a 14 s (stdio, 5 instâncias) para 0,57 s (uma instância).\n- `aios memory search` em 0,5 s com origem; `aios memory eval` em 8 s (antes 596 s pela CLI).\n- Segredo e duplicata bloqueiam gravação; validação acusa isolamento quebrado e retenção vencida.\n\n## Causa raiz / motivo\n`CONNECT_TIMEOUT` de 30 s do app desktop: soma das subidas stdio simultâneas (import do Python antes do primeiro log).\n\n## Como reverter\n`aios memory service uninstall` (restaura entradas de `state/memory-service-previous.json` e remove a tarefa) ou `git revert 5eceb03`.\n\n## Pendências\n- [x] Aplicado em 2026-11-03 15:30 (backup `20261103-153016-736277-pre-sync`, commit `66b357f` corrige `claude.cmd`).\n  Tarefa `AIOS Basic Memory` Running; Claude (`claude mcp get`: http, Connected), Codex e OpenCode buscaram `memoria-fase-5` pelo serviço.\n- [ ] Reiniciar app do Codex e OpenCode para encerrar as instâncias stdio antigas.\n- [x] Embedding multilíngue testado em cópia isolada (2026-11-03): `paraphrase-multilingual-MiniLM-L12-v2` piorou\n  (hybrid 0,64, vector 0,50 contra 0,71 e 0,71 do `bge-small-en-v1.5`). Decisão: manter o atual. Detalhes no ADR-0004.\n  Cache de 240 MB do modelo testado em `~/.basic-memory/fastembed_cache`, apagável.\n- [ ] Qdrant: não integrado (sem suporte no Basic Memory, serviço extra sem ganho medido)."
+    },
+    {
+      "id": "projects/ai-engineering-os/agentes-fase-4",
+      "title": "agentes-fase-4",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-03",
+      "hora": "11:30 -03:00",
+      "atividade": "Catálogo de 13 agentes com contrato comum e adaptadores para Claude, OpenCode e Codex",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code"
+      },
+      "content": "# Agentes (fase 4)\n\n## O que foi modificado\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `~/AI-Engineering-OS/agents/` | 13 agentes, `_contract.md`, `routing.toml`, README | criado |\n| `src/aios/agents.py` | validação, perfis de acesso, render por ferramenta, `new_task` e `validate_task` | criado |\n| `src/aios/sync.py`, `cli.py`, `doctor.py` | grupo `agents`, `aios agents list/inspect/validate/route/sync`, checagens | alterado |\n| `~/.claude/agents/*.md`, `~/.config/opencode/agents/*.md`, `~/.codex/agents/*.toml` | 39 arquivos gerados (marcador AIOS:GENERATED) | criado |\n| `docs/architecture/ADR-0003-agentes.md` | decisões da fase | criado |\n\n## O que foi implantado\nCommits `dc0b5f8` (v0.3.0) e seguinte com docs; CI run 41650261453 verde. `aios sync --apply --only agents`\n(backup `backups/20261103-110427-424772-pre-sync`), segunda passada sem pendências. Sessões novas: Claude,\nOpenCode e Codex listam os 13 agentes e escolhem o certo em 5 pedidos; Claude confirma `code-reviewer` sem Write/Edit.\n\n## Benefícios para o projeto\n- Um agente escrito uma vez vira três arquivos no formato nativo de cada ferramenta.\n- Perfil read-only vira bloqueio real no Claude e no OpenCode.\n- `aios agents route \"<pedido>\"` gera o contrato de tarefa (Task ID, Project ID, agente, skills, permissões).\n\n## Causa raiz / motivo\nFase 4 do master prompt: catálogo, contratos, adaptadores, roteamento e validação de permissões.\n\n## Como reverter\n`pwsh -File scripts/uninstall/uninstall.ps1 -Apply` remove só os agentes gerados; ou `git revert` e `aios sync --apply --only agents`.\n\n## Pendências\n- [ ] Codex não aceita sandbox nem aprovação no arquivo do agente: read-only lá é só instrução.\n- [ ] Lacunas de skill: Node.js/NestJS, Tailwind, Azure/GCP, SQL Server/Redis, Playwright, documentação.\n- [ ] Próximo: Fase 5 (memória: SQLite, indexação, busca semântica) e Fase 6 (orquestração)."
+    },
+    {
+      "id": "projects/ai-engineering-os/skills-engine-fase-2-3",
+      "title": "skills-engine-fase-2-3",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-03",
+      "hora": "10:50 -03:00",
+      "atividade": "Skills Engine com catálogo essencial de 17 skills distribuído para Claude, Codex e OpenCode",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code"
+      },
+      "content": "# Skills Engine (fase 2/3)\n\n## O que foi modificado\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `~/AI-Engineering-OS/skills/` | 16 skills novas + `shared-memory` migrada para 10 seções | criado |\n| `src/aios/skills.py` | validador (seções, arquivos citados, comandos proibidos, travessão, segredo, casos), roteamento lexical, registro, suggest | alterado |\n| `src/aios/sync.py` | remove junctions órfãs do AIOS (só as que apontam para `skills/`) | alterado |\n| `src/aios/cli.py`, `doctor.py`, `project.py` | `skills index|suggest`; doctor acusa registro velho; Compose e Helm sem skill separada | alterado |\n| `~/.claude/skills/*`, `~/.agents/skills/*` | 32 junctions novas (17 skills em cada) | criado |\n| `docs/architecture/ADR-0002-skills-engine.md` | decisões da fase | criado |\n\n## O que foi implantado\nCommit `66da4cb` (v0.2.0) em https://github.com/cleybersilva/ai-engineering-os, CI run 41646442047 verde.\n`aios sync --apply --only skills` (backup `backups/20261103-103635-128301-pre-sync`); segunda passada sem pendências.\nSessões novas de Claude, Codex e OpenCode escolheram a skill certa em 6 pedidos de teste\n(Claude preferiu o plugin `engineering:incident-response` para postmortem).\n\n## Benefícios para o projeto\n- Skills com estrutura e regras verificadas por máquina; skill inválida não é distribuída e quebra o CI.\n- Scripts stdlib testados: `scan_secrets.py`, `check_workflow.py`, `lint_dockerfile.py`.\n- `aios skills suggest <projeto>` cruza a stack detectada com o catálogo.\n\n## Causa raiz / motivo\nFase 2/3 do master prompt: catálogo essencial com qualidade antes de quantidade, alinhado às stacks\ndetectadas nos projetos em `D:\\ENGINEER\\VS_Code` (CI, Python, Terraform, Docker, .NET, TypeScript).\n\n## Como reverter\n`git revert 66da4cb` e `aios sync --apply --only skills` (remove as junctions órfãs).\n\n## Pendências\n- [x] Claude: basic-memory com `CONNECT_TIMEOUT` de 30 s no app desktop. Corrigido em v0.2.1: escopo de usuário\n  agora usa `~/.local/bin/basic-memory.exe mcp` (antes `uvx`); `read_note` validado em sessão nova; doctor avisa regressão.\n- [ ] CI: atualizar `actions/checkout` e `actions/setup-python` para versões em Node 24 (aviso de depreciação).\n- [ ] Shim `codex.cmd`: prompts com aspas internas e `<`, `>`, `|`, `&` são reinterpretados pelo cmd.exe.\n- [ ] EduAutismo IA: `Dockerfile` com `curl | sh` (linha 294) e estágio final como root (achado do lint, não corrigido).\n- [ ] Próximo: Fase 4, agentes especializados."
+    },
+    {
+      "id": "projects/ai-engineering-os/fundacao-fase-1",
+      "title": "fundacao-fase-1",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-03",
+      "hora": "09:40 -03:00",
+      "atividade": "Fundação do AI Engineering OS com inventário, CLI aios e sync seguro",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code"
+      },
+      "content": "# Fundação do AI Engineering OS (fase 1)\n\n## O que foi modificado\n| Arquivo / recurso | Mudança | Tipo |\n| --- | --- | --- |\n| `~/AI-Engineering-OS/` | repositório novo (git, branch main, commit 4743ba4) | criado |\n| `~/.local/bin/aios.cmd` | shim da CLI global | criado |\n| PATH do usuário (registro, escopo User) | `~\\.local\\bin` adicionado | alterado |\n| `~/AI-Engineering-OS/backups/*-pre-install` | backup das configs globais | criado |\n| `~/.claude/skills/shared-memory`, `~/.agents/skills/shared-memory` | junctions para a skill canônica | criado |\n| `~/.codex/AGENTS.md` | bloco AIOS (instruções globais + protocolo de memória) | criado |\n| `~/.codex/config.toml` | bloco `[mcp_servers.basic-memory]` | alterado |\n| `~/.config/opencode/instructions/aios-global.md` | instruções globais geradas | criado |\n| `~/.claude/CLAUDE.md` | bloco AIOS com 2 `@imports`; import do vault criado por outra sessão preservado | alterado |\n| `~/.claude/settings.json` | `env.MCP_TIMEOUT=120000`; hooks já existentes preservados | alterado |\n\n## O que foi implantado\n`aios sync --apply` (backup `backups/20261103-093524-965996-pre-sync`). Segunda execução: 0 pendências.\nVerificação: `claude mcp get basic-memory` = Connected; `codex mcp list` mostra basic-memory; skill\n`shared-memory` apareceu na sessão do Claude em andamento; log do OpenCode mostra watcher em\n`~/.claude/skills` e `~/.agents/skills`. 13 testes ok.\n\n## Benefícios para o projeto\n- Inventário real das três ferramentas e das duas memórias em `docs/state/2026-11-03-inventario.md`.\n- `aios sync` mostra exatamente o que mudaria em cada config antes de tocar nela (dry-run, `--only`, backup automático).\n- Diagnóstico detectou que o Segundo Cérebro não estava ligado: `~/.claude/CLAUDE.md` ausente e hooks fora do `settings.json`.\n\n## Causa raiz / motivo\nUnificar instruções, Skills e memória técnica entre Claude Code, Codex e OpenCode sem criar um terceiro\narmazenamento e sem sobrescrever configs existentes (ADR-0001).\n\n## Como reverter\n`pwsh -File ~/AI-Engineering-OS/scripts/uninstall/uninstall.ps1 -Apply` e remover `~\\.local\\bin` do PATH do usuário.\n\n## Pendências\n- [x] Aplicar os grupos do `aios sync` (2026-11-03 09:35).\n- [x] Sessões novas (2026-11-03 09:50): Claude, Codex e OpenCode carregam `shared-memory` e as instruções AIOS.\n- [x] `@import` com espaço NÃO carregava no Claude: trocado pela junction `~/.claude/segundo-cerebro`; constituição carrega.\n- [x] OpenCode chama basic-memory (`list_memory_projects` = main).\n- [x] Codex: basic-memory resolvido (v0.1.3). Causa: catálogo montado após 1000 ms (`mcp_optional_startup_grace_ms`) e toda chamada MCP exigindo aprovação. Correção: grace 15000 + `default_tools_approval_mode = \"writes\"`. Codex leu esta nota via `search_notes`; `write_note` bloqueado sem aprovação (esperado).\n- [x] v0.1.4: shim `~/.local/bin/codex.cmd` (resolve o binário mais novo do app), doctor com PATH persistido, CI GitHub Actions verde (Windows/Ubuntu, Python 3.12/3.13, run 41643217271). Doctor: 0 falhas, 1 aviso.\n- [ ] Reiniciar o app desktop do Codex para carregar a nova config (aberto antes da mudança).\n- [ ] Decidir raízes do MCP filesystem do OpenCode (hoje: perfil inteiro).\n- [x] Fase 2/3, Skills Engine com catálogo essencial (v0.2.0, ver `skills-engine-fase-2-3`).\n- [x] Repositório remoto privado: https://github.com/cleybersilva/ai-engineering-os (commit d0d2e83).\n- [ ] Restringir raiz do MCP filesystem do OpenCode.\n- [ ] Fase 4: agentes especializados."
+    },
     {
       "id": "projects/migration-reflow/Auditoria semântica aprova o Main.robin de a360-excel-vault, sem achados bloqueantes",
       "title": "Auditoria semântica aprova o Main.robin de a360-excel-vault, sem achados bloqueantes",
