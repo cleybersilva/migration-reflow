@@ -33,8 +33,9 @@ metadata:
 
 - `output/<projeto>/00-manifest.json` e `output/<projeto>/01-inventory/inventory.json`.
 - Reextrair **não apaga** `02-docs/`, `03-classification/`, `04-pad/` nem
-  `05-test/` — só marca essas fases como desatualizadas no manifesto
-  (`stale_phases`).
+  `05-test/` — só marca como desatualizadas no manifesto
+  (`stale_phases`) as que já existem; uma fase que nunca rodou fica fora da
+  lista. Cada fase sai da lista com `reflow phase-done <projeto> <fase>`.
 
 ## Aviso de fases desatualizadas
 

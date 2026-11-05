@@ -63,6 +63,14 @@ escreve o arquivo sem controle sobre a quebra de linha; esse passo
 normaliza para CRLF, exigido pelo PAD — ver `reference/robin-conventions.md`)
 e depois `uv run python -m reflow lint-robin <projeto>`.
 
+## Fechar a fase no manifesto
+
+Ao final depois do `lint-robin` passar, rode `uv run python -m reflow phase-done <projeto> 04-pad`:
+tira `04-pad` de `stale_phases` e marca como desatualizadas as fases seguintes
+que já existem (foram geradas a partir da versão anterior). O comando recusa
+se `input/<projeto>/` mudou desde o `extract` ou se a fase não deixou o
+artefato esperado — nesse caso, não feche a fase.
+
 ## Agent chamado
 
 - `reflow-pad-converter`.

@@ -75,6 +75,8 @@ git config core.hooksPath .githooks
 Disponíveis também: `uv run python -m reflow extract <projeto>`,
 `uv run python -m reflow extract --all`, `uv run python -m reflow report`,
 `uv run python -m reflow checkpoint <projeto> [--status|--approve|--reject]`,
+`uv run python -m reflow phase-done <projeto> <fase>` (fecha a fase em `stale_phases`
+ao fim de cada skill; marca as seguintes já existentes como desatualizadas),
 `uv run python -m reflow fix-robin-eol [<projeto>|--all]` (normaliza a
 quebra de linha de todo `Main.robin` já gerado para CRLF — rodar depois de
 qualquer conversão/geração de teste, antes do `lint-robin`), `uv run python

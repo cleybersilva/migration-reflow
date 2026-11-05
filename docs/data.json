@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T14:30:57+00:00",
+  "generatedAt": "2026-11-05T18:40:44+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -23,6 +23,27 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/stale_phases com ciclo de vida - reflow phase-done (Fase 33, ADR-032)",
+      "title": "stale_phases com ciclo de vida - reflow phase-done (Fase 33, ADR-032)",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-05",
+      "hora": "19:10 -03:00",
+      "atividade": "extract marca so fases existentes e novo reflow phase-done fecha fase e propaga desatualizacao",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "decision",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "# stale_phases com ciclo de vida - reflow phase-done (Fase 33, ADR-032)\n\n## O que foi modificado\n| Arquivo | Mudanca | Tipo |\n| --- | --- | --- |\n| reflow/cli.py | _existing_phases; extract marca so fases com pasta; subcomando phase-done (lock, escrita atomica, recusa entrada alterada ou fase sem artefato, descarta entradas de fases inexistentes) | implementacao |\n| tests/integration/test_phase_done.py | 7 testes | implementacao |\n| .claude/skills/reflow-{document,classify,convert,test}/SKILL.md | secao \"Fechar a fase no manifesto\" | implementacao |\n| .claude/skills/reflow-extract/SKILL.md, AGENTS.md, README.md, docs/runbook.md | documentacao | manutencao |\n| docs/decisions.md (ADR-032), docs/historico.md (Fase 33) | documentacao | manutencao |\n| output/*/00-manifest.json | stale_phases alinhado (vazio nos 3) via phase-done | manutencao |\n\n## O que foi implantado\nruff ok, pytest 292 passed, scan ok. phase-done rodado em ordem nos 3 projetos; fases conferidas como posteriores ao extract de 2026-10-21 16:32 UTC pela data dos commits.\n\n## Beneficios para o projeto\nOrquestrador reflow consegue retomar de onde parou; desatualizacao propaga corretamente quando uma fase e refeita.\n\n## Causa raiz / motivo\nstale_phases era escrito so pelo extract (4 fases sempre) e nunca limpo; manifesto do browser-rest editado a mao.\n\n## Como reverter\ngit revert do commit da Fase 33.\n\n## Pendencias\n- Checkpoint legado de a360-browser-rest: regravar so por quem decide.\n- Bug encontrado e corrigido no proprio ciclo: entradas antigas de fases inexistentes sobreviviam ao phase-done."
+    },
     {
       "id": "projects/migration-reflow/reflow checkpoint -status reconhece checkpoint legado (Fase 32)",
       "title": "reflow checkpoint --status reconhece checkpoint legado (Fase 32)",

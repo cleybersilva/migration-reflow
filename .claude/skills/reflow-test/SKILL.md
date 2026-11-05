@@ -30,6 +30,14 @@ precisa de CRLF para colar no PAD, igual ao da conversão — ver
 `reference/robin-conventions.md`) e depois `uv run python -m reflow
 lint-robin <projeto>`.
 
+## Fechar a fase no manifesto
+
+Ao final depois do `lint-robin` passar, rode `uv run python -m reflow phase-done <projeto> 05-test`:
+tira `05-test` de `stale_phases` e marca como desatualizadas as fases seguintes
+que já existem (foram geradas a partir da versão anterior). O comando recusa
+se `input/<projeto>/` mudou desde o `extract` ou se a fase não deixou o
+artefato esperado — nesse caso, não feche a fase.
+
 ## Agent chamado
 
 - `reflow-pad-tester`.

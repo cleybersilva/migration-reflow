@@ -57,6 +57,7 @@ documentação.
 
 ## Reextração invalidou uma fase posterior
 
-Normal — `00-manifest.json` marca as fases seguintes como `stale_phases`
-(não apaga nada). Rode a fase de novo para atualizar, ou ignore o aviso se a
+Normal — `00-manifest.json` marca as fases já existentes como `stale_phases`
+(não apaga nada). Rode a fase de novo (a skill fecha com
+`reflow phase-done <projeto> <fase>`, que marca as seguintes já existentes), ou ignore o aviso se a
 mudança no legado não afetar aquela fase.

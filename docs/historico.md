@@ -1524,3 +1524,22 @@ mão em 2026-10-21, antes do ADR-020, com `approved_at` e sem `inputs_fingerprin
 - `stale_phases` no manifesto continua só sendo escrito pelo `extract` (todas as fases) e
   nunca limpo por nenhum comando; o de `a360-browser-rest` foi editado à mão em outubro.
   Fica como pendência de desenho.
+
+## Fase 33 — `stale_phases` com ciclo de vida (ADR-032)
+
+### O que mudou
+
+- `reflow/cli.py`: `extract` marca só fases existentes; novo `phase-done` (com lock, escrita
+  atômica, recusa por entrada alterada ou fase sem artefato).
+- `tests/integration/test_phase_done.py`: 7 testes.
+- Skills `reflow-document`, `reflow-classify`, `reflow-convert`, `reflow-test` ganham a seção
+  "Fechar a fase no manifesto"; `reflow-extract`, `AGENTS.md`, `README.md` e
+  `docs/runbook.md` atualizados.
+- Manifestos dos três projetos alinhados com `phase-done`, fase a fase: todas as fases
+  existentes foram geradas depois do último `extract` (2026-10-21 16:32 UTC), conferido pela
+  data dos commits. `stale_phases` ficou vazio nos três.
+
+### O que esta fase não fez (honestidade)
+
+- Não validou o conteúdo das fases; só a ordem em relação ao `extract`.
+- Não regravou o checkpoint legado de `a360-browser-rest`.

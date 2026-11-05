@@ -1252,3 +1252,33 @@ futura, e a reavaliação para NOT_PAD volta à mesa.
 - Não altera `classification.md` nem o checkpoint; o checkpoint do projeto é legado (sem
   `recorded_at`/fingerprint) e só quem decide pode regravá-lo pela CLI.
 - Não executa nada no PAD.
+
+## ADR-032: `stale_phases` passa a ter ciclo de vida (`reflow phase-done`)
+
+**Data:** 2026-11-05. **Status:** aceito.
+
+### Contexto
+
+`stale_phases` só era escrito pelo `extract`, sempre com as quatro fases, e nenhum comando o
+limpava. O orquestrador `reflow` usa o campo para decidir onde retomar ("não reexecute uma
+fase cujo artefato existe e não está em `stale_phases`"), então lia toda fase como velha. O
+manifesto de `a360-browser-rest` tinha sido corrigido à mão em outubro.
+
+### Decisão
+
+- `extract` marca só as fases que já têm pasta em `output/<projeto>/`. Fase que nunca rodou
+  é pendente, não desatualizada.
+- Novo `reflow phase-done <projeto> <fase>`: tira a fase da lista e acrescenta as fases
+  **seguintes que já existem** (foram geradas da versão anterior). Entradas antigas para
+  fases inexistentes caem. Recusa se `input/<projeto>/` mudou desde o `extract` (mesma regra
+  do checkpoint) ou se a fase não deixou o artefato mínimo (`02-docs/*.md`,
+  `03-classification/classification.md`, `*/Main.robin` em `04-pad`/`05-test`).
+- As skills `reflow-document`, `reflow-classify`, `reflow-convert` e `reflow-test` chamam o
+  comando ao final (os agents não têm shell). As skills são a fonte única dos três harnesses
+  (OpenCode e Copilot só apontam para elas), então a paridade vem junto.
+
+### O que isto não faz
+
+- Não decide se o conteúdo da fase está correto: só registra que ela rodou depois do
+  `extract` atual. Revisões (`*-review`) não fecham nem abrem fase.
+- Não toca no checkpoint.

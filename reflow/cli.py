@@ -83,6 +83,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Só mostra a decisão atual (padrão quando nenhum outro é dado).",
     )
 
+    phase_done = sub.add_parser(
+        "phase-done",
+        help="Marca uma fase como em dia no manifesto e as seguintes já existentes como "
+        "desatualizadas.",
+    )
+    phase_done.add_argument("project", help="Projeto em input/<projeto>.")
+    phase_done.add_argument("phase", choices=STALE_PHASES)
+
     return parser
 
 
@@ -107,7 +115,16 @@ def _current_inputs(project_dir: Path) -> list[dict]:
     return inputs
 
 
-def _build_manifest(project_dir: Path, name: str, source_type: str) -> dict:
+def _existing_phases(out_dir: Path, phases: list[str] = STALE_PHASES) -> list[str]:
+    """Fases que já têm pasta em `output/<projeto>/`: só essas podem estar desatualizadas.
+
+    Fase que ainda não rodou não está "desatualizada", está pendente; marcá-la faria o
+    orquestrador ler toda fase como velha e nunca retomar de onde parou.
+    """
+    return [phase for phase in phases if (out_dir / phase).is_dir()]
+
+
+def _build_manifest(project_dir: Path, name: str, source_type: str, out_dir: Path) -> dict:
     return {
         "checkpoint": None,
         "extracted_at": datetime.now(UTC).isoformat(),
@@ -116,7 +133,7 @@ def _build_manifest(project_dir: Path, name: str, source_type: str) -> dict:
         "reflow_version": __version__,
         "schema_version": "1.0",
         "source_type": source_type,
-        "stale_phases": list(STALE_PHASES),
+        "stale_phases": _existing_phases(out_dir),
         "status": "extracted",
         "verdict": None,
     }
@@ -153,7 +170,7 @@ def _extract_one(root: Path, name: str) -> int:
             source_type, inventory = extract_to(project_dir, out_dir)
             write_json_atomic(
                 out_dir / "00-manifest.json",
-                _build_manifest(project_dir, name, source_type),
+                _build_manifest(project_dir, name, source_type, out_dir),
             )
     except (ValueError, LockError) as exc:
         print(str(exc), file=sys.stderr)
@@ -323,6 +340,73 @@ def _cmd_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+# Artefato mínimo que prova que a fase rodou (glob relativo à pasta da fase).
+_PHASE_ARTIFACTS = {
+    "02-docs": "*.md",
+    "03-classification": "classification.md",
+    "04-pad": "*/Main.robin",
+    "05-test": "*/Main.robin",
+}
+
+
+def _cmd_phase_done(args: argparse.Namespace) -> int:
+    """Fecha uma fase no manifesto: sai de `stale_phases`, e as fases seguintes que já
+    existem entram (foram geradas a partir da versão anterior desta).
+
+    Chamado pelas skills ao fim de cada fase (os agents não têm shell). Recusa se as
+    entradas mudaram desde o `extract` ou se a fase não deixou o artefato esperado.
+    """
+    root = Path.cwd()
+    name = args.project
+    if not _valid_project_name(name):
+        print(f"nome de projeto inválido: {name}", file=sys.stderr)
+        return 1
+    out_dir = root / "output" / name
+    manifest_path = out_dir / "00-manifest.json"
+    if not manifest_path.is_file():
+        print(
+            f"manifesto não encontrado: {manifest_path} — rode `reflow extract {name}` antes.",
+            file=sys.stderr,
+        )
+        return 1
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    try:
+        current_inputs = _current_inputs(root / "input" / name)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if current_inputs != manifest.get("inputs"):
+        print(
+            f"{name}: entradas mudaram desde a extração — rode `reflow extract {name}` de novo.",
+            file=sys.stderr,
+        )
+        return 1
+
+    phase = args.phase
+    if not any((out_dir / phase).glob(_PHASE_ARTIFACTS[phase])):
+        print(
+            f"{name}: {phase} sem artefato ({_PHASE_ARTIFACTS[phase]}) — a fase não rodou.",
+            file=sys.stderr,
+        )
+        return 1
+
+    later = STALE_PHASES[STALE_PHASES.index(phase) + 1 :]
+    # Manifesto antigo marcava até fase que nunca rodou: só sobrevive o que existe.
+    existing = set(_existing_phases(out_dir))
+    stale = {p for p in manifest.get("stale_phases") or [] if p != phase and p in existing}
+    stale.update(_existing_phases(out_dir, later))
+    manifest["stale_phases"] = [p for p in STALE_PHASES if p in stale]
+    try:
+        with project_lock(out_dir):
+            write_json_atomic(manifest_path, manifest)
+    except LockError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    pending = ", ".join(manifest["stale_phases"]) or "nenhuma"
+    print(f"{name}: {phase} em dia; fases desatualizadas: {pending}.")
+    return 0
+
+
 def _report_findings(findings: list[Finding], command: str) -> None:
     for finding in findings:
         location = f"{finding.file}:{finding.line}"
@@ -409,6 +493,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "checkpoint":
         return _cmd_checkpoint(args)
+
+    if args.command == "phase-done":
+        return _cmd_phase_done(args)
 
     if args.command == "report":
         return _cmd_report()

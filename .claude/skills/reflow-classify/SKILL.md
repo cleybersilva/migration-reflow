@@ -32,6 +32,14 @@ alerts:
   - <alerta A1-A5 identificado>
 ```
 
+## Fechar a fase no manifesto
+
+Ao final depois que o agent gravar, rode `uv run python -m reflow phase-done <projeto> 03-classification`:
+tira `03-classification` de `stale_phases` e marca como desatualizadas as fases seguintes
+que já existem (foram geradas a partir da versão anterior). O comando recusa
+se `input/<projeto>/` mudou desde o `extract` ou se a fase não deixou o
+artefato esperado — nesse caso, não feche a fase.
+
 ## Agent chamado
 
 - `reflow-classifier`.

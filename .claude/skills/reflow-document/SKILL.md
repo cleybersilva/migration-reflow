@@ -28,6 +28,14 @@ em `output/<projeto>/02-docs/`: `README.md`, `use-cases.md`, `process-flow.md`,
 `data-sources.md`, `integrations.md`, `business-rules.md`, `risks.md` e
 `architecture.md` (com o diagrama Mermaid — atende ao pedido R3 da reunião).
 
+## Fechar a fase no manifesto
+
+Ao final depois que o agent gravar, rode `uv run python -m reflow phase-done <projeto> 02-docs`:
+tira `02-docs` de `stale_phases` e marca como desatualizadas as fases seguintes
+que já existem (foram geradas a partir da versão anterior). O comando recusa
+se `input/<projeto>/` mudou desde o `extract` ou se a fase não deixou o
+artefato esperado — nesse caso, não feche a fase.
+
 ## Agent chamado
 
 - `reflow-documenter`.

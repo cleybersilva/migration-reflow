@@ -257,6 +257,7 @@ uv run python -m reflow extract <projeto>   # ou --all
 uv run python -m reflow report
 uv run python -m reflow checkpoint <projeto> --status   # pendente / aprovado / rejeitado / legado sem hash
 uv run python -m reflow checkpoint <projeto> --approve  # grava a decisão humana (--reject para rejeitar)
+uv run python -m reflow phase-done <projeto> <fase>      # fase em dia; seguintes existentes ficam desatualizadas
 uv run python -m reflow fix-robin-eol <projeto>          # ou --all; CRLF antes de colar no PAD
 uv run python -m reflow lint-robin <projeto>             # ou --all; sintaxe Robin + estrutura
 uv run python -m reflow kb show <actionId>               # registro de uma ação na KB Robin
@@ -286,7 +287,7 @@ projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
 
 | Pasta | Conteúdo |
 | --- | --- |
-| `00-manifest.json` | hashes SHA256 das entradas, versão do reflow, data, `checkpoint` (gravado por `reflow checkpoint`, amarrado aos hashes), `stale_phases` |
+| `00-manifest.json` | hashes SHA256 das entradas, versão do reflow, data, `checkpoint` (gravado por `reflow checkpoint`, amarrado aos hashes), `stale_phases` (só fases que existem; fechadas por `reflow phase-done`) |
 | `01-inventory/inventory.json` | fatos mascarados, com `arquivo:linha` |
 | `02-docs/` | documentação de negócio/técnica + `architecture.md` (Mermaid) |
 | `03-classification/classification.md` | veredito `PAD`/`PARTIAL`/`NOT_PAD`, casos de uso, alertas |
