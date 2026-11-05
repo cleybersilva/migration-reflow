@@ -255,7 +255,7 @@ confiar no inventário.
 ```powershell
 uv run python -m reflow extract <projeto>   # ou --all
 uv run python -m reflow report
-uv run python -m reflow checkpoint <projeto> --status   # pendente / aprovado / rejeitado
+uv run python -m reflow checkpoint <projeto> --status   # pendente / aprovado / rejeitado / legado sem hash
 uv run python -m reflow checkpoint <projeto> --approve  # grava a decisão humana (--reject para rejeitar)
 uv run python -m reflow fix-robin-eol <projeto>          # ou --all; CRLF antes de colar no PAD
 uv run python -m reflow lint-robin <projeto>             # ou --all; sintaxe Robin + estrutura

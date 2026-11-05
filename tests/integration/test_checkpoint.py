@@ -146,6 +146,36 @@ def test_re_extract_clears_the_previous_decision(workspace: Path) -> None:
     )
 
 
+def _set_checkpoint(workspace: Path, checkpoint: dict) -> None:
+    path = workspace / "output" / "quote-scraper" / "00-manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["checkpoint"] = checkpoint
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_status_flags_a_legacy_checkpoint_without_hash(
+    workspace: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    require(main(["extract", "quote-scraper"]) == 0, "extract deveria concluir sem erro.")
+    _set_checkpoint(workspace, {"decision": "aprovado", "approved_at": "2026-10-21T16:44:33+00:00"})
+    require(main(["checkpoint", "quote-scraper", "--status"]) == 0, "status legado informa.")
+    out = capsys.readouterr().out
+    require("formato legado" in out, f"legado não sinalizado: {out}")
+    require("2026-10-21" in out and "None" not in out, f"data legada perdida: {out}")
+
+
+def test_status_refuses_a_fingerprint_that_does_not_match(workspace: Path) -> None:
+    require(main(["extract", "quote-scraper"]) == 0, "extract deveria concluir sem erro.")
+    _set_checkpoint(
+        workspace,
+        {"decision": "approved", "inputs_fingerprint": "0" * 64, "recorded_at": "2026"},
+    )
+    require(
+        main(["checkpoint", "quote-scraper", "--status"]) == 1,
+        "fingerprint divergente não pode passar como aprovação válida.",
+    )
+
+
 def test_status_without_a_manifest_is_an_error(workspace: Path) -> None:
     require(
         main(["checkpoint", "quote-scraper", "--status"]) == 1,

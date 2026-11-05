@@ -423,6 +423,10 @@ Novo subcomando da CLI (`reflow checkpoint <projeto>` com `--status`
   de entradas) e `classification_sha256` (a classificação usada na
   decisão). A gravação acontece sob o lock do projeto e de forma atômica.
 - Reextração regrava o manifesto inteiro → `checkpoint` volta a `null`.
+- Atualização (Fase 32): `--status` passou a distinguir um checkpoint **legado** (gravado
+  à mão antes deste ADR, sem `inputs_fingerprint`): mostra a data que houver e avisa que
+  não há vínculo de hash, sem regravar nada. Um `inputs_fingerprint` que não confere com
+  as entradas atuais agora sai com código 1.
   É o vínculo de hash funcionando nos dois sentidos: decisão velha não
   sobrevive a entrada nova, e decisão nova não é possível sem extração
   nova.

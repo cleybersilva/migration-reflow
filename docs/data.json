@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T14:14:19+00:00",
+  "generatedAt": "2026-11-05T14:30:57+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -23,6 +23,27 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/reflow checkpoint -status reconhece checkpoint legado (Fase 32)",
+      "title": "reflow checkpoint --status reconhece checkpoint legado (Fase 32)",
+      "project": "migration-reflow",
+      "categoria": "correcao",
+      "categoriaLabel": "Correção",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-05",
+      "hora": "18:40 -03:00",
+      "atividade": "checkpoint --status distingue legado sem hash e recusa fingerprint divergente",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "# reflow checkpoint --status reconhece checkpoint legado (Fase 32)\n\n## O que foi modificado\n| Arquivo | Mudanca | Tipo |\n| --- | --- | --- |\n| reflow/cli.py | _cmd_checkpoint status: checkpoint sem inputs_fingerprint vira \"formato legado\" com data; fingerprint divergente sai com codigo 1 | correcao |\n| tests/integration/test_checkpoint.py | 2 testes (legado, fingerprint divergente) | correcao |\n| docs/decisions.md (ADR-020), docs/historico.md (Fase 32), README.md | documentacao | manutencao |\n| output/_batch-report.md | regenerado | manutencao |\n\n## O que foi implantado\nruff ok, pytest 285 passed; status dos 3 projetos conferido.\n\n## Beneficios para o projeto\nStatus deixa de imprimir \"aprovado em None\" e nao aceita mais aprovacao cujo hash nao confere.\n\n## Causa raiz / motivo\na360-browser-rest tem checkpoint escrito a mao em 2026-10-21 (approved_at, sem fingerprint), anterior ao ADR-020.\n\n## Como reverter\ngit revert do commit da Fase 32.\n\n## Pendencias\n- Regravar checkpoint de a360-browser-rest: so quem decide.\n- stale_phases: escrito so pelo extract (todas as fases), nunca limpo; pendencia de desenho."
+    },
     {
       "id": "projects/migration-reflow/a360-browser-rest - reconversao com decisoes do analista (Fase 31, ADR-031)",
       "title": "a360-browser-rest - reconversao com decisoes do analista (Fase 31, ADR-031)",

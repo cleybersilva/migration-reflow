@@ -1504,3 +1504,23 @@ nova auditoria semântica e `05-test/` regenerado.
 - Não executou nada no PAD.
 - Não preencheu `cfg_` nem decidiu o critério de status HTTP.
 - Não regravou o checkpoint legado do projeto.
+
+## Fase 32 — `reflow checkpoint --status` reconhece checkpoint legado
+
+O `--status` de `a360-browser-rest` mostrava "aprovado em None": o checkpoint foi gravado à
+mão em 2026-10-21, antes do ADR-020, com `approved_at` e sem `inputs_fingerprint`.
+
+### O que mudou
+
+- `reflow/cli.py`: checkpoint sem `inputs_fingerprint` é informado como **formato legado**,
+  com a data gravada e a orientação de regravar pela CLI; fingerprint que não confere com as
+  entradas atuais sai com código 1 (antes passava como aprovação válida).
+- `tests/integration/test_checkpoint.py`: 2 testes novos (legado e fingerprint divergente).
+- `output/_batch-report.md` regenerado (`reflow report`).
+
+### O que esta fase não fez (honestidade)
+
+- Não regravou o checkpoint de `a360-browser-rest`: a decisão é de quem aprova.
+- `stale_phases` no manifesto continua só sendo escrito pelo `extract` (todas as fases) e
+  nunca limpo por nenhum comando; o de `a360-browser-rest` foi editado à mão em outubro.
+  Fica como pendência de desenho.

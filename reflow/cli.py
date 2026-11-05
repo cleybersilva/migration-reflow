@@ -272,8 +272,26 @@ def _cmd_checkpoint(args: argparse.Namespace) -> int:
             print(f"{name}: checkpoint pendente (nenhuma decisão gravada).")
             return 0
         label = CHECKPOINT_LABELS.get(checkpoint.get("decision", ""), checkpoint.get("decision"))
-        fingerprint = str(checkpoint.get("inputs_fingerprint", ""))[:12]
-        print(f"{name}: {label} em {checkpoint.get('recorded_at')} (fingerprint {fingerprint}…)")
+        fingerprint = checkpoint.get("inputs_fingerprint")
+        if not fingerprint:
+            # Gravado à mão antes do ADR-020: sem vínculo de hash, não prova sobre o que
+            # a decisão foi tomada. Status informa; só quem decide regrava pela CLI.
+            when = checkpoint.get("recorded_at") or checkpoint.get("approved_at") or "data ausente"
+            print(
+                f"{name}: {label} em {when} (formato legado, sem vínculo de hash; "
+                f"quem decide pode regravar com `reflow checkpoint {name} --approve`)."
+            )
+            return 0
+        if fingerprint != _inputs_fingerprint(current_inputs):
+            print(
+                f"{name}: {label}, mas o fingerprint gravado não confere com as entradas "
+                "extraídas — regravar a decisão.",
+                file=sys.stderr,
+            )
+            return 1
+        print(
+            f"{name}: {label} em {checkpoint.get('recorded_at')} (fingerprint {fingerprint[:12]})"
+        )
         return 0
 
     classification = out_dir / "03-classification" / "classification.md"
