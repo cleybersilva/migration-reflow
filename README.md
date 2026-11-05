@@ -482,6 +482,9 @@ grande demais.
   gerados, sem resultado): falta o analista declarar `in_rest_token`, preencher as `cfg_`
   e confirmar formato do corpo, prefixo de autorização e critério de status HTTP
   (ADR-030; achados menores da auditoria tratados na Fase 29). Hoje 4 ações estão `[validado PAD: rodou]`; o resto é `[colado KB]` ou abaixo.
+- `a360-browser-rest`: auditoria refeita na Fase 30 (8 achados, 4 dependem do analista,
+  inclusive se a chamada REST depende da sessão do navegador); depois, nova conversão e
+  `05-test/` regenerado.
 - Rodar a extração contra exports A360 reais (hoje só fixtures sintéticas).
 - Ampliar `reference/a360-to-pad.md` a partir de `unknown_commands` reais.
 - Agente próprio (harness `refold`, plano B secundário) reaproveitando as

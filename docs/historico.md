@@ -1458,3 +1458,25 @@ detector); `reflow scan`, `lint-robin --all` e `kb verify` → ok.
 - Não executou nada no PAD; o resultado dos 5 cenários continua vazio.
 - Não preencheu `cfg_` nem decidiu formato do corpo, prefixo de autorização e critério
   de status HTTP: seguem com o analista.
+
+## Fase 30 — Auditoria de `a360-browser-rest` refeita sobre a versão reconvertida
+
+O `review.md` de `output/a360-browser-rest/04-pad/uc-01-browser-rest/` era de 2026-10-21 e
+cobria a versão anterior ao ADR-029, que não colava no PAD. `reflow-convert-review` foi
+refeito sobre o `Main.robin` reconvertido.
+
+### Resultado
+
+8 achados, nenhum que derrube a colagem: 4 médios (R1-1 credencial que não autentica nada,
+R5-1 subfluxo comum catalogado sem sinalização, R8-1 navegador aberto e nunca fechado,
+R8-2 chamada REST que não herda a sessão do navegador) e 4 menores (R4-1 README do flow com
+ids antigos, R4-2 variáveis sem consumidor, R7-1 `Accept`/`ContentType` sem evidência, R8-3
+status HTTP não conferido). R1-1, R7-1, R8-2 e R8-3 dependem de decisão do analista; a
+resposta de R8-2 pode tirar o UC-01 do PAD.
+
+### O que esta fase não fez (honestidade)
+
+- Não corrigiu o `Main.robin`: correção é nova rodada de `reflow-convert`, depois das
+  decisões do analista.
+- Não regenerou o `05-test/`, que também está desatualizado (cita ids que não existem no
+  PAD e espera comportamento que o flow não produz).

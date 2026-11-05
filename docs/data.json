@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T13:46:55+00:00",
+  "generatedAt": "2026-11-05T13:55:35+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -23,6 +23,31 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/a360-browser-rest - auditoria refeita sobre a versao reconvertida (Fase 30)",
+      "title": "a360-browser-rest - auditoria refeita sobre a versao reconvertida (Fase 30)",
+      "project": "migration-reflow",
+      "categoria": "diagnostico",
+      "categoriaLabel": "Diagnóstico",
+      "status": "em-andamento",
+      "statusLabel": "Em andamento",
+      "data": "2026-11-05",
+      "hora": "14:30 -03:00",
+      "atividade": "Refazer a auditoria semantica de a360-browser-rest apos a reconversao do ADR-029",
+      "tags": [
+        "robin",
+        "pad",
+        "auditoria"
+      ],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "## O que foi modificado\n\n| Arquivo | Mudança | Tipo |\n|---|---|---|\n| `output/a360-browser-rest/04-pad/uc-01-browser-rest/review.md` | auditoria refeita (a anterior era de 2026-10-21, versão que não colava) | diagnóstico |\n| `docs/historico.md`, `README.md` | Fase 30 e item no roadmap | alteração |\n\n## O que foi implantado\n- Gates: scan e lint-robin --all ok.\n\n## Benefícios para o projeto\n- O review do flow deixa de descrever uma versão que não existe mais; os riscos reais da versão atual ficam visíveis antes do teste.\n\n## Causa raiz / motivo\nReconversão do ADR-029 deixou o review.md e o 05-test desatualizados (`stale_phases` no manifesto).\n\n## Pendências\n- Decisões do analista: R1-1 (a credencial autentica o REST?), R8-2 (o REST depende da sessão do navegador? pode tirar o UC-01 do PAD), R7-1 (formato da resposta/Accept), R8-3 (critério de status HTTP).\n- Depois: nova rodada do conversor (R1-1, R4-1, R4-2, R5-1, R8-1), nova auditoria e 05-test regenerado."
+    },
     {
       "id": "projects/migration-reflow/Piloto a360-excel-vault - achados menores R3-1, R8-6 e R8-7 tratados",
       "title": "Piloto a360-excel-vault - achados menores R3-1, R8-6 e R8-7 tratados",
