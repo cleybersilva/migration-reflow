@@ -1282,3 +1282,50 @@ manifesto de `a360-browser-rest` tinha sido corrigido à mão em outubro.
 - Não decide se o conteúdo da fase está correto: só registra que ela rodou depois do
   `extract` atual. Revisões (`*-review`) não fecham nem abrem fase.
 - Não toca no checkpoint.
+
+## ADR-033: harness próprio `refold` (plano B secundário) na API Anthropic Messages
+
+**Data:** 2026-11-06. **Status:** aceito (sem teste contra a IAra real).
+
+### Contexto
+
+O roadmap da reunião de 16/10 pede o agente próprio evoluindo em paralelo como plano B
+(pedido 7). O harness antigo se perdia em repositórios grandes por falta de gestão de
+contexto, e o risco principal continua sendo perder o Claude Code no ambiente do banco.
+O usuário escolheu o protocolo Anthropic Messages (`POST {IARA_BASE_URL}/messages`),
+coerente com o proxy que hoje aponta o Claude Code para a IAra.
+
+### Decisão
+
+- Pacote `refold/` na raiz, irmão de `reflow/` e nunca importado por ele: o núcleo continua
+  sem rede e sem LLM (ADR-001). `refold` importa do `reflow` só funções determinísticas
+  (máscara, scan, contenção de caminho, CLI de `phase-done`/`lint-robin`). Zero dependência
+  nova: HTTP por `urllib` da stdlib.
+- Configuração só por ambiente, mesmos nomes do OpenCode: `IARA_BASE_URL` (https; http só
+  em loopback), `IARA_API_KEY`, `IARA_MODEL`; opcionais `REFOLD_AUTH` (`x-api-key` ou
+  `bearer`) e `REFOLD_MAX_TOKENS`. A chave nunca aparece em `repr`, log ou mensagem de erro.
+- Prompts: lidos de `.opencode/agents/*.md`, a mesma fonte que gera Claude e Copilot. O
+  refold não tem cópia própria, então a paridade vem de graça. `steps` do agent vira o
+  limite de turnos; permissão `allow` diferente de `edit` faz o refold recusar o agent.
+- Ferramentas do modelo: `read_file`, `list_files`, `grep`, `write_file`. Leitura só em
+  `output/<projeto>/`, `input/<projeto>/` e `reference/`, sem `.env`, `..`, caminho
+  absoluto, UNC ou symlink/junction, e todo texto lido passa por `mask()` antes de ir ao
+  modelo. Escrita só nos globs `edit: allow` do agent com o `*` de `output/*/` preso ao
+  projeto, e o conteúdo passa pelo mesmo `scan_bytes` do pre-commit (achado = recusa).
+- Contexto: resultado de ferramenta cortado em 20 mil caracteres (leitura em blocos de 400
+  linhas com `offset`); acima de 400 mil caracteres de conversa, os resultados mais antigos
+  viram um aviso curto.
+- Contrato das skills aplicado em Python (`refold/pipeline.py`), já que o modelo não tem
+  shell: pré-condição por agent; entrada alterada desde o `extract` bloqueia qualquer
+  agent; o conversor exige checkpoint `approved` **com** `inputs_fingerprint` conferindo
+  (checkpoint legado é recusado). Ao terminar: `fix-robin-eol` e `lint-robin` para quem
+  gera Robin, depois `phase-done`. Agent que não terminou ou não gravou nada não fecha fase.
+- Log por execução em `.refold-runs/` (fora do Git): turnos, ferramenta, caminho, tamanho e
+  tokens, nunca conteúdo.
+
+### O que isto não faz
+
+- Não foi testado contra a IAra nem contra a API Anthropic: os testes usam transporte e
+  modelo falsos. O formato exato aceito pelo proxy da IAra só se confirma lá dentro.
+- Não orquestra o pipeline inteiro (o papel da skill `reflow`): roda um agent por vez.
+- Não substitui o checkpoint humano nem grava PASS/FAIL.

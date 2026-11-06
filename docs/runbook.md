@@ -32,6 +32,27 @@ harness (nunca só no `.env` sem o harness carregá-lo), e teste com
 `/models` dentro do opencode. Enquanto não resolver, continue trabalhando nas
 fases determinísticas (extração, tabela verdade manual, revisão da whitelist).
 
+## Harness `refold` (plano B secundário)
+
+Quando nenhum dos três harnesses estiver disponível (ADR-033):
+
+```powershell
+uv run python -m refold check                                   # IARA_* presentes e https
+uv run python -m refold run <agent> <projeto> --dry-run         # pré-condições, sem rede
+uv run python -m refold run <agent> <projeto>
+```
+
+- `variáveis de ambiente ausentes`: exporte `IARA_BASE_URL` (terminando em `/v1`),
+  `IARA_API_KEY` e `IARA_MODEL` no processo. `IARA_BASE_URL` em http só vale para loopback.
+- `API respondeu 401/403`: o proxy pode exigir o cabeçalho `Authorization` no esquema Bearer; tente
+  `REFOLD_AUTH=bearer`. 404 em `/v1/messages` indica que o endpoint não fala o protocolo
+  Anthropic Messages (o OpenCode usa `/v1/chat/completions`).
+- `checkpoint em formato legado`: quem aprova regrava com
+  `reflow checkpoint <projeto> --approve`; o refold não converte sem o hash.
+- `o agent não terminou`: estourou o `steps` do agent ou `max_tokens`. Veja o log em
+  `.refold-runs/` (turnos e ferramentas, sem conteúdo) e rode de novo; nenhuma fase é
+  fechada nesse caso.
+
 ## Robin não cola no PAD
 
 O `Main.robin` é texto puro para colar (Ctrl+V) no designer, não um arquivo

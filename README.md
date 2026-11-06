@@ -395,6 +395,31 @@ Isso existe porque o risco principal apontado na reunião foi perder o acesso
 a um harness específico no ambiente do Itaú — o pipeline continua funcionando
 em qualquer um dos três sem reescrever nada.
 
+## 🤖 Harness próprio `refold` (plano B secundário)
+
+Quarto caminho, para quando nenhum dos três harnesses estiver disponível: um agente
+mínimo que chama a IAra pela API Anthropic Messages (`POST {IARA_BASE_URL}/messages`) e
+roda **os mesmos agents** de `.opencode/agents/`, sem cópia de prompt (ADR-033). Fica em
+`refold/`, fora do núcleo `reflow/`, que continua sem rede.
+
+```powershell
+uv run python -m refold agents                                    # agents e escopo de escrita
+uv run python -m refold check                                     # confere IARA_*, sem rede
+uv run python -m refold run reflow-documenter quote-scraper --dry-run   # pré-condições + prompt
+uv run python -m refold run reflow-documenter quote-scraper       # chama a API e fecha a fase
+```
+
+- O modelo só tem `read_file`, `list_files`, `grep` e `write_file`: lê o projeto e
+  `reference/` (com máscara de segredo e PII), grava só no escopo `edit` do agent (com o
+  scan do pre-commit). Sem shell, rede ou delegação.
+- Pré-condições e fechamento das skills rodam em Python: o conversor exige checkpoint
+  aprovado com hash; quem gera Robin passa por `fix-robin-eol` e `lint-robin`; depois
+  `phase-done`.
+- `REFOLD_AUTH=bearer` se o proxy pedir o cabeçalho `Authorization` no esquema Bearer. Log sem conteúdo em
+  `.refold-runs/`.
+- **Limite honesto:** ainda não rodou contra a IAra real; os testes usam modelo falso.
+  Roda um agent por vez (a orquestração completa continua sendo a skill `reflow`).
+
 ## 🧱 Como estender
 
 - **Novo extractor** (ex.: UiPath): crie `reflow/extractors/<nome>.py`
@@ -492,8 +517,9 @@ anterior "em andamento"), reextração que invalida fases posteriores.
   `reflow checkpoint a360-browser-rest --approve`.
 - Rodar a extração contra exports A360 reais (hoje só fixtures sintéticas).
 - Ampliar `reference/a360-to-pad.md` a partir de `unknown_commands` reais.
-- Agente próprio (harness `refold`, plano B secundário) reaproveitando as
-  mesmas skills/agents — ainda não iniciado.
+- Harness `refold` (plano B secundário, Fase 35): implementado e testado só com modelo
+  falso. Falta o primeiro `refold run` contra a IAra real e decidir se ele ganha
+  orquestração do pipeline inteiro.
 - Ano de desligamento do datacenter on-prem do Itaú: "a confirmar" (citado de
   forma pouco clara na reunião de 16/10/2026).
 

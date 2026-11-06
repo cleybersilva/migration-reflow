@@ -1585,3 +1585,33 @@ dos três harnesses intacta).
   causa possível, não a única (o Pages também dá timeout por conta própria).
 - Não regravou o checkpoint legado de `a360-browser-rest` nem tomou nenhuma decisão do
   analista (`cfg_`, critério de status HTTP, navegador): continuam no roadmap.
+
+## Fase 35 — Harness próprio `refold` (plano B secundário, ADR-033)
+
+Item do roadmap "agente próprio reaproveitando as mesmas skills/agents", até aqui não
+iniciado. Protocolo escolhido pelo usuário: Anthropic Messages.
+
+### O que mudou
+
+- `refold/` (novo, fora de `reflow/`): `agents.py` (lê `.opencode/agents/`), `tools.py`
+  (sandbox de leitura/escrita com máscara e scan), `client.py` (Messages via `urllib`, retry
+  em 408/429/5xx/529), `loop.py` (loop de tool use com corte e compactação de contexto),
+  `pipeline.py` (pré-condições e fechamento de fase), `cli.py`
+  (`agents`, `check`, `run <agent> <projeto> [--dry-run]`).
+- `tests/unit/test_refold.py` e `tests/integration/test_refold_pipeline.py`: 25 testes, sem
+  rede.
+- `.gitignore`: `.refold-runs/`. `.env.example`: `REFOLD_AUTH` e `REFOLD_MAX_TOKENS`.
+- `AGENTS.md`, `README.md` (seção do refold, roadmap) e `docs/runbook.md` atualizados.
+
+### Validação
+
+ruff ok, scan ok, lint-robin ok, kb verify ok, pytest 317 passed. `refold run
+reflow-pad-converter a360-browser-rest --dry-run` é recusado pelo checkpoint legado, como
+esperado; o de `a360-excel-vault` passa nas pré-condições.
+
+### O que esta fase não fez (honestidade)
+
+- Nenhuma chamada real: nem IAra nem API Anthropic. O primeiro teste de verdade é
+  `refold check` seguido de `refold run reflow-documenter quote-scraper` no ambiente com as
+  variáveis `IARA_*`.
+- Não orquestra o pipeline completo; roda um agent por vez.

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T20:01:30+00:00",
+  "generatedAt": "2026-11-06T17:42:17+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -23,6 +23,33 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Harness proprio refold na API Anthropic Messages (ADR-033)",
+      "title": "Harness proprio refold na API Anthropic Messages (ADR-033)",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-06",
+      "hora": "15:00 -03:00",
+      "atividade": "Implementa o harness proprio refold (plano B secundario) sobre a API Anthropic Messages",
+      "tags": [
+        "migration-reflow",
+        "refold",
+        "harness",
+        "plano-b",
+        "adr-033"
+      ],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "media",
+        "retention": "permanente"
+      },
+      "content": "# Harness proprio refold na API Anthropic Messages (ADR-033)\n\nFase 35 do migration-reflow. Item do roadmap \"agente proprio reaproveitando as mesmas skills/agents\", ate entao nao iniciado. Protocolo escolhido pelo usuario: Anthropic Messages (`POST {IARA_BASE_URL}/messages`).\n\n## O que foi modificado\n\n| Arquivo | Mudanca | Tipo |\n|---|---|---|\n| refold/agents.py | Le `.opencode/agents/*.md` (steps, globs edit allow); recusa allow de bash/rede/task | novo |\n| refold/tools.py | Sandbox: read_file/list_files/grep/write_file; leitura so output/<p>, input/<p>, reference; mask() na leitura; scan_bytes na escrita | novo |\n| refold/client.py | Cliente Messages via urllib, IARA_* + REFOLD_AUTH/REFOLD_MAX_TOKENS, https obrigatorio, retry 408/429/5xx/529, chave nunca em repr/erro | novo |\n| refold/loop.py | Loop de tool use, limite = steps do agent, corte 20k chars por resultado, compactacao acima de 400k | novo |\n| refold/pipeline.py | Precondicoes por agent, input alterado bloqueia, conversor exige checkpoint com hash (legado recusado), fechamento fix-robin-eol + lint-robin + phase-done | novo |\n| refold/cli.py | `python -m refold agents/check/run <agent> <projeto> [--dry-run]`, log sem conteudo em .refold-runs/ | novo |\n| tests/unit/test_refold.py, tests/integration/test_refold_pipeline.py | 25 testes sem rede | novo |\n| AGENTS.md, README.md, docs/decisions.md (ADR-033), docs/historico.md, docs/runbook.md, .env.example, .gitignore | documentacao e config | docs |\n\n## O que foi implantado\n\nValidado: ruff ok, scan ok, lint-robin ok, kb verify ok, pytest 317 passed. Dry-run do conversor recusa a360-browser-rest (checkpoint legado) e aceita a360-excel-vault.\n\n## Beneficios para o projeto\n\n- Quarto caminho de execucao se Claude Code/OpenCode/Copilot sumirem do ambiente do banco.\n- Sem copia de prompt: paridade com os outros harnesses vem da fonte canonica.\n- Gestao de contexto explicita (problema do harness antigo em repos grandes).\n\n## Causa raiz / motivo\n\nPedido 7 da reuniao de 16/10 (agente proprio em paralelo como plano B).\n\n## Como reverter\n\nRemover `refold/`, os dois testes, a secao do README/runbook/AGENTS e o ADR-033; reverter o commit da Fase 35.\n\n## Pendencias\n\n- Nenhuma chamada real feita (nem IAra nem API Anthropic). Primeiro teste: `refold check` e `refold run reflow-documenter quote-scraper` com IARA_* no ambiente.\n- Confirmar se o proxy da IAra expoe /v1/messages e qual esquema de auth.\n- Roda um agent por vez; orquestracao completa continua na skill reflow."
+    },
     {
       "id": "projects/migration-reflow/stale_phases com ciclo de vida - reflow phase-done (Fase 33, ADR-032)",
       "title": "stale_phases com ciclo de vida - reflow phase-done (Fase 33, ADR-032)",

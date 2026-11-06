@@ -18,6 +18,10 @@ Exceção estreita e documentada: `dashboard/` (opcional, fora de `reflow/`) tem
 teste local que chama um LLM — mas a chamada de rede fica isolada num subprocesso
 PowerShell fixo (`dashboard/ollama_worker.ps1`), nunca dentro do processo Python do
 servidor. Zero dependência de runtime nova; ver ADR em `docs/decisions.md`.
+Segunda exceção, também fora de `reflow/`: `refold/` (harness próprio, plano B secundário)
+chama a IAra pela API Anthropic Messages com `urllib`, roda os agents de `.opencode/agents/`
+com ferramentas em sandbox e aplica o contrato das skills em Python (ADR-033). Nunca
+importar `refold` de dentro de `reflow/`.
 
 ## Pipeline alvo
 
@@ -86,6 +90,8 @@ contra o sha256 do `manifest.json`) e `uv run python -m reflow kb show <actionId
 (exemplo, parâmetros, seletores irmãos e erros de uma ação da KB) — scan, lint-robin e
 kb verify são gates: falham de forma restritiva e
 o hook de pre-commit os roda antes de qualquer commit.
+Harness próprio: `uv run python -m refold agents|check|run <agent> <projeto> [--dry-run]`
+(ver ADR-033; só testado com modelo falso até haver acesso à IAra).
 Consulte o estado real em `README.md`; não declare funcionalidades futuras prontas.
 
 ## Segurança
