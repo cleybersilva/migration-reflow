@@ -534,8 +534,8 @@ anterior "em andamento"), reextração que invalida fases posteriores.
 ### **Cleyber Gomes da Silva**
 
 **AI Scientist / SRE Engineer** · TCS × Itaú Unibanco
-**Aluno de MBA em Inteligência Artificial e Big Data** · ICMC / USP
-**Mestrando em Engenharia de Software** · CESAR School · **Educação Sciences** · VCCU
+**MBA em Inteligência Artificial e Big Data (concluído)** · ICMC / USP
+**Mestrando em Engenharia de Software** · CESAR School · **Doutorando em Ciências da Educação** · VCU
 
 📍 João Pessoa, Paraíba, Brasil
 
@@ -549,8 +549,8 @@ anterior "em andamento"), reextração que invalida fases posteriores.
 AI Scientist / SRE Engineer com experiência em ambientes bancários regulados,
 atualmente alocado ao **Itaú Unibanco** via **TCS (Tata Consultancy
 Services)**. Simultaneamente, mestrando em **Engenharia de Software** pela
-**CESAR School** e doutorando em **Ciências da Educação** pela **VCCU (Veni Creator
-Christian University)**, onde também atua como professor, pesquisador e
+**CESAR School** e doutorando em **Ciências da Educação** pela **VCU (Veni Creator
+University)**, onde também atua como professor, pesquisador e
 gestor do VLE (Moodle).
 
 Especialista em **RPA → hyperautomation**, **GitOps**, **Observability** e
@@ -560,10 +560,10 @@ rastreabilidade nem governança — substituindo um prompt monolítico por
 skills e agents especializados, com checkpoint humano obrigatório antes de
 qualquer conversão ir para produção.
 
-**Formação simultânea:**
-- 🎓 MBA em Inteligência Artificial e Big Data — ICMC/USP
-- 🎓 Mestrado em Engenharia de Software — CESAR School
-- 🎓 Doutorado em Ciências da Educação — VCCU
+**Formação:**
+- 🎓 MBA em Inteligência Artificial e Big Data · ICMC/USP (concluído)
+- 🎓 Mestrado em Engenharia de Software · CESAR School (em andamento)
+- 🎓 Doutorado em Ciências da Educação · VCU (em andamento)
 - 🎓 Pós-graduações concorrentes em DevOps, Cloud Architecture, SRE e .NET/Azure
 
 ---
