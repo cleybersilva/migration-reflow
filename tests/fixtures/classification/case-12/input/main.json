@@ -1,0 +1,10 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Window", "commandName": "activate", "attributes": {"title": "Sistema"}},
+    {"packageName": "Recorder", "commandName": "playback", "attributes": {"capture": "tela-1"}},
+    {"packageName": "MouseKeyboard", "commandName": "type", "attributes": {"text": "$valor$"}},
+    {"packageName": "Recorder", "commandName": "playback", "attributes": {"capture": "tela-2"}},
+    {"packageName": "Window", "commandName": "close", "attributes": {"title": "Sistema"}}
+  ]
+}

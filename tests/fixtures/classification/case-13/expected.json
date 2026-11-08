@@ -1,0 +1,7 @@
+{
+  "verdict": "PAD",
+  "accept": [
+    "PARTIAL"
+  ],
+  "why": "Robô Python que só automatiza tela; o extractor não registra UI em Python, então ui_interactions vazio não prova ETL. NOT_PAD aqui é o erro a detectar."
+}

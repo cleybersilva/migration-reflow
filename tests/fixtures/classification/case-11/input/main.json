@@ -1,0 +1,8 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Browser", "commandName": "open", "attributes": {"url": "https://example.invalid/inicio"}},
+    {"packageName": "REST", "commandName": "get", "attributes": {"url": "https://example.invalid/api/saldo"}},
+    {"packageName": "CredentialVault", "commandName": "getCredential", "attributes": {"credential": "synthetic-vault-reference"}}
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "verdict": "PARTIAL",
+  "required_alerts": [
+    "A4"
+  ],
+  "why": "Só uma abertura de página antes de um REST, sem saber se dependem entre si (desempate PARTIAL x NOT_PAD; A4). Documento limitado ao inventário."
+}

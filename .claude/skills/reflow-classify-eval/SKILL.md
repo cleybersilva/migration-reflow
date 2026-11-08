@@ -22,6 +22,9 @@ metadata:
    aplica o gate em cada caso e grava `output/_classification-eval.md`.
 4. `uv run python -m reflow classify-eval clean` depois de registrar o resultado.
 
+`uv run python -m reflow classify-eval labels` imprime a folha de rótulos para o analista,
+com o estado da revisão de cada caso. Não mostre essa saída a um agent do eval.
+
 No `refold`, `uv run python -m refold classify --eval` faz os passos 1 a 3.
 
 ## Regras
@@ -33,6 +36,7 @@ No `refold`, `uv run python -m refold classify --eval` faz os passos 1 a 3.
   score passar. Divergência entre rótulo e agents vai para o analista decidir.
 - Os casos são sintéticos e os rótulos são propostos até um analista revisar. O score mede
   a aplicação da rubrica nesses casos, não prova acerto em robô real.
+- Só um analista grava `reviewed_at` em `expected.json`. Nunca preencha esse campo por ele.
 
 ## O que sobrescreve
 
@@ -40,5 +44,5 @@ No `refold`, `uv run python -m refold classify --eval` faz os passos 1 a 3.
 
 ## Resumo a mostrar
 
-- Resultado, casos corretos, erros críticos (`PAD` x `NOT_PAD`), matriz de confusão e cada
-  caso que falhou com o motivo. Nunca declarar validado com caso pendente ou erro crítico.
+- Resultado, casos corretos, erros críticos (`PAD` x `NOT_PAD`), rótulos revisados, matriz de
+  confusão e cada caso que falhou com o motivo. Nunca declarar validado com caso pendente ou erro crítico.

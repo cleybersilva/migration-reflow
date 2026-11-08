@@ -432,6 +432,7 @@ uv run python -m refold classify <projeto>         # classificador, gate, reviso
 uv run python -m reflow classify-eval prepare      # golden set; os agents rodam em seguida
 uv run python -m reflow classify-eval score        # nota, matriz de confusão, erros críticos
 uv run python -m reflow classify-eval clean
+uv run python -m reflow classify-eval labels       # folha de revisão dos rótulos, para o analista
 ```
 
 - **Gate:** recusa veredito fora do enum exato, casos de uso incoerentes com o veredito,
@@ -440,12 +441,18 @@ uv run python -m reflow classify-eval clean
   revisão de um veredito que já não é o vigente. Roda dentro de `phase-done
   03-classification`, de `checkpoint --approve`, do pre-commit e da CI. Divergência do
   revisor não bloqueia, mas sempre aparece: quem decide é o humano.
-- **Eval:** 10 casos sintéticos de nome neutro, com o rótulo fora do alcance do agent. Passa
+- **Eval:** 16 casos sintéticos de nome neutro, com o rótulo fora do alcance do agent. Passa
   com 90% de acerto e nenhum erro crítico (`PAD` x `NOT_PAD`). Veredito certo com contrato
   quebrado não conta como acerto.
-- **Primeira medição (2026-11-08, Claude Code):** 10/10 corretos, 0 erros críticos, revisor
-  10/10. Mede a aplicação da rubrica nesses casos, cujos rótulos e documentos foram escritos
-  junto com o harness e ainda não passaram por um analista. **Não prova** acerto em robô real.
+- **Medições (2026-11-08, Claude Code, cada caso uma vez):**
+  - Casos 01 a 10: 10/10 corretos, 0 erros críticos, revisor 10/10.
+  - Casos 11 a 16, com documentos limitados ao que o inventário prova: 6/6 corretos, 0 erros
+    críticos, revisor 6/6. Três desses casos aceitam dois vereditos, porque o limite é discutível.
+- **O que isso não prova:** acerto em robô real. Casos, rótulos e documentos foram escritos junto
+  com o harness, e 0 dos 16 rótulos passaram por um analista (`classify-eval labels` gera a
+  folha de revisão). A IAra ainda não foi medida.
+- **Decisões abertas para o analista:** a rubrica não diz o que `N3` (volume incompatível) produz
+  sozinho, e o desempate KISS leva a `PAD` um robô com só 1 de 5 critérios comprovados.
 
 ## 🧱 Como estender
 

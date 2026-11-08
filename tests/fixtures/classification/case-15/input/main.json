@@ -1,0 +1,9 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Window", "commandName": "activate", "attributes": {"title": "Mainframe"}},
+    {"packageName": "Recorder", "commandName": "playback", "attributes": {"capture": "tela-consulta"}},
+    {"packageName": "MouseKeyboard", "commandName": "type", "attributes": {"text": "$contrato$"}},
+    {"packageName": "Window", "commandName": "close", "attributes": {"title": "Mainframe"}}
+  ]
+}

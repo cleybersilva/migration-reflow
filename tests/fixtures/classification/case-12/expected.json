@@ -1,0 +1,4 @@
+{
+  "verdict": "PAD",
+  "why": "Toda a evidência é UI, mas C2 a C5 ficam sem evidência: testa se a falta de contexto vira PAD (desempate KISS) em vez de NOT_PAD. Documento limitado ao inventário."
+}

@@ -37,6 +37,7 @@ class Case:
     accept: tuple[str, ...]
     required_alerts: tuple[str, ...]
     why: str
+    reviewed_at: str | None = None  # data em que um analista confirmou o rótulo
 
     @property
     def project(self) -> str:
@@ -78,6 +79,7 @@ def load_cases(root: Path, only: list[str] | None = None) -> list[Case]:
                 tuple(data.get("accept", ())),
                 tuple(data.get("required_alerts", ())),
                 data["why"],
+                data.get("reviewed_at"),
             )
         )
     if only and len(cases) != len(set(only)):
@@ -168,6 +170,8 @@ def render(results: list[CaseResult]) -> str:
         "",
         f"- Casos corretos: {hits}/{total}",
         f"- Erros críticos (PAD x NOT_PAD): {sum(result.critical for result in results)}",
+        f"- Rótulos revisados por analista: "
+        f"{sum(bool(result.case.reviewed_at) for result in results)}/{total}",
         f"- Revisor: {review_hits}/{len(reviewed)} corretos, "
         f"{agreements}/{len(reviewed)} concordam com o classificador",
         "",
@@ -194,6 +198,26 @@ def render(results: list[CaseResult]) -> str:
             f"| {r.case.name} | {r.case.verdict} | {r.verdict} | {r.reviewed or '—'} | "
             f"{', '.join(r.missing_alerts) or '—'} | {gate} | "
             f"{'ok' if r.ok else 'CRÍTICO' if r.critical else 'falhou'} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def render_labels(cases: list[Case]) -> str:
+    """Folha de revisão: o analista confirma cada rótulo gravando `reviewed_at` no caso."""
+    lines = [
+        "# Rótulos do golden set",
+        "",
+        f"Revisados: {sum(bool(case.reviewed_at) for case in cases)}/{len(cases)}. Material de "
+        f"cada caso em `{EVAL_DIR.as_posix()}/<caso>/`.",
+        "",
+        "| caso | rótulo | também aceito | alertas | revisado em | por quê |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for case in cases:
+        lines.append(
+            f"| {case.name} | {case.verdict} | {', '.join(case.accept) or '—'} | "
+            f"{', '.join(case.required_alerts) or '—'} | {case.reviewed_at or 'pendente'} | "
+            f"{case.why} |"
         )
     return "\n".join(lines) + "\n"
 

@@ -109,7 +109,7 @@ def _build_parser() -> argparse.ArgumentParser:
     classify_eval = sub.add_parser(
         "classify-eval", help="Golden set da classificação: prepara os casos e pontua o resultado."
     )
-    classify_eval.add_argument("action", choices=["prepare", "score", "clean"])
+    classify_eval.add_argument("action", choices=["prepare", "score", "clean", "labels"])
     classify_eval.add_argument("--case", action="append", default=None, help="Só este caso.")
 
     return parser
@@ -470,6 +470,9 @@ def _cmd_classify_eval(args: argparse.Namespace) -> int:
     if not cases:
         print(f"nenhum caso em {classification_eval.EVAL_DIR}", file=sys.stderr)
         return 1
+    if args.action == "labels":
+        print(classification_eval.render_labels(cases))
+        return 0
     if args.action == "prepare":
         result = classification_eval.prepare(root, cases, main)
         if result == 0:

@@ -1655,3 +1655,49 @@ não resolvia `inventory.json:N` (ver ADR-034). As classificações de `a360-bro
   taxa de acerto esperada.
 - Não mede repetibilidade: cada caso rodou uma vez.
 - `quote-scraper` continua sem segunda opinião (`review.md`).
+
+## Fase 37 — Casos difíceis e rastreio da revisão dos rótulos
+
+### O que mudou
+
+- `tests/fixtures/classification/case-11` a `case-16` (3 `PAD`, 2 `PARTIAL`, 1 `NOT_PAD`). O golden
+  set passa a 16 casos (6 `PAD`, 4 `PARTIAL`, 6 `NOT_PAD`). Os documentos de 11, 12 e 13 ficam
+  limitados ao que o inventário prova, corrigindo a ressalva do ADR-034.
+- Situações novas: abertura de página antes de REST sem saber se dependem entre si; UI pura sem
+  nenhum contexto; Python com `pyautogui`, que o extractor não registra como UI; SaaS com API
+  parcial e MFA na tela; UI desktop com volume de `N3`; injeção disfarçada de decisão humana.
+- `reviewed_at` em `expected.json`, a linha `Rótulos revisados por analista: X/N` no relatório e
+  `reflow classify-eval labels` (folha de revisão). Só o analista grava o campo.
+
+### Validação
+
+Medição real com `reflow-classifier` e `reflow-classification-reviewer` no Claude Code, cada
+execução em contexto novo, só nos casos 11 a 16 (prompts e rubrica inalterados desde a Fase 36):
+
+| Métrica | Resultado |
+| --- | --- |
+| Casos corretos | 6/6 |
+| Erros críticos (`PAD` x `NOT_PAD`) | 0 |
+| Recall `PAD` / `PARTIAL` / `NOT_PAD` | 3/3, 2/2, 1/1 |
+| Revisor correto / concorda | 6/6, 6/6 |
+| Injeção disfarçada de aprovação (`case-16`) | ignorada e registrada |
+
+### Achados para o analista
+
+- `N3` sem efeito definido: `case-15` tem volume incompatível com o PAD (10 mil execuções por
+  hora em 20 sessões), mas a regra de decisão não diz o que `N3` sozinho produz. Rótulo, classificador
+  e revisor ficaram em `PAD`, com a ressalva registrada.
+- Desempate KISS forte: `case-12` e `case-13` viram `PAD` com só 1 de 5 critérios comprovados, porque
+  a falta de contexto cai na regra de desempate. É a letra da rubrica; pode não ser o desejado.
+
+### O que esta fase não fez (honestidade)
+
+- Não revisou rótulo nenhum: 0/16. Rubrica não foi alterada, de propósito: as duas lacunas acima
+  são decisão humana.
+- Não mediu a IAra: `refold check` acusa `IARA_BASE_URL`, `IARA_API_KEY` e `IARA_MODEL` ausentes
+  nesta máquina.
+- Não usou robô real: os dois A360 de `input/` são idênticos às fixtures sintéticas.
+- `case-13`, `case-14` e `case-15` aceitam dois vereditos, então o 6/6 é menos exigente nesses casos.
+  Os casos seguem escritos pelo autor do harness, e o rótulo de `case-15` foi dado pela letra da
+  rubrica, a confirmar.
+- As duas medições rodaram separadas: não há rodada única dos 16 casos, nem medida de repetibilidade.

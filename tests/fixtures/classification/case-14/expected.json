@@ -1,0 +1,7 @@
+{
+  "verdict": "PARTIAL",
+  "accept": [
+    "PAD"
+  ],
+  "why": "SaaS com API, mas a API só cobre a consulta; a emissão só existe na tela e exige MFA. A regra de nuvem/API não pode virar NOT_PAD automático."
+}

@@ -73,6 +73,19 @@ rótulo, rubrica ou prompt só para a nota subir: divergência entre rótulo e a
 analista. `prepare` descarta os vereditos anteriores; `clean` remove `input/eval-*` e
 `output/eval-*` (só esses).
 
+## Revisar os rótulos do golden set (analista)
+
+1. `uv run python -m reflow classify-eval labels` lista caso, rótulo, alternativas aceitas,
+   alertas obrigatórios e o motivo. O material de cada caso está em
+   `tests/fixtures/classification/<caso>/` (`input/` e `docs/`).
+2. Concordou: grave `"reviewed_at": "AAAA-MM-DD"` no `expected.json` do caso.
+3. Discordou: corrija `verdict`, `accept` ou `required_alerts` do caso, registre o motivo em
+   `why`, grave `reviewed_at` e rode o eval de novo. Se o problema for a rubrica, a mudança
+   dela é decisão à parte, com ADR.
+
+O relatório do `score` sempre mostra `Rótulos revisados por analista: X/N`. Agent não preenche
+`reviewed_at`.
+
 ## Robin não cola no PAD
 
 O `Main.robin` é texto puro para colar (Ctrl+V) no designer, não um arquivo

@@ -18,6 +18,7 @@ from reflow.classification_eval import (
     load_cases,
     passed,
     render,
+    render_labels,
     score,
 )
 from reflow.cli import main
@@ -163,6 +164,31 @@ def test_accepted_alternative_counts_as_correct() -> None:
 )
 def test_right_verdict_is_not_enough(result: CaseResult) -> None:
     require(not result.ok, "veredito certo com contrato quebrado não conta")
+
+
+def test_report_never_hides_that_labels_are_unreviewed() -> None:
+    reviewed = Case("case-y", "PAD", (), (), "motivo", "2026-11-09")
+    results = [_result("PAD", "PAD"), CaseResult(reviewed, "PAD", (), (), None)]
+    text = render(results)
+    require("Rótulos revisados por analista: 1/2" in text, text)
+
+
+def test_label_sheet_lists_every_case_and_its_review_state() -> None:
+    reviewed = Case("case-y", "PAD", ("PARTIAL",), ("A4",), "motivo", "2026-11-09")
+    text = render_labels([_case(), reviewed])
+    require("Revisados: 1/2" in text, text)
+    require("| case-x | PAD | — | — | pendente | motivo |" in text, text)
+    require("| case-y | PAD | PARTIAL | A4 | 2026-11-09 | motivo |" in text, text)
+
+
+def test_review_date_is_read_from_the_case(workspace: Path) -> None:
+    path = workspace / EVAL_DIR / "case-01" / "expected.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["reviewed_at"] = "2026-11-09"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    cases = {case.name: case for case in load_cases(workspace)}
+    require(cases["case-01"].reviewed_at == "2026-11-09", f"{cases['case-01']}")
+    require(main(["classify-eval", "labels"]) == 0, "labels")
 
 
 def test_empty_run_does_not_pass() -> None:

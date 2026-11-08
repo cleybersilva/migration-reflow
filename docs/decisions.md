@@ -1381,3 +1381,13 @@ mudaram.
 - O revisor lê o veredito original por contrato, então os 10/10 de concordância não são
   evidência independente de acerto.
 - `refold classify` só foi testado com modelo falso. A IAra não foi medida.
+
+### Adendo (Fase 37): casos difíceis e revisão dos rótulos
+
+- Rótulo é hipótese até um analista confirmar. `reviewed_at` no `expected.json` registra isso e o
+  relatório sempre mostra quantos foram revisados, para a nota não parecer mais forte do que é.
+- A rubrica não foi mudada ao surgirem duas lacunas (efeito de `N3` sozinho e desempate KISS com
+  quase nenhuma evidência). Mudar a regra e o rótulo para o eval concordar anularia a medição; a
+  decisão é do analista e, se mudar a rubrica, entra em ADR próprio com nova medição.
+- Os casos 11 a 16 foram medidos à parte, porque prompts e rubrica não mudaram. Qualquer mudança
+  neles exige rodar os 16 casos.

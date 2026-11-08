@@ -1,0 +1,7 @@
+{
+  "verdict": "PAD",
+  "accept": [
+    "PARTIAL"
+  ],
+  "why": "UI desktop sem API, porém com volume e paralelismo incompatíveis com PAD (N3). A regra de decisão da rubrica não diz o que N3 sozinho produz: rótulo pela letra, a confirmar com o analista."
+}

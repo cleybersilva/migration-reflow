@@ -92,8 +92,9 @@ kb verify são gates: falham de forma restritiva e
 o hook de pre-commit os roda antes de qualquer commit.
 Gate da classificação: `uv run python -m reflow classify-check [<projeto>|--all]` (também
 roda dentro de `phase-done 03-classification`, de `checkpoint --approve` e do pre-commit).
-Eval: `uv run python -m reflow classify-eval prepare|score|clean [--case <caso>]` sobre o
-golden set sintético de `tests/fixtures/classification/` (ver ADR-034).
+Eval: `uv run python -m reflow classify-eval prepare|score|clean|labels [--case <caso>]` sobre
+o golden set sintético de `tests/fixtures/classification/` (ver ADR-034). `reviewed_at` em
+`expected.json` é só do analista: agent nenhum preenche.
 Harness próprio: `uv run python -m refold agents|check|run <agent> <projeto> [--dry-run]`
 e `uv run python -m refold classify <projeto>|--eval`
 (ver ADR-033; só testado com modelo falso até haver acesso à IAra).

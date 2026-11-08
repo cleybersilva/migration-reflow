@@ -1,0 +1,10 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "REST", "commandName": "get", "attributes": {"url": "https://example.invalid/api/pendencias"}},
+    {"packageName": "Browser", "commandName": "open", "attributes": {"url": "https://example.invalid/emissao"}},
+    {"packageName": "MouseKeyboard", "commandName": "type", "attributes": {"text": "$pendencia$"}},
+    {"packageName": "Browser", "commandName": "click", "attributes": {"selector": "#emitir"}},
+    {"packageName": "Browser", "commandName": "close", "attributes": {}}
+  ]
+}
