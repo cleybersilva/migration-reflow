@@ -1,8 +1,8 @@
 # Rubrica de classificação: PAD | PARTIAL | NOT_PAD
 
 Esta rubrica é aplicada pela skill `reflow-classify` / agent `reflow-classifier`
-(Fase 6, ainda não implementado) sobre `01-inventory/inventory.json` e `02-docs/`.
-Até lá, é a referência que um analista humano usa pra decidir à mão.
+sobre `01-inventory/inventory.json` e `02-docs/`. O contrato da saída é conferido
+por `reflow classify-check`; a qualidade do veredito, por `reflow classify-eval`.
 
 **Regra KISS:** na dúvida entre `PAD` e `PARTIAL`, escolha `PAD` — é mais fácil o
 analista cortar escopo depois do que o pipeline parar sem converter nada. Na dúvida

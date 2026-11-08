@@ -1,0 +1,12 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Browser", "commandName": "open", "attributes": {"url": "https://example.invalid/portal"}},
+    {"packageName": "CredentialVault", "commandName": "getCredential", "attributes": {"credential": "synthetic-vault-reference"}},
+    {"packageName": "MouseKeyboard", "commandName": "type", "attributes": {"text": "$usuario$"}},
+    {"packageName": "Browser", "commandName": "click", "attributes": {"selector": "#entrar"}},
+    {"packageName": "Browser", "commandName": "click", "attributes": {"selector": "#emitir"}},
+    {"packageName": "Recorder", "commandName": "playback", "attributes": {"capture": "guia-emitida"}},
+    {"packageName": "Browser", "commandName": "close", "attributes": {}}
+  ]
+}

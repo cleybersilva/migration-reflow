@@ -26,12 +26,15 @@ class Stage:
     phase: str | None  # fase fechada com `reflow phase-done` (None = revisão/curadoria)
     robin: bool = False  # gera Main.robin: normaliza CRLF e passa no lint-robin
     needs_checkpoint: bool = False
+    classification_gate: bool = False  # sem phase-done: o gate roda aqui
 
 
 STAGES = {
     "reflow-documenter": Stage("01-inventory/inventory.json", "02-docs"),
     "reflow-classifier": Stage("02-docs/*.md", "03-classification"),
-    "reflow-classification-reviewer": Stage("03-classification/classification.md", None),
+    "reflow-classification-reviewer": Stage(
+        "03-classification/classification.md", None, classification_gate=True
+    ),
     "reflow-pad-converter": Stage(
         "03-classification/classification.md", "04-pad", robin=True, needs_checkpoint=True
     ),
@@ -104,6 +107,8 @@ def close(
             return ["fix-robin-eol falhou; fase não fechada"]
         if run_cli(["lint-robin", project]) != 0:
             return ["lint-robin reprovou o Main.robin; fase não fechada"]
+    if stage.classification_gate and run_cli(["classify-check", project]) != 0:
+        return ["classify-check reprovou a revisão; ver mensagens acima"]
     if stage.phase and run_cli(["phase-done", project, stage.phase]) != 0:
         return [f"phase-done {stage.phase} recusou; ver mensagem acima"]
     return []

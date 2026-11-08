@@ -1,0 +1,10 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Browser", "commandName": "open", "attributes": {"url": "https://example.invalid/crm"}},
+    {"packageName": "MouseKeyboard", "commandName": "type", "attributes": {"text": "$cliente$"}},
+    {"packageName": "Browser", "commandName": "click", "attributes": {"selector": "#novo"}},
+    {"packageName": "Browser", "commandName": "click", "attributes": {"selector": "#salvar"}},
+    {"packageName": "Browser", "commandName": "close", "attributes": {}}
+  ]
+}

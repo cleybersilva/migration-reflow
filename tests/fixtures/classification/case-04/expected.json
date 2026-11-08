@@ -1,0 +1,7 @@
+{
+  "verdict": "NOT_PAD",
+  "required_alerts": [
+    "A4"
+  ],
+  "why": "Banco para API documentada com credencial de serviço, sem UI (N1, N4; A4)."
+}

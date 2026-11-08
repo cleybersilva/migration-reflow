@@ -1,0 +1,10 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Database", "commandName": "connect", "attributes": {"connection": "synthetic-reference"}},
+    {"packageName": "Database", "commandName": "query", "attributes": {"statement": "SELECT id FROM titulos"}},
+    {"packageName": "CSV", "commandName": "write", "attributes": {"file": "titulos.csv"}},
+    {"packageName": "CredentialVault", "commandName": "get", "attributes": {"credential": "synthetic-vault-reference"}},
+    {"packageName": "REST", "commandName": "post", "attributes": {"url": "https://example.invalid/api/titulos"}}
+  ]
+}

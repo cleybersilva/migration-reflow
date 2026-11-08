@@ -1,0 +1,7 @@
+{
+  "verdict": "PAD",
+  "required_alerts": [
+    "A2"
+  ],
+  "why": "UI desktop pura, sem API, com coordenadas fixas (C1, C2, C3, C4; A2)."
+}

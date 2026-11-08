@@ -1329,3 +1329,55 @@ coerente com o proxy que hoje aponta o Claude Code para a IAra.
   modelo falsos. O formato exato aceito pelo proxy da IAra só se confirma lá dentro.
 - Não orquestra o pipeline inteiro (o papel da skill `reflow`): roda um agent por vez.
 - Não substitui o checkpoint humano nem grava PASS/FAIL.
+
+## ADR-034: harness de classificação (gate determinístico e golden set)
+
+**Data:** 2026-11-08. **Status:** aceito (medido só no Claude Code, rótulos sem revisão humana).
+
+### Contexto
+
+O veredito decide se um robô vai ou não para o PAD, e até aqui nada conferia a saída do
+`reflow-classifier`: `phase-done` só olhava a existência do arquivo, e `checkpoint --approve`
+aceitava um stub. Em particular, `report.read_verdict` lê as aspas junto, então
+`verdict: "NOT_PAD"` passava pelo bloqueio de `NOT_PAD`. Também não havia como medir se uma
+mudança de rubrica, prompt ou modelo piora a classificação.
+
+### Decisão
+
+- `reflow/classification.py` (stdlib, sem LLM): gate de contrato, evidência e coerência com o
+  inventário. Erro bloqueia; aviso informa. Fica dentro de `phase-done 03-classification` e
+  `checkpoint --approve`, por onde todo harness já passa, sem depender de a skill lembrar.
+  `classify-check --all` entra no pre-commit e na CI.
+- Evidência em A360 é conferida contra os fatos do inventário, porque a linha é o índice do
+  nó. Legado real não é versionado: sem o arquivo local, vale a presença em `files`.
+- Divergência do revisor nunca bloqueia (ADR-014): vira aviso visível no `--approve`. Revisão
+  de outro veredito bloqueia, porque não é segunda opinião sobre o que está sendo aprovado.
+- `reflow/classification_eval.py`: `prepare`/`score`/`clean` sobre
+  `tests/fixtures/classification/`. O Python não chama LLM; qualquer harness roda os agents
+  entre `prepare` e `score`. Rótulo cego: `expected.json` nunca é copiado, os nomes são
+  neutros e um teste falha se o material do caso vazar o rótulo.
+- Critério de aprovação: 90% dos casos corretos e nenhum erro crítico (`PAD` x `NOT_PAD`).
+  Caso correto exige veredito, alertas obrigatórios e gate. O limite de 90% é um valor inicial,
+  não calibrado.
+- `refold classify <projeto>|--eval`: classificador e revisor em execuções isoladas; gate
+  reprovado para antes do revisor. Skill `reflow-classify-eval` nos três harnesses.
+
+### Ajuste feito depois de ver o resultado
+
+Na primeira medição, 4 dos 10 casos reprovaram com vereditos certos porque o gate não resolvia
+`inventory.json:N` sem a pasta. Era falso positivo do gate (a mesma forma curta já valia para
+`risks.md:N`): `01-inventory/` entrou na busca, mantendo a checagem de limite de linha, com
+teste próprio. Os classificadores não foram rodados de novo; rótulos, rubrica e prompts não
+mudaram.
+
+### O que isto não faz
+
+- Não prova acerto em robô real. Os casos, os rótulos e os documentos foram escritos pelo mesmo
+  autor do harness e ainda precisam de revisão de um analista. Os `02-docs/` dos casos trazem
+  fatos de contexto (API existente, SaaS) que um documentador real, limitado ao inventário,
+  raramente tem: em produção esses critérios tendem a ficar "sem evidência".
+- O gate prova que a citação existe, não que sustenta a afirmação. Continuações sem arquivo
+  (`:51-58`) não são conferidas.
+- O revisor lê o veredito original por contrato, então os 10/10 de concordância não são
+  evidência independente de acerto.
+- `refold classify` só foi testado com modelo falso. A IAra não foi medida.

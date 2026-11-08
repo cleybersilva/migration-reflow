@@ -1,0 +1,11 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Window", "commandName": "activate", "attributes": {"title": "ERP Estoque"}},
+    {"packageName": "MouseKeyboard", "commandName": "click", "attributes": {"x": "412", "y": "233"}},
+    {"packageName": "MouseKeyboard", "commandName": "type", "attributes": {"text": "$codigoItem$"}},
+    {"packageName": "Recorder", "commandName": "playback", "attributes": {"capture": "tela-baixa"}},
+    {"packageName": "MouseKeyboard", "commandName": "click", "attributes": {"x": "880", "y": "640"}},
+    {"packageName": "Window", "commandName": "close", "attributes": {"title": "ERP Estoque"}}
+  ]
+}

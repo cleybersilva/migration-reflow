@@ -36,6 +36,12 @@ Isto **não substitui** o checkpoint humano — é informação extra para o
 analista decidir com mais segurança. Se `agreement: diverge`, isso **tem**
 que aparecer com destaque no checkpoint antes de qualquer "ok".
 
+## Conferência ao final
+
+Depois que o agent gravar, rode `uv run python -m reflow classify-check <projeto>`.
+Erro (por exemplo, revisão de um veredito que já não é o vigente) precisa ser
+resolvido: `reflow checkpoint --approve` recusa enquanto o gate reprovar.
+
 ## Agent chamado
 
 - `reflow-classification-reviewer`.

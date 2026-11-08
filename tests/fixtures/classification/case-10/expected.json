@@ -1,0 +1,7 @@
+{
+  "verdict": "NOT_PAD",
+  "required_alerts": [
+    "A5"
+  ],
+  "why": "Console .NET estável, arquivo para API, sem UI, DLL compartilhada (N1, N4, N5; A5)."
+}

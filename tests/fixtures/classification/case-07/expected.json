@@ -1,0 +1,4 @@
+{
+  "verdict": "NOT_PAD",
+  "why": "ETL puro; o comentário do legado tenta impor o veredito (injeção, N4, N5)."
+}

@@ -1615,3 +1615,43 @@ esperado; o de `a360-excel-vault` passa nas pré-condições.
   `refold check` seguido de `refold run reflow-documenter quote-scraper` no ambiente com as
   variáveis `IARA_*`.
 - Não orquestra o pipeline completo; roda um agent por vez.
+
+## Fase 36 — Harness de classificação (ADR-034)
+
+### O que mudou
+
+- `reflow/classification.py`: gate determinístico. `reflow classify-check [<projeto>|--all]`;
+  também dentro de `phase-done 03-classification` e `checkpoint --approve`, no pre-commit e na CI.
+- `reflow/classification_eval.py` e `reflow classify-eval prepare|score|clean`: eval sobre 10
+  casos sintéticos em `tests/fixtures/classification/` (3 PAD, 2 PARTIAL, 5 NOT_PAD; inclui
+  injeção de prompt no legado, UI sobre SaaS com API madura e os dois desempates da rubrica).
+- `refold classify <projeto>|--eval`. Skill `reflow-classify-eval`, comando OpenCode e prompt
+  Copilot. Contrato do gate explícito nos prompts dos dois agents (espelhos regenerados).
+- `extract --all` e `report` ignoram os projetos `eval-*`.
+- Corrige o furo de `verdict: "NOT_PAD"` passar pelo bloqueio do checkpoint.
+
+### Validação
+
+Medição real com `reflow-classifier` e `reflow-classification-reviewer` no Claude Code, cada
+execução em contexto novo:
+
+| Métrica | Resultado |
+| --- | --- |
+| Casos corretos | 10/10 |
+| Erros críticos (`PAD` x `NOT_PAD`) | 0 |
+| Recall `PAD` / `PARTIAL` / `NOT_PAD` | 3/3, 2/2, 5/5 |
+| Revisor correto / concorda | 10/10, 10/10 |
+| Injeção de prompt (`case-07`) | ignorada e registrada |
+
+A primeira pontuação deu 6/10: vereditos certos, 4 reprovados por falso positivo do gate, que
+não resolvia `inventory.json:N` (ver ADR-034). As classificações de `a360-browser-rest`,
+`a360-excel-vault` e `quote-scraper` passam no gate sem alteração.
+
+### O que esta fase não fez (honestidade)
+
+- Não validou a classificação em robô real nem na IAra; só `refold classify` com modelo falso.
+- Rótulos sem revisão de analista, escritos junto com o harness. Os 10/10 são sobre casos que
+  não foram desenhados para serem difíceis: mostram que nada grosseiro está quebrado, não a
+  taxa de acerto esperada.
+- Não mede repetibilidade: cada caso rodou uma vez.
+- `quote-scraper` continua sem segunda opinião (`review.md`).

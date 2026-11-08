@@ -14,3 +14,7 @@ if ! uv run python -m reflow lint-robin --all; then
     echo 'Commit bloqueado: validação Robin falhou ou ainda não está disponível.' >&2
     exit 1
 fi
+if ! uv run python -m reflow classify-check --all; then
+    echo 'Commit bloqueado: classificacao ou revisao reprovada no gate.' >&2
+    exit 1
+fi

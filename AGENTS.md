@@ -90,7 +90,12 @@ contra o sha256 do `manifest.json`) e `uv run python -m reflow kb show <actionId
 (exemplo, parâmetros, seletores irmãos e erros de uma ação da KB) — scan, lint-robin e
 kb verify são gates: falham de forma restritiva e
 o hook de pre-commit os roda antes de qualquer commit.
+Gate da classificação: `uv run python -m reflow classify-check [<projeto>|--all]` (também
+roda dentro de `phase-done 03-classification`, de `checkpoint --approve` e do pre-commit).
+Eval: `uv run python -m reflow classify-eval prepare|score|clean [--case <caso>]` sobre o
+golden set sintético de `tests/fixtures/classification/` (ver ADR-034).
 Harness próprio: `uv run python -m refold agents|check|run <agent> <projeto> [--dry-run]`
+e `uv run python -m refold classify <projeto>|--eval`
 (ver ADR-033; só testado com modelo falso até haver acesso à IAra).
 Consulte o estado real em `README.md`; não declare funcionalidades futuras prontas.
 

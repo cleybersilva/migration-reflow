@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from reflow.cli import main
+from tests.classification_support import classification_text, review_text
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -34,7 +35,7 @@ def _classify(workspace: Path, verdict: str = "PAD") -> None:
     folder = workspace / "output" / "quote-scraper" / "03-classification"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "classification.md").write_text(
-        f"---\nverdict: {verdict}\n---\n\n# Classificação\n",
+        classification_text(verdict),
         encoding="utf-8",
     )
 
@@ -181,3 +182,51 @@ def test_status_without_a_manifest_is_an_error(workspace: Path) -> None:
         main(["checkpoint", "quote-scraper", "--status"]) == 1,
         "Sem extract não há manifesto — falhar de forma restritiva.",
     )
+
+
+def _write_classification(workspace: Path, name: str, text: str) -> None:
+    folder = workspace / "output" / "quote-scraper" / "03-classification"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / name).write_text(text, encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '---\nverdict: "NOT_PAD"\n---\n',
+        "---\nverdict: PAD\n---\n\n# Sem evidência nem critérios\n",
+        classification_text("PAD", evidence="main.py:999"),
+    ],
+    ids=["not-pad-com-aspas", "stub", "evidencia-inventada"],
+)
+def test_approve_is_refused_when_the_classification_fails_the_gate(
+    workspace: Path, text: str
+) -> None:
+    require(main(["extract", "quote-scraper"]) == 0, "extract deveria concluir sem erro.")
+    _write_classification(workspace, "classification.md", text)
+    require(main(["checkpoint", "quote-scraper", "--approve"]) == 1, "approve deveria recusar.")
+    require(_manifest(workspace)["checkpoint"] is None, "Recusa não grava decisão.")
+
+
+def test_approve_is_refused_on_a_review_of_another_verdict(workspace: Path) -> None:
+    require(main(["extract", "quote-scraper"]) == 0, "extract deveria concluir sem erro.")
+    _write_classification(workspace, "classification.md", classification_text("PAD"))
+    _write_classification(workspace, "review.md", review_text("PARTIAL", "PARTIAL"))
+    require(main(["checkpoint", "quote-scraper", "--approve"]) == 1, "revisão desatualizada.")
+
+
+def test_divergence_shows_up_on_approve_without_blocking_the_human(
+    workspace: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    require(main(["extract", "quote-scraper"]) == 0, "extract deveria concluir sem erro.")
+    _write_classification(workspace, "classification.md", classification_text("PAD"))
+    review = review_text("PAD", "PARTIAL", "diverge", extra="\n## Por que divirjo\n")
+    _write_classification(workspace, "review.md", review)
+    require(main(["checkpoint", "quote-scraper", "--approve"]) == 0, "quem decide é o humano.")
+    require("DIVERGÊNCIA" in capsys.readouterr().err, "Divergência tem que aparecer.")
+
+
+def test_reject_does_not_depend_on_the_gate(workspace: Path) -> None:
+    require(main(["extract", "quote-scraper"]) == 0, "extract deveria concluir sem erro.")
+    _write_classification(workspace, "classification.md", "qualquer coisa\n")
+    require(main(["checkpoint", "quote-scraper", "--reject"]) == 0, "rejeitar é sempre possível.")

@@ -11,7 +11,15 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import __version__
+from . import __version__, classification_eval
+from .classification import (
+    EVAL_PREFIX,
+    Issue,
+    check_classification,
+    check_project,
+    classified_projects,
+    errors,
+)
 from .extractors import detect_extractor
 from .fs import LockError, project_lock, write_json_atomic
 from .inventory import Inventory
@@ -90,6 +98,19 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     phase_done.add_argument("project", help="Projeto em input/<projeto>.")
     phase_done.add_argument("phase", choices=STALE_PHASES)
+
+    classify_check = sub.add_parser(
+        "classify-check",
+        help="Gate da classificação: contrato, evidência e coerência com o inventário.",
+    )
+    classify_check.add_argument("project", nargs="?", default=None)
+    classify_check.add_argument("--all", action="store_true")
+
+    classify_eval = sub.add_parser(
+        "classify-eval", help="Golden set da classificação: prepara os casos e pontua o resultado."
+    )
+    classify_eval.add_argument("action", choices=["prepare", "score", "clean"])
+    classify_eval.add_argument("--case", action="append", default=None, help="Só este caso.")
 
     return parser
 
@@ -198,7 +219,9 @@ def _extract_all(root: Path) -> int:
     if not input_dir.is_dir():
         print("pasta input/ não encontrada", file=sys.stderr)
         return 1
-    names = sorted(p.name for p in input_dir.iterdir() if p.is_dir())
+    names = sorted(
+        p.name for p in input_dir.iterdir() if p.is_dir() and not p.name.startswith(EVAL_PREFIX)
+    )
     exit_code = 0
     failures: list[str] = []
     for name in names:
@@ -323,6 +346,9 @@ def _cmd_checkpoint(args: argparse.Namespace) -> int:
     if decision == "approved" and verdict == "NOT_PAD":
         print(f"{name}: veredito NOT_PAD não tem conversão para aprovar.", file=sys.stderr)
         return 1
+    if decision == "approved" and _print_issues(check_project(root, name)):
+        print(f"{name}: aprovação recusada, a classificação não passou no gate.", file=sys.stderr)
+        return 1
 
     manifest["checkpoint"] = {
         "classification_sha256": hashlib.sha256(classification.read_bytes()).hexdigest(),
@@ -389,6 +415,9 @@ def _cmd_phase_done(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
+    if phase == "03-classification" and _print_issues(check_classification(root, name)):
+        print(f"{name}: {phase} não fechada, a classificação não passou no gate.", file=sys.stderr)
+        return 1
 
     later = STALE_PHASES[STALE_PHASES.index(phase) + 1 :]
     # Manifesto antigo marcava até fase que nunca rodou: só sobrevive o que existe.
@@ -405,6 +434,54 @@ def _cmd_phase_done(args: argparse.Namespace) -> int:
     pending = ", ".join(manifest["stale_phases"]) or "nenhuma"
     print(f"{name}: {phase} em dia; fases desatualizadas: {pending}.")
     return 0
+
+
+def _print_issues(issues: list[Issue]) -> bool:
+    """Imprime os achados do gate; True se algum bloqueia."""
+    for issue in issues:
+        print(f"[{issue.level}] {issue.file}: {issue.message}", file=sys.stderr)
+    return bool(errors(issues))
+
+
+def _cmd_classify_check(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    if args.all:
+        projects = classified_projects(root)
+    elif args.project and _valid_project_name(args.project):
+        projects = [args.project]
+    else:
+        print(f"nome de projeto inválido: {args.project}", file=sys.stderr)
+        return 1
+    failed = [name for name in projects if _print_issues(check_project(root, name))]
+    if failed:
+        print(f"classify-check falhou: {', '.join(failed)}.", file=sys.stderr)
+        return 2
+    print(f"classify-check ok: {len(projects)} projeto(s).")
+    return 0
+
+
+def _cmd_classify_eval(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    try:
+        cases = classification_eval.load_cases(root, args.case)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if not cases:
+        print(f"nenhum caso em {classification_eval.EVAL_DIR}", file=sys.stderr)
+        return 1
+    if args.action == "prepare":
+        result = classification_eval.prepare(root, cases, main)
+        if result == 0:
+            print(f"{len(cases)} caso(s) prontos: " + ", ".join(c.project for c in cases))
+        return result
+    if args.action == "clean":
+        classification_eval.clean(root, cases)
+        print(f"{len(cases)} caso(s) removidos de input/ e output/.")
+        return 0
+    approved, text = classification_eval.score(root, cases)
+    print(text)
+    return 0 if approved else 1
 
 
 def _report_findings(findings: list[Finding], command: str) -> None:
@@ -499,6 +576,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "report":
         return _cmd_report()
+
+    if args.command == "classify-check":
+        return _cmd_classify_check(args)
+
+    if args.command == "classify-eval":
+        return _cmd_classify_eval(args)
 
     if args.command == "kb":
         return _cmd_kb(args)

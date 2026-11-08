@@ -11,6 +11,7 @@ import json
 import re
 from pathlib import Path
 
+from .classification import EVAL_PREFIX
 from .robin.whitelist import load_whitelist
 
 _ACTION_REFERENCE_RE = re.compile(r"^-\s*`([^`]+)`", re.MULTILINE)
@@ -81,7 +82,9 @@ def build_batch_report(root: Path) -> str:
     output_dir = root / "output"
     rows: list[str] = []
     if output_dir.is_dir():
-        for project_dir in sorted(p for p in output_dir.iterdir() if p.is_dir()):
+        for project_dir in sorted(
+            p for p in output_dir.iterdir() if p.is_dir() and not p.name.startswith(EVAL_PREFIX)
+        ):
             manifest = _read_manifest(project_dir)
             if manifest is None:
                 continue

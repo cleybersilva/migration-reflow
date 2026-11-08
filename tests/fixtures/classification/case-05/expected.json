@@ -1,0 +1,7 @@
+{
+  "verdict": "PARTIAL",
+  "required_alerts": [
+    "A4"
+  ],
+  "why": "Uma parte é UI desktop sem API, outra é ETL com API documentada (regra 3; A4)."
+}

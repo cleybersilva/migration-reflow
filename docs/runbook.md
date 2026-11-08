@@ -53,6 +53,26 @@ uv run python -m refold run <agent> <projeto>
   `.refold-runs/` (turnos e ferramentas, sem conteúdo) e rode de novo; nenhuma fase é
   fechada nesse caso.
 
+## Classificação recusada pelo gate
+
+`reflow classify-check <projeto>` lista cada problema; `phase-done 03-classification` e
+`checkpoint --approve` recusam enquanto houver `[erro]` (ADR-034).
+
+- `verdict inválido`: um de `PAD`, `PARTIAL`, `NOT_PAD`, sem aspas nem comentário.
+- `evidência ...: nó não existe no inventário`: em A360 a linha é o campo `line` do fato no
+  inventário, não a linha física do JSON.
+- `desatualizada`: o veredito mudou depois da revisão; rode `reflow-classify-review`.
+- `[aviso] DIVERGÊNCIA`: não bloqueia, mas leia o `review.md` antes de aprovar.
+- Não edite o artefato à mão para passar: chame o agent de novo apontando o erro.
+
+## Eval da classificação reprovado
+
+Rode depois de mudar a rubrica, um prompt de classificação ou o modelo (skill
+`reflow-classify-eval`). Veja os casos em `output/_classification-eval.md`. Não ajuste
+rótulo, rubrica ou prompt só para a nota subir: divergência entre rótulo e agents vai para o
+analista. `prepare` descarta os vereditos anteriores; `clean` remove `input/eval-*` e
+`output/eval-*` (só esses).
+
 ## Robin não cola no PAD
 
 O `Main.robin` é texto puro para colar (Ctrl+V) no designer, não um arquivo

@@ -1,0 +1,12 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Excel", "commandName": "read", "attributes": {"range": "A1:B30"}},
+    {"packageName": "Window", "commandName": "activate", "attributes": {"title": "Faturamento"}},
+    {"packageName": "Recorder", "commandName": "playback", "attributes": {"capture": "tela-nota"}},
+    {"packageName": "MouseKeyboard", "commandName": "type", "attributes": {"text": "$nota$"}},
+    {"packageName": "MouseKeyboard", "commandName": "type", "attributes": {"text": "$valor$"}},
+    {"packageName": "Recorder", "commandName": "playback", "attributes": {"capture": "tela-confirma"}},
+    {"packageName": "Window", "commandName": "close", "attributes": {"title": "Faturamento"}}
+  ]
+}

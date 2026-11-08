@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-07T16:59:34+00:00",
+  "generatedAt": "2026-11-08T19:53:44+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -23,6 +23,27 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Harness de classificacao- gate deterministico e golden set (ADR-034)",
+      "title": "Harness de classificacao: gate deterministico e golden set (ADR-034)",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-08",
+      "hora": "12:00 -03:00",
+      "atividade": "Harness de classificacao com gate deterministico, golden set sintetico e refold classify",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "# Harness de classificacao: gate deterministico e golden set (ADR-034)\n\n## O que foi modificado\n\n| Arquivo | Mudança | Tipo |\n| --- | --- | --- |\n| `reflow/classification.py` | gate de contrato, evidência e coerência com o inventário | novo |\n| `reflow/classification_eval.py` | prepare, score e clean do golden set | novo |\n| `reflow/cli.py` | `classify-check`, `classify-eval`, gate em `phase-done 03-classification` e `checkpoint --approve` | alteração |\n| `refold/cli.py`, `refold/pipeline.py` | `refold classify <projeto>/--eval`; gate no fechamento do revisor | alteração |\n| `tests/fixtures/classification/` | 10 casos sintéticos com rótulo cego | novo |\n| skill, comando OpenCode, prompt Copilot `reflow-classify-eval` | paridade dos três harnesses | novo |\n| `.githooks/pre-commit`, `ci.yml` | `classify-check --all` como gate | alteração |\n\n## O que foi implantado\n\n- Suíte: 429 testes verdes; ruff, scan, kb verify, lint-robin e classify-check ok.\n- Medição real no Claude Code, com reflow-classifier e reflow-classification-reviewer: 10/10 corretos, 0 erros críticos, revisor 10/10.\n- As classificações dos 3 projetos existentes passam no gate sem alteração.\n\n## Benefícios para o projeto\n\n- Stub de classificação não fecha fase nem é aprovado no checkpoint.\n- Evidência inventada é recusada (em A360, conferida contra o nó do inventário).\n- Mudança de rubrica, prompt ou modelo agora tem medição de regressão.\n\n## Causa raiz / motivo\n\n`report.read_verdict` lê as aspas junto: `verdict: \"NOT_PAD\"` passava pelo bloqueio do checkpoint. E nada conferia a saída do classificador além da existência do arquivo.\n\n## Como reverter\n\nReverter o commit da Fase 36. Saídas do eval ficam em `input/eval-*` e `output/eval-*`, fora do Git (`reflow classify-eval clean`).\n\n## Pendências\n\n- Analista revisar os rótulos do golden set; acrescentar casos difíceis e derivados de robôs reais mascarados.\n- Medir na IAra: `refold classify` só rodou com modelo falso.\n- Primeira pontuação deu 6/10 por falso positivo do gate em `inventory.json:N`; corrigido depois de ver o resultado, registrado no ADR-034. Os 10/10 não são taxa de acerto esperada em robô real.\n- Gate não confere continuações de citação sem arquivo (`:51-58`). `quote-scraper` segue sem `review.md`."
+    },
     {
       "id": "projects/migration-reflow/README do migration-reflow com a formação do autor atualizada",
       "title": "README do migration-reflow com a formação do autor atualizada",

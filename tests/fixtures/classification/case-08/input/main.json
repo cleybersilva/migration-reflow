@@ -1,0 +1,10 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Excel", "commandName": "open", "attributes": {"file": "pedidos.xlsx"}},
+    {"packageName": "Excel", "commandName": "read", "attributes": {"range": "A1:C20"}},
+    {"packageName": "REST", "commandName": "post", "attributes": {"url": "https://example.invalid/api/pedidos"}},
+    {"packageName": "CustomPackage", "commandName": "transform", "attributes": {"mode": "synthetic"}},
+    {"packageName": "Browser", "commandName": "unmappedAction", "attributes": {"target": "synthetic"}}
+  ]
+}

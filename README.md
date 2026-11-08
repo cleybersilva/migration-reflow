@@ -169,6 +169,7 @@ entra): [`docs/architecture.md`](docs/architecture.md).
 | 2 | `reflow-document` | `reflow-documenter` | `02-docs/` (inclui `architecture.md`) |
 | 3 | `reflow-classify` | `reflow-classifier` | `03-classification/classification.md` |
 | 3b · QA | `reflow-classify-review` | `reflow-classification-reviewer` | `03-classification/review.md` |
+| eval | `reflow-classify-eval` | os dois acima, no golden set | `output/_classification-eval.md` |
 | checkpoint | — | — | `reflow checkpoint --approve` → `00-manifest.json` → `checkpoint` |
 | 4 | `reflow-convert` | `reflow-pad-converter` | `04-pad/<flow>/Main.robin` |
 | 4b · QA | `reflow-convert-review` | `reflow-robin-reviewer` | `04-pad/<flow>/review.md` |
@@ -273,6 +274,7 @@ Dentro do opencode ou do Claude Code (mesmas skills, mesmos comandos):
 /reflow-extract <projeto>
 /reflow-document <projeto>
 /reflow-classify <projeto>
+/reflow-classify-eval       # mede a classificação no golden set sintético
 /reflow-convert <projeto>   # só depois do checkpoint aprovar
 /reflow-test <projeto>
 /reflow-truth-table <projeto>
@@ -420,6 +422,31 @@ uv run python -m refold run reflow-documenter quote-scraper       # chama a API 
 - **Limite honesto:** ainda não rodou contra a IAra real; os testes usam modelo falso.
   Roda um agent por vez (a orquestração completa continua sendo a skill `reflow`).
 
+## 🎯 Harness de classificação
+
+O veredito decide o destino do robô, então ele tem três camadas de controle (ADR-034):
+
+```powershell
+uv run python -m reflow classify-check <projeto>   # gate determinístico, sem LLM
+uv run python -m refold classify <projeto>         # classificador, gate, revisor, gate
+uv run python -m reflow classify-eval prepare      # golden set; os agents rodam em seguida
+uv run python -m reflow classify-eval score        # nota, matriz de confusão, erros críticos
+uv run python -m reflow classify-eval clean
+```
+
+- **Gate:** recusa veredito fora do enum exato, casos de uso incoerentes com o veredito,
+  critério C/N/A não avaliado, alerta sem evidência, citação `arquivo:linha` que não existe
+  (em A360, nó que não está no inventário), CredentialVault sem A4, PAD sem nenhuma UI e
+  revisão de um veredito que já não é o vigente. Roda dentro de `phase-done
+  03-classification`, de `checkpoint --approve`, do pre-commit e da CI. Divergência do
+  revisor não bloqueia, mas sempre aparece: quem decide é o humano.
+- **Eval:** 10 casos sintéticos de nome neutro, com o rótulo fora do alcance do agent. Passa
+  com 90% de acerto e nenhum erro crítico (`PAD` x `NOT_PAD`). Veredito certo com contrato
+  quebrado não conta como acerto.
+- **Primeira medição (2026-11-08, Claude Code):** 10/10 corretos, 0 erros críticos, revisor
+  10/10. Mede a aplicação da rubrica nesses casos, cujos rótulos e documentos foram escritos
+  junto com o harness e ainda não passaram por um analista. **Não prova** acerto em robô real.
+
 ## 🧱 Como estender
 
 - **Novo extractor** (ex.: UiPath): crie `reflow/extractors/<nome>.py`
@@ -517,6 +544,8 @@ anterior "em andamento"), reextração que invalida fases posteriores.
   `reflow checkpoint a360-browser-rest --approve`.
 - Rodar a extração contra exports A360 reais (hoje só fixtures sintéticas).
 - Ampliar `reference/a360-to-pad.md` a partir de `unknown_commands` reais.
+- Golden set da classificação (Fase 36): analista revisar os rótulos, acrescentar casos
+  difíceis e casos derivados de robôs reais (mascarados), e medir também na IAra.
 - Harness `refold` (plano B secundário, Fase 35): implementado e testado só com modelo
   falso. Falta o primeiro `refold run` contra a IAra real e decidir se ele ganha
   orquestração do pipeline inteiro.

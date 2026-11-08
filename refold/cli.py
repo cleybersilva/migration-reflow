@@ -4,6 +4,8 @@
     uv run python -m refold check                       # configuração (sem rede)
     uv run python -m refold run <agent> <projeto> --dry-run   # pré-condições + prompt, sem rede
     uv run python -m refold run <agent> <projeto>       # chama a API e fecha a fase
+    uv run python -m refold classify <projeto>          # classificador, gate, revisor, gate
+    uv run python -m refold classify --eval             # o mesmo no golden set, e pontua
 
 Rodar sempre da raiz do repositório, como o `reflow`.
 """
@@ -16,6 +18,9 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+from reflow import classification_eval
+from reflow import cli as reflow_cli
+
 from . import __version__, pipeline
 from .agents import AgentError, list_agents, load_agent
 from .client import ClientError, MessagesClient, load_config
@@ -23,6 +28,7 @@ from .loop import build_system, run_agent
 from .tools import Sandbox
 
 RUNS_DIR = ".refold-runs"
+CLASSIFICATION_AGENTS = ("reflow-classifier", "reflow-classification-reviewer")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -35,6 +41,9 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("agent")
     run.add_argument("project")
     run.add_argument("--dry-run", action="store_true", help="Não chama a API.")
+    classify = sub.add_parser("classify", help="Classifica e revisa um projeto, com gate.")
+    classify.add_argument("project", nargs="?", default=None)
+    classify.add_argument("--eval", action="store_true", help="Roda no golden set e pontua.")
     return parser
 
 
@@ -91,6 +100,37 @@ def _cmd_run(root: Path, agent: str, project: str, dry_run: bool) -> int:
     return 1 if failures else 0
 
 
+def _classify_project(root: Path, project: str) -> int:
+    """Duas execuções isoladas: o revisor nunca herda a conversa do classificador."""
+    for agent in CLASSIFICATION_AGENTS:
+        result = _cmd_run(root, agent, project, False)
+        if result != 0:
+            return result
+    return 0
+
+
+def _cmd_classify_eval(root: Path) -> int:
+    cases = classification_eval.load_cases(root)
+    if classification_eval.prepare(root, cases, reflow_cli.main) != 0:
+        return 1
+    for case in cases:
+        # Um caso que falha entra na nota como falha; não derruba o resto do lote.
+        if _classify_project(root, case.project) != 0:
+            print(f"[refold] {case.name}: execução incompleta", file=sys.stderr)
+    approved, text = classification_eval.score(root, cases)
+    print(text)
+    return 0 if approved else 1
+
+
+def _cmd_classify(root: Path, project: str | None, evaluate: bool) -> int:
+    if evaluate:
+        return _cmd_classify_eval(root)
+    if not project:
+        print("refold: informe o projeto ou --eval", file=sys.stderr)
+        return 1
+    return _classify_project(root, project)
+
+
 def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):  # console Windows em cp1252 não imprime "→"
@@ -102,6 +142,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_agents(root)
         if args.command == "check":
             return _cmd_check()
+        if args.command == "classify":
+            return _cmd_classify(root, args.project, args.eval)
         return _cmd_run(root, args.agent, args.project, args.dry_run)
     except (AgentError, ClientError, pipeline.PreconditionError) as exc:
         print(f"refold: {exc}", file=sys.stderr)

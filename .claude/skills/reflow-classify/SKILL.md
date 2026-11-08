@@ -20,8 +20,7 @@ metadata:
 
 ## O que faz
 
-Chama o agent **reflow-classifier** (criado na Fase 6 — se ainda não existir,
-avise em vez de simular) para aplicar a rubrica à risca e gravar
+Chama o agent **reflow-classifier** para aplicar a rubrica à risca e gravar
 `output/<projeto>/03-classification/classification.md` com frontmatter:
 
 ```yaml
@@ -37,8 +36,10 @@ alerts:
 Ao final depois que o agent gravar, rode `uv run python -m reflow phase-done <projeto> 03-classification`:
 tira `03-classification` de `stale_phases` e marca como desatualizadas as fases seguintes
 que já existem (foram geradas a partir da versão anterior). O comando recusa
-se `input/<projeto>/` mudou desde o `extract` ou se a fase não deixou o
-artefato esperado — nesse caso, não feche a fase.
+se `input/<projeto>/` mudou desde o `extract`, se a fase não deixou o artefato
+esperado ou se a classificação não passa no gate determinístico (mesma checagem
+de `uv run python -m reflow classify-check <projeto>`). Nesse caso, mostre os
+erros e não feche a fase: chame o agent de novo apontando o que corrigir.
 
 ## Agent chamado
 

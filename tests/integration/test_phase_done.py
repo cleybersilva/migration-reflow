@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from reflow.cli import main
+from tests.classification_support import classification_text
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = "quote-scraper"
@@ -97,3 +98,16 @@ def test_phase_done_refuses_changed_inputs(workspace: Path) -> None:
 
 def test_phase_done_without_manifest_is_an_error(workspace: Path) -> None:
     require(main(["phase-done", PROJECT, "02-docs"]) == 1, "sem extract não há manifesto.")
+
+
+def test_classification_phase_only_closes_through_the_gate(workspace: Path) -> None:
+    require(main(["extract", PROJECT]) == 0, "extract deveria concluir.")
+    _make(workspace, "03-classification/classification.md")
+    require(main(["extract", PROJECT]) == 0, "reextração marca a fase existente.")
+    require(main(["phase-done", PROJECT, "03-classification"]) == 1, "stub não fecha a fase.")
+    require(_stale(workspace) == ["03-classification"], f"continua velha: {_stale(workspace)}")
+
+    path = _out(workspace) / "03-classification" / "classification.md"
+    path.write_text(classification_text("NOT_PAD"), encoding="utf-8")
+    require(main(["phase-done", PROJECT, "03-classification"]) == 0, "válida fecha a fase.")
+    require(_stale(workspace) == [], f"em dia: {_stale(workspace)}")

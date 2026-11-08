@@ -1,0 +1,13 @@
+{
+  "name": "main",
+  "nodes": [
+    {"packageName": "Window", "commandName": "activate", "attributes": {"title": "Tesouraria"}},
+    {"packageName": "Recorder", "commandName": "playback", "attributes": {"capture": "tela-conciliacao"}},
+    {"packageName": "MouseKeyboard", "commandName": "type", "attributes": {"text": "$lote$"}},
+    {"packageName": "Window", "commandName": "close", "attributes": {"title": "Tesouraria"}},
+    {"packageName": "Excel", "commandName": "open", "attributes": {"file": "saldos.xlsx"}},
+    {"packageName": "Excel", "commandName": "read", "attributes": {"range": "A1:D50"}},
+    {"packageName": "CredentialVault", "commandName": "get", "attributes": {"credential": "synthetic-vault-reference"}},
+    {"packageName": "REST", "commandName": "post", "attributes": {"url": "https://example.invalid/api/saldos"}}
+  ]
+}

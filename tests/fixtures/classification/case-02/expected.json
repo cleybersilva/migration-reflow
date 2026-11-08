@@ -1,0 +1,8 @@
+{
+  "verdict": "PAD",
+  "required_alerts": [
+    "A1",
+    "A4"
+  ],
+  "why": "Portal web sem API, login com MFA na sessão do usuário (C1, C4, C5; A1, A4)."
+}

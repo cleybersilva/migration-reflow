@@ -36,3 +36,7 @@ __pycache__/
 
 # Arquivos de lock temporário do Office (criados enquanto o arquivo está aberto).
 ~$*
+
+# Golden set da classificação (reflow classify-eval): projetos e relatório descartáveis.
+/output/eval-*/
+/output/_classification-eval.md
