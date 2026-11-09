@@ -45,25 +45,27 @@ class BudgetStage:
     steps: int
     required: bool
     done: str  # glob relativo a output/<projeto>/: existe = estágio já feito
-    assumed_output_tokens: int  # só para `refold estimate`
+    # Só para `refold estimate`: mediana medida em 2026-11-09 nos robôs P, M e G. Revisão do Robin
+    # e teste não foram medidos: usam a revisão da classificação e um palpite.
+    assumed_output_tokens: int
 
 
 BEFORE_CHECKPOINT = (
-    BudgetStage("reflow-documenter", 0.20, 10, True, "02-docs/*.md", 5000),
-    BudgetStage("reflow-classifier", 0.15, 6, True, "03-classification/classification.md", 1800),
+    BudgetStage("reflow-documenter", 0.20, 10, True, "02-docs/*.md", 9700),
+    BudgetStage("reflow-classifier", 0.15, 6, True, "03-classification/classification.md", 5800),
     BudgetStage(
         "reflow-classification-reviewer",
         0.10,
         6,
         False,
         "03-classification/review.md",
-        1200,
+        4700,
     ),
 )
 AFTER_CHECKPOINT = (
-    BudgetStage(OPTIMIZER, 0.25, 6, False, "", 2500),
-    BudgetStage("reflow-robin-reviewer", 0.10, 5, False, "04-pad/*/review.md", 800),
-    BudgetStage("reflow-pad-tester", 0.20, 8, False, "05-test/*/Main.robin", 3000),
+    BudgetStage(OPTIMIZER, 0.25, 6, False, "", 8300),
+    BudgetStage("reflow-robin-reviewer", 0.10, 5, False, "04-pad/*/review.md", 4700),
+    BudgetStage("reflow-pad-tester", 0.20, 8, False, "05-test/*/Main.robin", 5000),
 )
 Create = Callable[[str, list[dict], list[dict]], dict]
 

@@ -1730,8 +1730,26 @@ Uso por turno somado dos transcripts, a preço de Opus 5.5:
 | `TODO reflow` no flow | 13 | 9 | |
 | Ações Robin | 3 | 4 (fechamento do Excel) | |
 
-A base, gerada sem LLM, já custa US$ 0 e passa no lint com 3 ações e 9 TODOs. Estimativa por caracteres
-do pipeline inteiro no `refold`, sem medição: US$ 0,65 em Opus 5.5 e US$ 0,33 em Sonnet 5.5.
+A base, gerada sem LLM, já custa US$ 0 e passa no lint com 3 ações e 9 TODOs. A estimativa publicada
+aqui antes (US$ 0,65) estava otimista: supunha pouca saída e ignorava o contexto fixo do harness.
+
+### Adendo: custo até o checkpoint por tamanho
+
+Robôs sintéticos, Claude Code, Opus 5.5 com cache, contexto pré-montado:
+
+| Robô | Passos | Veredito | Documentar | Classificar | Revisar | Total | Sem cache |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P | 9 | `PAD` | 0,280 | 0,226 | 0,231 | US$ 0,74 | US$ 1,19 |
+| M | 29 | `PARTIAL` | 0,376 | 0,303 | 0,296 | US$ 0,98 | US$ 1,42 |
+| G | 125 | `PARTIAL` | 0,519 | 0,372 | 0,345 | US$ 1,24 | US$ 1,75 |
+
+- A meta de US$ 1 não foi atingida neste harness: o G passa dela antes de converter.
+- Um agent sem nada a fazer custou US$ 0,127, o que dá cerca de US$ 0,76 fixos nos 6 agents. O tamanho
+  do robô pesa menos: 14 vezes mais passos custaram 1,7 vez mais.
+- O teste parou no checkpoint, que depende de decisão humana. Faltam otimização, revisão do Robin
+  e testes nestes robôs, e o `refold` segue sem execução real.
+- `Excel.close` estava na tabela verdade mas não no registro do extractor, o que subia um robô pequeno
+  de P para M; corrigido. `VBScript.open` tem a mesma lacuna, em aberto: falta decidir a categoria.
 
 ### O que esta fase não fez (honestidade)
 

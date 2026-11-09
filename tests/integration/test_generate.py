@@ -10,6 +10,7 @@ import pytest
 
 from reflow.cli import main as reflow_main
 from reflow.context_pack import build_pack
+from reflow.patterns import A360_REGISTRY
 from reflow.report import build_batch_report
 from reflow.robin import lint_robin_files
 from reflow.robin.generate import BASE_NAME, build_flows
@@ -115,6 +116,18 @@ def test_only_whitelisted_actions_and_no_invented_values(workspace: Path) -> Non
     )
     robin = "\n".join(step.line or "" for flow in flows for step in flow.steps)
     require("example" not in robin.lower() and "KB Test" not in robin, "valor de exemplo vazou")
+
+
+def test_excel_close_is_mapped_and_closes_the_open_instance(workspace: Path) -> None:
+    def fact(command: str, line: int) -> dict:
+        return {"packageName": "Excel", "commandName": command, "file": "a.json", "line": line}
+
+    require(A360_REGISTRY[("Excel", "close")] == "data_sources", "close é comando conhecido")
+    inventory = {"source_type": "a360", "data_sources": [fact("open", 1), fact("close", 2)]}
+    flow = build_flows(workspace, inventory)[0][0]
+    closing = flow.steps[1].line or ""
+    require(closing.startswith("Excel.CloseExcel.Close Instance: out_01_"), closing)
+    require(flow.open_handles == [], f"instância ficou aberta: {flow.open_handles}")
 
 
 def test_unknown_credential_and_ui_become_todo_with_evidence(workspace: Path) -> None:

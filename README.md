@@ -458,8 +458,9 @@ uv run python -m refold migrate <projeto> --budget 1.00 # pipeline com teto em d
   Code, OpenCode e Copilot usam o mesmo gerador e pacote, mas não têm teto.
 - **O que o `refold migrate` nunca pula:** o checkpoint humano e os gates.
 - **Medido:** só a etapa de conversão, um robô sintético, no Claude Code, a preço de Opus 5.5 com
-  cache: de US$ 0,997 para US$ 0,428. O pipeline inteiro ainda é estimativa (US$ 0,65 no `refold`),
-  e o custo na IAra ainda não foi medido.
+  cache: de US$ 0,997 para US$ 0,428.
+- **A meta de US$ 1 ainda não foi atingida no Claude Code:** só as 3 etapas antes do checkpoint custaram
+  US$ 0,74 (P), US$ 0,98 (M) e US$ 1,24 (G). A migração completa e o `refold` não foram medidos.
 
 ## 🎯 Harness de classificação
 

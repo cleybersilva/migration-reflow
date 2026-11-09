@@ -30,6 +30,7 @@ A360_REGISTRY: dict[tuple[str, str], str] = {
     ("Excel", "open"): "data_sources",
     ("Excel", "read"): "data_sources",
     ("Excel", "write"): "data_sources",
+    ("Excel", "close"): "data_sources",
     ("CSV", "read"): "data_sources",
     ("CSV", "write"): "data_sources",
     ("Database", "connect"): "data_sources",
