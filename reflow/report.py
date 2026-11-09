@@ -12,15 +12,16 @@ import re
 from pathlib import Path
 
 from .classification import EVAL_PREFIX
+from .complexity import read_size
 from .robin.whitelist import load_whitelist
 
 _ACTION_REFERENCE_RE = re.compile(r"^-\s*`([^`]+)`", re.MULTILINE)
 _FRONTMATTER_FIELD_RE = re.compile(r"^(\w+):\s*(.+)$")
 _HEADER = (
-    "| Projeto | Origem | Estado | Veredito | Flows | TODO reflow "
+    "| Projeto | Origem | Complexidade | Estado | Veredito | Flows | TODO reflow "
     "| Ações não validadas | Desconhecidos |"
 )
-_SEPARATOR = "| --- | --- | --- | --- | --- | --- | --- | --- |"
+_SEPARATOR = "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"
 
 
 def _read_manifest(project_dir: Path) -> dict | None:
@@ -93,7 +94,8 @@ def build_batch_report(root: Path) -> str:
                 "Extraído" if manifest.get("status") == "extracted" else manifest.get("status", "—")
             )
             rows.append(
-                f"| {manifest['project']} | {manifest['source_type']} | {estado} | "
+                f"| {manifest['project']} | {manifest['source_type']} | "
+                f"{read_size(project_dir)} | {estado} | "
                 f"{read_verdict(project_dir)} | {flows} | {todos} | "
                 f"{_count_unvalidated_actions_used(root, project_dir)} | "
                 f"{_read_unknown_commands_count(project_dir)} |"

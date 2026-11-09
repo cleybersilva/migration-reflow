@@ -79,27 +79,29 @@ def test_close_runs_robin_gates_before_phase_done() -> None:
         calls.append(argv)
         return 1 if argv[0] == "lint-robin" else 0
 
-    failures = pipeline.close("reflow-pad-converter", PROJECT, ["x"], run_cli=fake_cli)
+    failures = pipeline.close("reflow-robin-optimizer", PROJECT, ["x"], run_cli=fake_cli)
     require([c[0] for c in calls] == ["fix-robin-eol", "lint-robin"], f"ordem {calls}")
     require(failures and "lint-robin" in failures[0], "lint reprovado não fecha a fase")
 
 
 def test_converter_needs_classification_and_hash_checkpoint(workspace: Path) -> None:
-    with pytest.raises(pipeline.PreconditionError, match="classification"):
-        pipeline.check(workspace, "reflow-pad-converter", PROJECT)
+    with pytest.raises(pipeline.PreconditionError, match="generation.json"):
+        pipeline.check(workspace, "reflow-robin-optimizer", PROJECT)
     out = workspace / "output" / PROJECT
+    (out / "04-pad" / "flow-x").mkdir(parents=True)
+    (out / "04-pad" / "flow-x" / "generation.json").write_text("{}", encoding="utf-8")
     (out / "03-classification").mkdir()
     (out / "03-classification" / "classification.md").write_text(
         "**Veredito:** PARTIAL\n", encoding="utf-8"
     )
     with pytest.raises(pipeline.PreconditionError, match="não aprovado"):
-        pipeline.check(workspace, "reflow-pad-converter", PROJECT)
+        pipeline.check(workspace, "reflow-robin-optimizer", PROJECT)
 
     manifest = _manifest(workspace)
     manifest["checkpoint"] = {"decision": "approved", "approved_at": "2026-10-21"}
     (out / "00-manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(pipeline.PreconditionError, match="legado"):
-        pipeline.check(workspace, "reflow-pad-converter", PROJECT)
+        pipeline.check(workspace, "reflow-robin-optimizer", PROJECT)
 
 
 def test_changed_input_blocks_any_agent(workspace: Path) -> None:

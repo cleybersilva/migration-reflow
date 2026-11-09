@@ -33,7 +33,7 @@ metadata:
    mostre veredito/escopo/alertas **e o resultado da segunda opinião**
    (`agreement: concorda | diverge`, com destaque se divergiu) e peça
    confirmação explícita antes de continuar.
-6. `reflow-convert` (só depois do "ok" do checkpoint).
+6. `reflow-convert` (só depois do "ok" do checkpoint): gera a base sem LLM e a otimiza.
 7. `reflow-convert-review` — auditoria semântica do `Main.robin` recém
    gerado, depois do `lint-robin` passar. Mostre os achados antes de seguir;
    se houver achados sérios (ex.: maioria do flow em `TODO reflow`), pergunte
@@ -51,7 +51,7 @@ Rode `uv run python -m reflow report` e mostre `output/_batch-report.md`.
 
 - Nenhum diretamente — delega para as skills de fase, que chamam os agents
   `reflow-documenter`, `reflow-classifier`, `reflow-classification-reviewer`,
-  `reflow-pad-converter`, `reflow-robin-reviewer` e `reflow-pad-tester`.
+  `reflow-robin-optimizer`, `reflow-robin-reviewer` e `reflow-pad-tester`.
 
 ## O que sobrescreve
 

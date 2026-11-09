@@ -30,12 +30,13 @@ flowchart LR
         CLS[reflow-classifier]
         CLSR["reflow-classification-reviewer<br/>(segunda opinião)"]
         CHK{Checkpoint humano<br/>reflow checkpoint --approve}
-        CONV[reflow-pad-converter]
+        GEN["reflow generate<br/>(base sem LLM)"]
+        CONV[reflow-robin-optimizer]
         CONVR["reflow-robin-reviewer<br/>(auditoria semântica)"]
         TEST[reflow-pad-tester]
         LLM[[IAra ou outro provider]]
         ORC --> DOC --> CLS --> CLSR --> CHK
-        CHK -->|PAD/PARTIAL aprovado| CONV --> CONVR --> TEST
+        CHK -->|PAD/PARTIAL aprovado| GEN --> CONV --> CONVR --> TEST
         CHK -->|NOT_PAD| END1[Encerra: só documentação]
         DOC -. prompt .-> LLM
         CLS -. prompt .-> LLM
@@ -132,9 +133,13 @@ flowchart LR
 
 ## Onde o LLM entra (e onde não entra)
 
+A conversão em si não depende de LLM: `reflow generate` monta a base a partir do inventário,
+da tabela verdade e da KB, e `reflow-robin-optimizer` só a melhora, sob o gate
+`reflow optimize-check` (ADR-035).
+
 O LLM (IAra via proxy, ou outro provider compatível com OpenAI) só é chamado
 pelo harness — opencode, Claude Code ou GitHub Copilot — dentro dos agents `reflow-documenter`,
-`reflow-classifier`, `reflow-classification-reviewer`, `reflow-pad-converter`,
+`reflow-classifier`, `reflow-classification-reviewer`, `reflow-robin-optimizer`,
 `reflow-robin-reviewer`, `reflow-pad-tester` e `reflow-truth-table-curator`.
 Os dois agents de revisão (`reflow-classification-reviewer` e
 `reflow-robin-reviewer`) são uma segunda chamada de LLM independente sobre o

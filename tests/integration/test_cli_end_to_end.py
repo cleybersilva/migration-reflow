@@ -57,9 +57,8 @@ def test_scan_passes_on_the_generated_workspace(workspace: Path) -> None:
 
 
 def test_lint_robin_passes_without_any_robin_file(workspace: Path) -> None:
-    with pytest.raises(SystemExit) as result:
-        main(["lint-robin", "--all"])
-    require(result.value.code == 0, "Sem nenhum Main.robin, lint-robin não tem nada a reprovar.")
+    result = main(["lint-robin", "--all"])
+    require(result == 0, "Sem nenhum Main.robin, lint-robin não tem nada a reprovar.")
 
 
 def test_fix_robin_eol_cli_normalizes_a_bare_lf_main_robin(workspace: Path) -> None:
@@ -78,18 +77,16 @@ def test_fix_robin_eol_cli_normalizes_a_bare_lf_main_robin(workspace: Path) -> N
         "- `Variables.SetVariable` — passo 1\n", encoding="utf-8"
     )
 
-    with pytest.raises(SystemExit) as lint_before:
-        main(["lint-robin", "quote-scraper"])
-    require(lint_before.value.code == 2, "LF puro deveria reprovar o lint antes do fix.")
+    lint_before = main(["lint-robin", "quote-scraper"])
+    require(lint_before == 2, "LF puro deveria reprovar o lint antes do fix.")
 
     require(
         main(["fix-robin-eol", "quote-scraper"]) == 0, "fix-robin-eol deveria concluir sem erro."
     )
     require(robin_path.read_bytes() == b"# step_01\r\n# step_02\r\n", "EOL deveria virar CRLF.")
 
-    with pytest.raises(SystemExit) as lint_after:
-        main(["lint-robin", "quote-scraper"])
-    require(lint_after.value.code == 0, "Depois do fix, lint-robin deveria passar.")
+    lint_after = main(["lint-robin", "quote-scraper"])
+    require(lint_after == 0, "Depois do fix, lint-robin deveria passar.")
 
 
 def test_extract_rejects_project_with_a_junction_escaping_the_sandbox(

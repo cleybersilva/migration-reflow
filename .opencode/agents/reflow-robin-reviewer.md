@@ -75,7 +75,7 @@ Verifique, nesta ordem:
 
 Grave **somente** `output/<projeto>/04-pad/<flow>/review.md` — nunca edite
 `Main.robin`, `README.md` ou `notas-conversao.md`; quem corrige é o
-`reflow-pad-converter`, numa nova rodada — com a lista de achados, cada um
+`reflow-robin-optimizer`, numa nova rodada — com a lista de achados, cada um
 citando o passo ou linha correspondente. Se não encontrar nenhum achado,
 grave o arquivo mesmo assim, dizendo isso explicitamente — nunca omita o
 arquivo. Você não aprova nem bloqueia sozinho: o checkpoint continua sendo do

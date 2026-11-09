@@ -11,7 +11,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import __version__, classification_eval
+from . import __version__, classification_eval, complexity, context_pack
 from .classification import (
     EVAL_PREFIX,
     Issue,
@@ -25,7 +25,7 @@ from .fs import LockError, project_lock, write_json_atomic
 from .inventory import Inventory
 from .limits import check_input_budget
 from .report import build_batch_report, read_verdict
-from .robin import fix_robin_eol, lint_robin_files
+from .robin import fix_robin_eol, generate, lint_robin_files, optimize
 from .robin.kb import load_action_kb, load_manifest, verify_kb
 from .security.paths import reject_unsafe_links
 from .security.scan import Finding, StagedScanError, scan_repository, scan_staged
@@ -112,6 +112,26 @@ def _build_parser() -> argparse.ArgumentParser:
     classify_eval.add_argument("action", choices=["prepare", "score", "clean", "labels"])
     classify_eval.add_argument("--case", action="append", default=None, help="Só este caso.")
 
+    sizing = sub.add_parser("complexity", help="Calcula a complexidade P, M ou G do inventário.")
+    sizing.add_argument("project", nargs="?", default=None)
+    sizing.add_argument("--all", action="store_true")
+
+    gen = sub.add_parser("generate", help="Gera o Main.robin base sem LLM (exige checkpoint).")
+    gen.add_argument("project")
+    gen.add_argument("--force", action="store_true", help="Descarta mudanças feitas depois.")
+
+    optimize_check = sub.add_parser(
+        "optimize-check", help="Gate do otimizador: compara Main.robin com a base gerada."
+    )
+    optimize_check.add_argument("project")
+    optimize_check.add_argument(
+        "--restore", action="store_true", help="Se reprovar, devolve a base determinística."
+    )
+
+    pack = sub.add_parser("context-pack", help="Monta o contexto mínimo de um agent, sem LLM.")
+    pack.add_argument("project")
+    pack.add_argument("agent", choices=context_pack.PACKED_AGENTS)
+
     return parser
 
 
@@ -180,6 +200,10 @@ def extract_to(project_dir: Path, out_dir: Path) -> tuple[str, Inventory]:
     return extractor.name, inventory
 
 
+def _read_inventory(out_dir: Path) -> dict:
+    return json.loads((out_dir / "01-inventory" / "inventory.json").read_text(encoding="utf-8"))
+
+
 def _extract_one(root: Path, name: str) -> int:
     project_dir = root / "input" / name
     if not project_dir.is_dir():
@@ -193,6 +217,7 @@ def _extract_one(root: Path, name: str) -> int:
                 out_dir / "00-manifest.json",
                 _build_manifest(project_dir, name, source_type, out_dir),
             )
+            sizing = complexity.write_assessment(out_dir, _read_inventory(out_dir))
     except (ValueError, LockError) as exc:
         print(str(exc), file=sys.stderr)
         return 1
@@ -203,7 +228,7 @@ def _extract_one(root: Path, name: str) -> int:
         f"dependencias={len(inventory.dependencies)} "
         f"desconhecidos={len(inventory.unknown_commands)}"
     )
-    print(f"{name}: origem={source_type} {counts}")
+    print(f"{name}: origem={source_type} {counts} complexidade={sizing.size}")
     return 0
 
 
@@ -266,6 +291,29 @@ def _inputs_fingerprint(inputs: list[dict]) -> str:
     """Digest único da lista de entradas — é o que amarra a decisão ao extraído."""
     canonical = json.dumps(inputs, sort_keys=True, ensure_ascii=False).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
+
+
+def checkpoint_problem(out_dir: Path, manifest: dict, current: list[dict]) -> str | None:
+    """Por que este projeto não pode ser convertido; None quando o checkpoint vale.
+
+    Restritivo de propósito: checkpoint legado, sem vínculo de hash, não prova sobre o que
+    foi aprovado. Vale igual para `reflow generate` e para o refold.
+    """
+    project = out_dir.name
+    if read_verdict(out_dir) == "NOT_PAD":
+        return f"{project}: NOT_PAD não tem conversão"
+    checkpoint = manifest.get("checkpoint") or {}
+    fingerprint = checkpoint.get("inputs_fingerprint")
+    if checkpoint and not fingerprint:
+        return (
+            f"{project}: checkpoint em formato legado, quem aprova deve regravar com "
+            f"`reflow checkpoint {project} --approve`"
+        )
+    if checkpoint.get("decision") != "approved":
+        return f"{project}: checkpoint humano não aprovado"
+    if fingerprint != _inputs_fingerprint(current):
+        return f"{project}: fingerprint do checkpoint não confere"
+    return None
 
 
 def _cmd_checkpoint(args: argparse.Namespace) -> int:
@@ -487,6 +535,105 @@ def _cmd_classify_eval(args: argparse.Namespace) -> int:
     return 0 if approved else 1
 
 
+def _cmd_complexity(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    if args.all:
+        names = sorted(
+            path.parent.parent.name
+            for path in (root / "output").glob("*/01-inventory/inventory.json")
+            if not path.parent.parent.name.startswith(EVAL_PREFIX)
+        )
+    elif args.project and _valid_project_name(args.project):
+        names = [args.project]
+    else:
+        print(f"nome de projeto inválido: {args.project}", file=sys.stderr)
+        return 1
+    for name in names:
+        out_dir = root / "output" / name
+        if not (out_dir / "01-inventory" / "inventory.json").is_file():
+            print(f"{name}: sem inventário, rode `reflow extract {name}`.", file=sys.stderr)
+            return 1
+        result = complexity.write_assessment(out_dir, _read_inventory(out_dir))
+        reasons = "; ".join(result.drivers) or "todas as dimensões em P"
+        print(f"{name}: {result.size} (confiança {result.confidence}; {reasons})")
+    return 0
+
+
+def _cmd_generate(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    name = args.project
+    if not _valid_project_name(name):
+        print(f"nome de projeto inválido: {name}", file=sys.stderr)
+        return 1
+    out_dir = root / "output" / name
+    manifest_path = out_dir / "00-manifest.json"
+    if not manifest_path.is_file():
+        print(f"{name}: sem manifesto, rode `reflow extract {name}` antes.", file=sys.stderr)
+        return 1
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    try:
+        current = _current_inputs(root / "input" / name)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if current != manifest.get("inputs"):
+        print(
+            f"{name}: input/ mudou desde o extract, rode `reflow extract {name}`.", file=sys.stderr
+        )
+        return 1
+    if problem := checkpoint_problem(out_dir, manifest, current):
+        print(problem, file=sys.stderr)
+        return 1
+    try:
+        flows = generate.generate_project(
+            root,
+            name,
+            _read_inventory(out_dir),
+            _inputs_fingerprint(current),
+            complexity.read_size(out_dir),
+            args.force,
+        )
+    except generate.GenerateError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    for flow in flows:
+        done = sum(1 for step in flow.steps if step.line)
+        print(f"{name}/{flow.name}: {len(flow.steps)} passo(s), {done} com ação.")
+    return 0
+
+
+def _cmd_optimize_check(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    if not _valid_project_name(args.project):
+        print(f"nome de projeto inválido: {args.project}", file=sys.stderr)
+        return 1
+    if not optimize.generated_flows(root, args.project):
+        print(f"{args.project}: nada gerado, rode `reflow generate` antes.", file=sys.stderr)
+        return 1
+    if not _print_issues(optimize.check_project(root, args.project)):
+        print(f"optimize-check ok: {args.project}.")
+        return 0
+    print(f"optimize-check falhou: {args.project}.", file=sys.stderr)
+    if args.restore:
+        restored = optimize.restore_base(root, args.project)
+        print(f"base determinística restaurada: {', '.join(restored)}.", file=sys.stderr)
+    return 2
+
+
+def _cmd_context_pack(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    if not _valid_project_name(args.project):
+        print(f"nome de projeto inválido: {args.project}", file=sys.stderr)
+        return 1
+    try:
+        path = context_pack.write_pack(root, args.project, args.agent)
+    except FileNotFoundError as exc:
+        print(f"{args.project}: falta {exc.filename}.", file=sys.stderr)
+        return 1
+    print(f"{path.relative_to(root).as_posix()}: {path.stat().st_size} bytes.")
+    return 0
+
+
 def _report_findings(findings: list[Finding], command: str) -> None:
     for finding in findings:
         location = f"{finding.file}:{finding.line}"
@@ -556,9 +703,9 @@ def main(argv: list[str] | None = None) -> int:
         findings = lint_robin_files(Path.cwd(), project=args.project)
         if findings:
             _report_findings(findings, "lint-robin")
-            raise SystemExit(2)
+            return 2
         print("lint-robin ok: nenhum .robin pendente de validação.")
-        raise SystemExit(0)
+        return 0
 
     if args.command == "fix-robin-eol":
         root = Path.cwd()
@@ -588,6 +735,18 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "kb":
         return _cmd_kb(args)
+
+    if args.command == "complexity":
+        return _cmd_complexity(args)
+
+    if args.command == "generate":
+        return _cmd_generate(args)
+
+    if args.command == "optimize-check":
+        return _cmd_optimize_check(args)
+
+    if args.command == "context-pack":
+        return _cmd_context_pack(args)
 
     parser.print_help()
     return 2

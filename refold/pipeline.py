@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from reflow import cli as reflow_cli
-from reflow.report import read_verdict
 
 
 class PreconditionError(RuntimeError):
@@ -27,6 +26,7 @@ class Stage:
     robin: bool = False  # gera Main.robin: normaliza CRLF e passa no lint-robin
     needs_checkpoint: bool = False
     classification_gate: bool = False  # sem phase-done: o gate roda aqui
+    optimize_gate: bool = False  # otimiza a base gerada: passa no optimize-check
 
 
 STAGES = {
@@ -35,8 +35,8 @@ STAGES = {
     "reflow-classification-reviewer": Stage(
         "03-classification/classification.md", None, classification_gate=True
     ),
-    "reflow-pad-converter": Stage(
-        "03-classification/classification.md", "04-pad", robin=True, needs_checkpoint=True
+    "reflow-robin-optimizer": Stage(
+        "04-pad/*/generation.json", "04-pad", robin=True, needs_checkpoint=True, optimize_gate=True
     ),
     "reflow-robin-reviewer": Stage("04-pad/*/Main.robin", None),
     "reflow-pad-tester": Stage("04-pad/*/Main.robin", "05-test", robin=True),
@@ -70,26 +70,11 @@ def check(root: Path, agent: str, project: str) -> Stage:
         )
     if not any(out_dir.glob(stage.requires)):
         raise PreconditionError(f"{project}: falta output/{project}/{stage.requires}")
-    if stage.needs_checkpoint:
-        _check_checkpoint(out_dir, manifest, current, project)
+    if stage.needs_checkpoint and (
+        problem := reflow_cli.checkpoint_problem(out_dir, manifest, current)
+    ):
+        raise PreconditionError(problem)
     return stage
-
-
-def _check_checkpoint(out_dir: Path, manifest: dict, current: list, project: str) -> None:
-    if read_verdict(out_dir) == "NOT_PAD":
-        raise PreconditionError(f"{project}: NOT_PAD não tem conversão")
-    checkpoint = manifest.get("checkpoint") or {}
-    fingerprint = checkpoint.get("inputs_fingerprint")
-    if checkpoint and not fingerprint:
-        # Restritivo: o checkpoint legado não prova sobre o que foi aprovado.
-        raise PreconditionError(
-            f"{project}: checkpoint em formato legado, quem aprova deve regravar com "
-            f"`reflow checkpoint {project} --approve`"
-        )
-    if checkpoint.get("decision") != "approved":
-        raise PreconditionError(f"{project}: checkpoint humano não aprovado")
-    if fingerprint != reflow_cli._inputs_fingerprint(current):
-        raise PreconditionError(f"{project}: fingerprint do checkpoint não confere")
 
 
 def close(
@@ -107,6 +92,8 @@ def close(
             return ["fix-robin-eol falhou; fase não fechada"]
         if run_cli(["lint-robin", project]) != 0:
             return ["lint-robin reprovou o Main.robin; fase não fechada"]
+    if stage.optimize_gate and run_cli(["optimize-check", project]) != 0:
+        return ["optimize-check reprovou a otimização; fase não fechada"]
     if stage.classification_gate and run_cli(["classify-check", project]) != 0:
         return ["classify-check reprovou a revisão; ver mensagens acima"]
     if stage.phase and run_cli(["phase-done", project, stage.phase]) != 0:

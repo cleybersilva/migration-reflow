@@ -1701,3 +1701,43 @@ execução em contexto novo, só nos casos 11 a 16 (prompts e rubrica inalterado
   Os casos seguem escritos pelo autor do harness, e o rótulo de `case-15` foi dado pela letra da
   rubrica, a confirmar.
 - As duas medições rodaram separadas: não há rodada única dos 16 casos, nem medida de repetibilidade.
+
+## Fase 38 — Migrador que otimiza código gerado, orçamento e complexidade (ADR-035)
+
+Pedido: trocar a abordagem de "migrador do zero" por "migrador que otimiza o código gerado
+deterministicamente", ficar em torno de US$ 1 por migração e avaliar a complexidade P, M ou G.
+
+### O que mudou
+
+- Novos: `reflow generate`, `reflow optimize-check`, `reflow context-pack`, `reflow complexity`,
+  `refold migrate`, `refold estimate`, coluna de complexidade no relatório.
+- `reflow-pad-converter` saiu; entrou `reflow-robin-optimizer`, sincronizado nos três harnesses. A
+  skill `reflow-convert` mantém o nome.
+- Bug antigo corrigido: `lint-robin` encerrava o processo com `SystemExit`, o que derrubaria o
+  fechamento de estágio Robin dentro do `refold`. O teste antigo não pegava por usar CLI falsa.
+
+### Medição (Claude Code, robô sintético `a360-excel-vault`, complexidade M)
+
+Uso por turno somado dos transcripts, a preço de Opus 5.5:
+
+| Etapa de conversão | Antigo | Novo | Diferença |
+| --- | --- | --- | --- |
+| Custo com cache | US$ 0,997 | US$ 0,428 | -57% |
+| Custo sem cache | US$ 2,893 | US$ 0,750 | -74% |
+| Tokens de saída | 19.999 | 8.306 | -58% |
+| Contexto no último turno | 104.978 | 48.471 | -54% |
+| Chamadas de ferramenta | 36 | 8 | -78% |
+| `TODO reflow` no flow | 13 | 9 | |
+| Ações Robin | 3 | 4 (fechamento do Excel) | |
+
+A base, gerada sem LLM, já custa US$ 0 e passa no lint com 3 ações e 9 TODOs. Estimativa por caracteres
+do pipeline inteiro no `refold`, sem medição: US$ 0,65 em Opus 5.5 e US$ 0,33 em Sonnet 5.5.
+
+### O que esta fase não fez (honestidade)
+
+- Não mediu a migração inteira, nem a IAra: o `refold migrate` só rodou com modelo falso, e o preço
+  da IAra não é conhecido. O número medido é só da etapa de conversão, uma execução, um robô.
+- Não colou nada no PAD: lint e gate não provam que o flow roda.
+- Não usou robô real, e a aprovação de checkpoint usada no bench é de fixture sintética.
+- Os limites P/M/G não foram calibrados, e não se comparou o mérito dos flows além das contagens.
+

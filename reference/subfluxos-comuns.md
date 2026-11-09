@@ -18,7 +18,7 @@ diretamente pelo legado** — mecanismo e fonte de evidência diferentes, ver
 ["Subflows padrão já existentes no PAD"](#subflows-padrao-ja-existentes-no-pad-chamados-pelo-nome-do-bot-filho)
 abaixo.
 
-## Regra para o `reflow-pad-converter`
+## Regra para o `reflow-robin-optimizer`
 
 1. Antes de converter, confira se algum trecho do flow corresponde a uma
    entrada **catalogada** abaixo (status `catalogado`).
@@ -90,7 +90,7 @@ evidência `projeto:arquivo:linha` real, não uma suposição.
   (entrada: identificação do passo que falhou; saída: log gravado e,
   opcionalmente, flag de notificação enviada).
 - **Como sinalizar no `Main.robin`**: nenhuma por enquanto — **não**
-  promover para `catalogado` sem evidência. Um `reflow-pad-converter` que
+  promover para `catalogado` sem evidência. Um `reflow-robin-optimizer` que
   encontrar algo parecido com evidência real deve seguir a regra 4 acima
   (registrar candidato em `notas-conversao.md`, nunca marcar aqui sozinho).
 - **Status**: `proposto` (hipótese, aguardando evidência).
@@ -144,7 +144,7 @@ para quando um export A360 real citar um deles.
 | `KillProcessByName` | ativo | Subflow padrão para finalizar processo pelo nome. |
 | `Log_Splunk` | **descontinuado** | Substituído pelo Datadog, ferramenta padrão e oficial de observabilidade do banco. Nunca reaproveitar a chamada antiga como se ainda fosse válida. |
 
-### Regra para o `reflow-pad-converter`
+### Regra para o `reflow-robin-optimizer`
 
 1. Para toda dependência (`TaskBot.run`) cujo `target`/`botName` bate com um
    nome **ativo** desta lista: aplicar a convenção já existente de subflow
@@ -159,7 +159,7 @@ para quando um export A360 real citar um deles.
    apontar para `Log_Splunk` como se ainda fosse uma chamada válida, nem
    inventar o nome do subflow substituto sem confirmação.
 3. Esta lista é mantida manualmente (edição humana direta no arquivo) — o
-   `reflow-pad-converter` nunca adiciona, remove ou muda a `Situação` de uma
+   `reflow-robin-optimizer` nunca adiciona, remove ou muda a `Situação` de uma
    linha sozinho.
 
 ### Regra para o `reflow-robin-reviewer`

@@ -10,12 +10,10 @@ metadata:
 
 ## Entradas
 
-- `output/<projeto>/03-classification/classification.md` e `02-docs/`.
-- `reference/robin-conventions.md`, `reference/robin-actions.md` (whitelist),
-  `reference/a360-to-pad.md` (tabela verdade),
-  `reference/subfluxos-comuns.md` (padrões de passos que se repetem entre
-  processos diferentes).
-- `input/<projeto>/` — só trechos já citados pelo inventário/documentação.
+- `output/<projeto>/01-inventory/inventory.json`, `02-docs/` e
+  `03-classification/classification.md`.
+- `reference/robin-actions.md` (whitelist), `reference/a360-to-pad.md` (tabela verdade) e
+  `reference/subfluxos-comuns.md`, usados pelo gerador e pelo pacote de contexto.
 
 ## Pré-condição
 
@@ -42,26 +40,20 @@ converta.
 
 ## O que faz
 
-Depois do checkpoint aprovado, chama o agent **reflow-pad-converter** (criado
-na Fase 6 — se ainda não existir, avise em vez de simular) para gerar
-`output/<projeto>/04-pad/<flow>/Main.robin` **só com ações da whitelist**.
-O agent não escreve Robin: preenche os templates da whitelist, ancorados na
-PAD Robin Action KB vendorizada (ADR-029), trocando só os valores. Ação fora
-da whitelist vira comentário `# TODO reflow: ...` no lugar do snippet —
-nunca invente sintaxe Robin. Os passos são organizados em `**REGION` por
-estágio do processo, e toda chamada a outro Task Bot/subflow (A360
-`TaskBot.run` → PAD `CALL`) é marcada de forma explícita — ver
-`reference/robin-conventions.md`. Todo passo que corresponder a um padrão
-já **catalogado** em `reference/subfluxos-comuns.md` (sequência de passos
-que se repete entre processos diferentes, sem chamada explícita no legado)
-também é sinalizado de forma explícita e profissional, com a recomendação
-de reuso registrada no catálogo; um novo padrão repetido com evidência real
-mas ainda não catalogado entra como "candidato a novo subfluxo comum" em
-`notas-conversao.md`, nunca editado direto no catálogo pelo agent. Ao
-final, roda `uv run python -m reflow fix-robin-eol <projeto>` (o agent
-escreve o arquivo sem controle sobre a quebra de linha; esse passo
-normaliza para CRLF, exigido pelo PAD — ver `reference/robin-conventions.md`)
-e depois `uv run python -m reflow lint-robin <projeto>`.
+A conversão não escreve Robin do zero: gera uma base determinística e otimiza (ADR-035).
+Depois do checkpoint aprovado:
+
+1. `uv run python -m reflow generate <projeto>` monta, sem LLM, `04-pad/<flow>/Main.robin`,
+   `Main.generated.robin` (a base), `generation.json`, `README.md` e `notas-conversao.md`.
+   Ação fora da whitelist, comando sem mapeamento e elemento de UI viram `# TODO reflow`.
+2. `uv run python -m reflow context-pack <projeto> reflow-robin-optimizer` monta o contexto.
+3. Chame o agent **reflow-robin-optimizer**, indicando esse arquivo. Ele só reorganiza, nomeia,
+   liga variáveis e sinaliza subfluxo comum catalogado (`reference/subfluxos-comuns.md`).
+   Não trave a migração se ele falhar: a base segue válida.
+4. `uv run python -m reflow fix-robin-eol <projeto>`, depois
+   `uv run python -m reflow lint-robin <projeto>`.
+5. `uv run python -m reflow optimize-check <projeto> --restore`. Se reprovar, o comando devolve
+   a base; rode o `fix-robin-eol` e o `lint-robin` de novo e avise o que foi descartado.
 
 ## Fechar a fase no manifesto
 
@@ -73,11 +65,13 @@ artefato esperado — nesse caso, não feche a fase.
 
 ## Agent chamado
 
-- `reflow-pad-converter`.
+- `reflow-robin-optimizer`.
 
 ## O que sobrescreve
 
-- Somente `output/<projeto>/04-pad/**`.
+- Somente `output/<projeto>/04-pad/**`. O `reflow generate` recusa sobrescrever um
+  `Main.robin` alterado depois da geração, salvo com `--force`, que só um pedido explícito
+  do analista justifica.
 
 ## Aviso de fases desatualizadas
 
@@ -86,7 +80,7 @@ corresponder ao `Main.robin` novo — recomende rodar `reflow-test` de novo.
 
 ## Resumo a mostrar
 
-- Flows gerados, quantas ações vieram da whitelist vs. quantas ficaram como
+- Se a otimização foi aceita ou descartada, flows gerados, quantas ações vieram da whitelist vs. quantas ficaram como
   `TODO reflow`, o resultado do `lint-robin` (passou ou os achados), e
   quantos passos foram sinalizados como subfluxo comum catalogado ou como
   candidato a novo subfluxo comum.

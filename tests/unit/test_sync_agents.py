@@ -64,7 +64,7 @@ def test_the_five_phase_agents_exist() -> None:
     expected = {
         "reflow-documenter",
         "reflow-classifier",
-        "reflow-pad-converter",
+        "reflow-robin-optimizer",
         "reflow-pad-tester",
         "reflow-truth-table-curator",
     }

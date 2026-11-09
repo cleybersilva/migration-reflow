@@ -114,7 +114,7 @@ flowchart LR
         D["2 · /reflow-document<br/>agent reflow-documenter<br/>→ 02-docs/ + diagrama de arquitetura"]
         CL["3 · /reflow-classify<br/>agent reflow-classifier<br/>→ PAD · PARTIAL · NOT_PAD"]
         CK{"Checkpoint humano<br/>NOT_PAD encerra"}
-        CV["4 · /reflow-convert<br/>agent reflow-pad-converter<br/>→ 04-pad/&lt;flow&gt;/Main.robin"]
+        CV["4 · /reflow-convert<br/>reflow generate + agent reflow-robin-optimizer<br/>→ 04-pad/&lt;flow&gt;/Main.robin"]
         TS["5 · /reflow-test<br/>agent reflow-pad-tester<br/>→ 05-test/ flow PASS/FAIL"]
         D --> CL --> CK
         CK -->|PAD / PARTIAL| CV --> TS
@@ -171,7 +171,7 @@ entra): [`docs/architecture.md`](docs/architecture.md).
 | 3b · QA | `reflow-classify-review` | `reflow-classification-reviewer` | `03-classification/review.md` |
 | eval | `reflow-classify-eval` | os dois acima, no golden set | `output/_classification-eval.md` |
 | checkpoint | — | — | `reflow checkpoint --approve` → `00-manifest.json` → `checkpoint` |
-| 4 | `reflow-convert` | `reflow-pad-converter` | `04-pad/<flow>/Main.robin` |
+| 4 | `reflow-convert` | `reflow generate` (sem LLM) + `reflow-robin-optimizer` | `04-pad/<flow>/Main.robin` |
 | 4b · QA | `reflow-convert-review` | `reflow-robin-reviewer` | `04-pad/<flow>/review.md` |
 | 5 | `reflow-test` | `reflow-pad-tester` | `05-test/test_<flow>/` |
 | auxiliar | `reflow-truth-table` | `reflow-truth-table-curator` | `reference/a360-to-pad.md` |
@@ -291,9 +291,12 @@ projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
 | --- | --- |
 | `00-manifest.json` | hashes SHA256 das entradas, versão do reflow, data, `checkpoint` (gravado por `reflow checkpoint`, amarrado aos hashes), `stale_phases` (só fases que existem; fechadas por `reflow phase-done`) |
 | `01-inventory/inventory.json` | fatos mascarados, com `arquivo:linha` |
+| `01-inventory/complexity.json` | complexidade `P`/`M`/`G`, métricas, motivos e confiança |
 | `02-docs/` | documentação de negócio/técnica + `architecture.md` (Mermaid) |
 | `03-classification/classification.md` | veredito `PAD`/`PARTIAL`/`NOT_PAD`, casos de uso, alertas |
-| `04-pad/<flow>/` | `Main.robin`, `README.md`, `notas-conversao.md` |
+| `04-pad/<flow>/` | `Main.robin`, `Main.generated.robin` (base sem LLM), `generation.json`, `README.md`, `notas-conversao.md` |
+| `cost.json` | custo medido por estágio, gravado pelo `refold migrate` |
+| `_context/` | pacote de contexto por agent, regenerável e fora do Git |
 | `05-test/test_<flow>/` | `Main.robin` de teste + 3–5 cenários `CT-xx`, sem PASS/FAIL ainda |
 
 `NOT_PAD` encerra o projeto depois de `02-docs`/`03-classification` — não há
@@ -421,6 +424,42 @@ uv run python -m refold run reflow-documenter quote-scraper       # chama a API 
   `.refold-runs/`.
 - **Limite honesto:** ainda não rodou contra a IAra real; os testes usam modelo falso.
   Roda um agent por vez (a orquestração completa continua sendo a skill `reflow`).
+
+## 💰 Migração otimizada, custo e complexidade
+
+O Robin não nasce mais do zero no LLM (ADR-035): um gerador determinístico monta a base a
+partir do inventário e da tabela verdade, e o agent só a otimiza.
+
+```powershell
+uv run python -m reflow complexity <projeto>            # P, M ou G, também gravado no extract
+uv run python -m reflow generate <projeto>              # base Robin sem LLM (exige checkpoint)
+uv run python -m reflow context-pack <projeto> <agent>  # contexto mínimo do agent
+uv run python -m reflow optimize-check <projeto> --restore  # gate; se reprovar, volta à base
+uv run python -m refold estimate <projeto>              # custo estimado, sem chamar a API
+uv run python -m refold migrate <projeto> --budget 1.00 # pipeline com teto em dólar
+```
+
+- **Complexidade:** a pior dimensão vence. Limites propostos, ainda sem calibração com robôs reais:
+
+| Dimensão | P | M | G |
+| --- | --- | --- | --- |
+| Passos | até 15 | até 50 | mais de 50 |
+| Comandos desconhecidos | 0 | até 5 | mais de 5 |
+| Bots chamados | 0 | até 3 | mais de 3 |
+| Credenciais | até 1 | até 3 | mais de 3 |
+| Tipos de integração | até 2 | 3 a 5 | não se aplica |
+
+  Só A360 tem confiança alta: Python e .NET não registram os passos do mesmo jeito.
+- **Gate do otimizador:** reprova passo, ação ou evidência removidos e `cfg_` com valor que a
+  base não tinha. Reprovou ou estourou o teto: a base determinística volta e a migração segue.
+- **Orçamento:** só o `refold migrate` impõe teto em dólar, a partir do `usage` da API. Modelo
+  sem preço conhecido é recusado até definir `REFOLD_PRICE_INPUT` e `REFOLD_PRICE_OUTPUT`.
+  `REFOLD_PROMPT_CACHE=1` e `REFOLD_EFFORT` são opcionais, para endpoints que os aceitam. Claude
+  Code, OpenCode e Copilot usam o mesmo gerador e pacote, mas não têm teto.
+- **O que o `refold migrate` nunca pula:** o checkpoint humano e os gates.
+- **Medido:** só a etapa de conversão, um robô sintético, no Claude Code, a preço de Opus 5.5 com
+  cache: de US$ 0,997 para US$ 0,428. O pipeline inteiro ainda é estimativa (US$ 0,65 no `refold`),
+  e o custo na IAra ainda não foi medido.
 
 ## 🎯 Harness de classificação
 
@@ -553,9 +592,10 @@ anterior "em andamento"), reextração que invalida fases posteriores.
 - Ampliar `reference/a360-to-pad.md` a partir de `unknown_commands` reais.
 - Golden set da classificação (Fase 36): analista revisar os rótulos, acrescentar casos
   difíceis e casos derivados de robôs reais (mascarados), e medir também na IAra.
-- Harness `refold` (plano B secundário, Fase 35): implementado e testado só com modelo
-  falso. Falta o primeiro `refold run` contra a IAra real e decidir se ele ganha
-  orquestração do pipeline inteiro.
+- Harness `refold` (plano B secundário, Fase 35): `refold migrate` já orquestra o pipeline
+  (Fase 38), mas só foi testado com modelo falso. Falta rodar contra a IAra real, com o
+  preço dela, para medir o custo por migração.
+- Complexidade `P`/`M`/`G` (Fase 38): calibrar os limites com o analista de automações.
 - Ano de desligamento do datacenter on-prem do Itaú: "a confirmar" (citado de
   forma pouco clara na reunião de 16/10/2026).
 

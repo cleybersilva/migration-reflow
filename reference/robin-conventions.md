@@ -6,6 +6,8 @@ provadas por colagens reais, ver ADR-029) e as **convenções do reflow** por ci
 
 ## Método: preencher template, nunca escrever Robin
 
+`reflow generate` aplica este método sem LLM e grava a base; o agent parte dela (ADR-035).
+
 Não escreva Robin "de cabeça". Para cada passo:
 
 1. Ache a ação na tabela verdade ([`a360-to-pad.md`](a360-to-pad.md)) e a seção dela na

@@ -53,6 +53,23 @@ uv run python -m refold run <agent> <projeto>
   `.refold-runs/` (turnos e ferramentas, sem conteúdo) e rode de novo; nenhuma fase é
   fechada nesse caso.
 
+## Custo por migração e otimização recusada
+
+Orçamento e gerador (ADR-035):
+
+- `preço do modelo ... desconhecido`: defina `REFOLD_PRICE_INPUT` e `REFOLD_PRICE_OUTPUT` (US$ por
+  milhão de tokens) com o preço contratado. Sem preço, o `refold migrate` não roda.
+- `parado no checkpoint humano`: é o esperado. O analista aprova com
+  `reflow checkpoint <projeto> --approve` e o mesmo `refold migrate` continua, sem refazer nem
+  pagar de novo o que já terminou.
+- `descartado` ou `sem orçamento` em `cost.json`: o estágio opcional não entrou, e a base
+  determinística segue valendo. Revise os `# TODO reflow`.
+- `falhou (budget)` em estágio obrigatório: documentação ou classificação não coube no teto.
+  Aumente `--budget`; a classificação nunca é pulada.
+- `Main.robin foi alterado depois da geração`: `reflow generate` protege a otimização. Só use
+  `--force` para descartá-la de propósito.
+- `optimize-check falhou`: `--restore` devolve a base; depois rode `fix-robin-eol` e `lint-robin`.
+
 ## Classificação recusada pelo gate
 
 `reflow classify-check <projeto>` lista cada problema; `phase-done 03-classification` e

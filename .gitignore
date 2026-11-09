@@ -22,6 +22,7 @@ __pycache__/
 # Lock por projeto do reflow (reflow.fs.project_lock): arquivo irmão do
 # diretório de saída, criado durante a execução — não é artefato.
 /output/*.lock
+/output/*/_context/
 *.zip
 !/tests/fixtures/**/*.zip
 

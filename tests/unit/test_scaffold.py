@@ -52,9 +52,8 @@ def test_lint_robin_passes_without_robin_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    with pytest.raises(SystemExit) as result:
-        main(["lint-robin", "--all"])
-    if result.value.code != 0:
+    result = main(["lint-robin", "--all"])
+    if result != 0:
         pytest.fail("Sem .robin no repo não há nada a reprovar.")
 
 
@@ -66,14 +65,12 @@ def test_lint_robin_scopes_to_the_given_project(
     other.mkdir(parents=True)
     (other / "Main.robin").write_text("// placeholder\n", encoding="utf-8")
 
-    with pytest.raises(SystemExit) as scoped:
-        main(["lint-robin", "quote-scraper"])
-    if scoped.value.code != 0:
+    scoped = main(["lint-robin", "quote-scraper"])
+    if scoped != 0:
         pytest.fail("Lint de um projeto não deve ver .robin de outro projeto.")
 
-    with pytest.raises(SystemExit) as whole_repo:
-        main(["lint-robin", "--all"])
-    if whole_repo.value.code != 2:
+    whole_repo = main(["lint-robin", "--all"])
+    if whole_repo != 2:
         pytest.fail("Sem o escopo de projeto, o .robin de other-project deveria ser visto.")
 
 
@@ -82,9 +79,8 @@ def test_lint_robin_fails_closed_without_whitelist(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     (tmp_path / "Main.robin").write_text("// placeholder\n", encoding="utf-8")
-    with pytest.raises(SystemExit) as result:
-        main(["lint-robin", "--all"])
-    if result.value.code != 2:
+    result = main(["lint-robin", "--all"])
+    if result != 2:
         pytest.fail("Um .robin sem whitelist não pode ser presumido validado.")
 
 

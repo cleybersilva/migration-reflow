@@ -6,6 +6,8 @@
     uv run python -m refold run <agent> <projeto>       # chama a API e fecha a fase
     uv run python -m refold classify <projeto>          # classificador, gate, revisor, gate
     uv run python -m refold classify --eval             # o mesmo no golden set, e pontua
+    uv run python -m refold migrate <projeto>           # pipeline com orçamento em dólar
+    uv run python -m refold estimate <projeto>          # custo estimado, sem chamar a API
 
 Rodar sempre da raiz do repositório, como o `reflow`.
 """
@@ -21,7 +23,7 @@ from pathlib import Path
 from reflow import classification_eval
 from reflow import cli as reflow_cli
 
-from . import __version__, pipeline
+from . import __version__, migrate, pipeline
 from .agents import AgentError, list_agents, load_agent
 from .client import ClientError, MessagesClient, load_config
 from .loop import build_system, run_agent
@@ -44,6 +46,12 @@ def _parser() -> argparse.ArgumentParser:
     classify = sub.add_parser("classify", help="Classifica e revisa um projeto, com gate.")
     classify.add_argument("project", nargs="?", default=None)
     classify.add_argument("--eval", action="store_true", help="Roda no golden set e pontua.")
+    budgeted = sub.add_parser("migrate", help="Roda o pipeline com orçamento e para no checkpoint.")
+    budgeted.add_argument("project")
+    budgeted.add_argument("--budget", type=float, default=migrate.DEFAULT_BUDGET_USD)
+    estimate = sub.add_parser("estimate", help="Estima o custo por migração, sem chamar a API.")
+    estimate.add_argument("project")
+    estimate.add_argument("--model", default=None, help="Padrão: IARA_MODEL.")
     return parser
 
 
@@ -144,7 +152,11 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_check()
         if args.command == "classify":
             return _cmd_classify(root, args.project, args.eval)
+        if args.command == "migrate":
+            return migrate.run(root, args.project, args.budget)
+        if args.command == "estimate":
+            return migrate.estimate(root, args.project, args.model)
         return _cmd_run(root, args.agent, args.project, args.dry_run)
-    except (AgentError, ClientError, pipeline.PreconditionError) as exc:
+    except (AgentError, ClientError, pipeline.PreconditionError, migrate.BudgetError) as exc:
         print(f"refold: {exc}", file=sys.stderr)
         return 1

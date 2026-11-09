@@ -1391,3 +1391,38 @@ mudaram.
   decisão é do analista e, se mudar a rubrica, entra em ADR próprio com nova medição.
 - Os casos 11 a 16 foram medidos à parte, porque prompts e rubrica não mudaram. Qualquer mudança
   neles exige rodar os 16 casos.
+
+## ADR-035: migrador que otimiza código gerado, orçamento em dólar e complexidade P/M/G
+
+**Contexto.** O conversor escrevia o Robin do zero no LLM, explorando `reference/` turno a turno.
+Medido no mesmo robô sintético, só essa etapa custou US$ 0,997 a preço de Opus 5.5 com cache
+(US$ 2,89 sem cache), o orçamento inteiro pedido para a migração. Além disso, faltava estimar o
+porte do robô.
+
+**Decisão.**
+
+- `reflow generate` monta a base sem LLM, a partir de inventário, tabela verdade e
+  `golden_example` da KB. Toda ação passa pela whitelist; o resto vira `# TODO reflow` com evidência.
+  O inventário não guarda valores, então texto vira `cfg_` vazia, e nome vindo do legado é
+  sanitizado antes de entrar no flow.
+- `reflow-robin-optimizer` substitui `reflow-pad-converter` e só melhora a base. O gate
+  `reflow optimize-check` reprova passo, ação ou evidência removidos e `cfg_` com valor que a base
+  não tinha. Reprovou: a base volta.
+- `reflow context-pack` entrega a cada agent só o necessário, com máscara de segredo e PII.
+- `refold migrate` impõe o teto a partir do `usage` da API e grava `output/<projeto>/cost.json`.
+  Cotas: documentação 0,20, classificação 0,15, revisão 0,10, otimização 0,25, revisão do Robin 0,10,
+  teste 0,20; a sobra passa adiante. Opcional que não cabe é pulado, e a base continua valendo.
+  Modelo sem preço é recusado: sem preço não há orçamento.
+- `reflow complexity` calcula P/M/G: a pior dimensão vence. Só A360 tem confiança alta.
+
+**Consequências.**
+
+- Teto de custo só existe no `refold`. Claude Code, OpenCode e Copilot ganham gerador, pacote e
+  gate, mas não teto.
+- Os limites de P/M/G são proposta, sem calibração com robôs reais.
+- O prompt e a rubrica da classificação não mudaram, então a medição do golden set continua válida
+  pelo caminho antigo. O caminho com pacote de contexto (`refold migrate`) não foi medido no eval.
+- A cota de 0,25 do otimizador é menor que os US$ 0,43 medidos no Claude Code, que tem contexto fixo e
+  releitura que o `refold` não tem. Se a IAra custar parecido, a otimização depende da sobra dos
+  estágios anteriores ou é descartada. Calibrar com a primeira medição real.
+

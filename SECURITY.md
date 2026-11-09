@@ -82,7 +82,7 @@ se desamarre do que foi extraído.
 - Nenhuma ação da whitelist foi validada (`[validado PAD: rodou]`) — todas seguem
   `[não validado]` até alguém rodar de verdade no PAD.
 - O lint cruza `notas-conversao.md` contra a whitelist, mas quem escreve esse arquivo
-  hoje é o agent `reflow-pad-converter`/`reflow-pad-tester`; sem uma sessão real deles,
+  hoje é o agent `reflow-robin-optimizer`/`reflow-pad-tester`; sem uma sessão real deles,
   não existe `notas-conversao.md` nenhum para testar fora dos testes automatizados.
 - Fases 1 a 4 de segurança estão aplicadas. `reject_unsafe_links` recusa o
   projeto inteiro quando acha um link — não tenta "podar" só a parte insegura; isso é

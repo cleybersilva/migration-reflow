@@ -6,6 +6,8 @@ Configuração por ambiente, mesmos nomes do OpenCode (ADR-002), nunca por arqui
 - `IARA_MODEL`: modelo exposto pelo endpoint.
 - `REFOLD_AUTH` (opcional): `x-api-key` (padrão, API Anthropic) ou `bearer` (proxy).
 - `REFOLD_MAX_TOKENS` (opcional, padrão 8192).
+- `REFOLD_PROMPT_CACHE=1` (opcional): pede cache do prompt; ligue só se o endpoint aceitar.
+- `REFOLD_EFFORT` (opcional): `low`, `medium`, `high` ou `xhigh`; idem.
 """
 
 from __future__ import annotations
@@ -41,6 +43,8 @@ class Config:
     model: str
     auth: str = "x-api-key"
     max_tokens: int = 8192
+    prompt_cache: bool = False
+    effort: str | None = None
 
     def __repr__(self) -> str:  # nunca vazar a chave em log/traceback
         return f"Config(base_url={self.base_url!r}, model={self.model!r}, auth={self.auth!r})"
@@ -63,7 +67,18 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         max_tokens = int(env.get("REFOLD_MAX_TOKENS", "8192"))
     except ValueError as exc:
         raise ClientError("REFOLD_MAX_TOKENS deve ser inteiro") from exc
-    return Config(base_url, env["IARA_API_KEY"], env["IARA_MODEL"], auth, max_tokens)
+    effort = env.get("REFOLD_EFFORT") or None
+    if effort not in {None, "low", "medium", "high", "xhigh"}:
+        raise ClientError("REFOLD_EFFORT deve ser low, medium, high ou xhigh")
+    return Config(
+        base_url,
+        env["IARA_API_KEY"],
+        env["IARA_MODEL"],
+        auth,
+        max_tokens,
+        env.get("REFOLD_PROMPT_CACHE") == "1",
+        effort,
+    )
 
 
 def urllib_transport(url: str, headers: dict[str, str], body: bytes) -> tuple[int, bytes]:
@@ -97,16 +112,18 @@ class MessagesClient:
         return headers
 
     def create(self, system: str, messages: list[dict], tools: list[dict]) -> dict:
-        body = json.dumps(
-            {
-                "model": self.config.model,
-                "max_tokens": self.config.max_tokens,
-                "system": system,
-                "messages": messages,
-                "tools": tools,
-            },
-            ensure_ascii=False,
-        ).encode("utf-8")
+        payload: dict = {
+            "model": self.config.model,
+            "max_tokens": self.config.max_tokens,
+            "system": system,
+            "messages": messages,
+            "tools": tools,
+        }
+        if self.config.prompt_cache:
+            payload["cache_control"] = {"type": "ephemeral"}
+        if self.config.effort:
+            payload["output_config"] = {"effort": self.config.effort}
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         url = f"{self.config.base_url}/messages"
         status, raw = 0, b""
         for attempt in range(1, MAX_ATTEMPTS + 1):

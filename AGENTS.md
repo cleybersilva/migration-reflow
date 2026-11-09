@@ -32,7 +32,7 @@ importar `refold` de dentro de `reflow/`.
 | Classificação | reflow-classifier | `03-classification/classification.md` |
 | Segunda opinião da classificação | reflow-classification-reviewer | `03-classification/review.md` |
 | Checkpoint | Analista | `reflow checkpoint --approve/--reject` → `00-manifest.json` → `checkpoint` |
-| Conversão | reflow-pad-converter | `04-pad/<flow>/Main.robin` |
+| Conversão | `reflow generate` (sem LLM) + reflow-robin-optimizer | `04-pad/<flow>/Main.robin` |
 | Revisão semântica do Robin | reflow-robin-reviewer | `04-pad/<flow>/review.md` |
 | Testes PAD | reflow-pad-tester | `05-test/test_<flow>/Main.robin` |
 
@@ -95,9 +95,15 @@ roda dentro de `phase-done 03-classification`, de `checkpoint --approve` e do pr
 Eval: `uv run python -m reflow classify-eval prepare|score|clean|labels [--case <caso>]` sobre
 o golden set sintético de `tests/fixtures/classification/` (ver ADR-034). `reviewed_at` em
 `expected.json` é só do analista: agent nenhum preenche.
-Harness próprio: `uv run python -m refold agents|check|run <agent> <projeto> [--dry-run]`
-e `uv run python -m refold classify <projeto>|--eval`
-(ver ADR-033; só testado com modelo falso até haver acesso à IAra).
+Conversão (ADR-035): `uv run python -m reflow generate <projeto> [--force]`,
+`reflow context-pack <projeto> <agent>`, `reflow optimize-check <projeto> [--restore]` e
+`reflow complexity [<projeto>|--all]`. O LLM otimiza a base gerada, nunca a recria: o gate
+reprova passo removido e valor inventado. `Main.generated.robin` e `generation.json` são
+gerados e nenhum agent os edita.
+Harness próprio: `uv run python -m refold agents|check|run <agent> <projeto> [--dry-run]`,
+`uv run python -m refold classify <projeto>|--eval`,
+`refold migrate <projeto> [--budget 1.00]` e `refold estimate <projeto>`
+(ver ADR-033 e ADR-035; só testado com modelo falso até haver acesso à IAra).
 Consulte o estado real em `README.md`; não declare funcionalidades futuras prontas.
 
 ## Segurança
