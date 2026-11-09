@@ -459,8 +459,8 @@ uv run python -m refold migrate <projeto> --budget 1.00 # pipeline com teto em d
 - **O que o `refold migrate` nunca pula:** o checkpoint humano e os gates.
 - **Medido:** só a etapa de conversão, um robô sintético, no Claude Code, a preço de Opus 5.5 com
   cache: de US$ 0,997 para US$ 0,428.
-- **A meta de US$ 1 ainda não foi atingida no Claude Code:** só as 3 etapas antes do checkpoint custaram
-  US$ 0,74 (P), US$ 0,98 (M) e US$ 1,24 (G). A migração completa e o `refold` não foram medidos.
+- **A meta de US$ 1 não foi atingida no Claude Code:** a migração completa, a preço de Opus 5.5 com cache,
+  custou US$ 2,11 (P), US$ 3,24 (M) e US$ 5,17 (G), em robôs sintéticos. O `refold` segue sem execução real.
 
 ## 🎯 Harness de classificação
 

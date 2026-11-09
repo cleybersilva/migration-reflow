@@ -1746,10 +1746,38 @@ Robôs sintéticos, Claude Code, Opus 5.5 com cache, contexto pré-montado:
 - A meta de US$ 1 não foi atingida neste harness: o G passa dela antes de converter.
 - Um agent sem nada a fazer custou US$ 0,127, o que dá cerca de US$ 0,76 fixos nos 6 agents. O tamanho
   do robô pesa menos: 14 vezes mais passos custaram 1,7 vez mais.
-- O teste parou no checkpoint, que depende de decisão humana. Faltam otimização, revisão do Robin
-  e testes nestes robôs, e o `refold` segue sem execução real.
 - `Excel.close` estava na tabela verdade mas não no registro do extractor, o que subia um robô pequeno
   de P para M; corrigido. `VBScript.open` tem a mesma lacuna, em aberto: falta decidir a categoria.
+
+### Adendo: custo da migração completa por tamanho
+
+Mesmos robôs, depois do checkpoint. Valores em US$, Claude Code, preço de Opus 5.5 com cache:
+
+| Robô | Flows | Até o checkpoint | Otimizar | Revisar Robin | Testes | Total | Sem cache |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| P | 1 | 0,74 | 0,42 | 0,47 | 0,48 | 2,11 | 3,50 |
+| M | 3 | 0,98 | 0,69 | 0,77 | 0,81 | 3,24 | 4,98 |
+| G | 6 | 1,24 | 1,64 | 1,12 | 1,18 | 5,17 | 8,16 |
+
+- A meta de US$ 1 não foi atingida em nenhum tamanho, nem pela metade do preço: em Sonnet 5.5, os mesmos
+  tokens sem cache dariam cerca de US$ 1,75, 2,49 e 4,08. É conta, não medição.
+- Depois do checkpoint o tamanho pesa: o custo cresce com o número de flows, porque cada agent regrava
+  ou lê todos eles. O G gerou 108,8 mil tokens de saída nas 3 últimas etapas; o P, 32,2 mil.
+- Nesta medição o agent lia o pacote em um turno próprio, e a cada turno o contexto inteiro é reenviado.
+  O `refold` entrega o pacote na primeira mensagem, então o custo dele pode ser diferente. Segue sem
+  execução real, à espera da autorização para usar a chave de API.
+- Nada foi executado no PAD. Os testes gerados têm status `(a executar no PAD)`. Os checkpoints foram
+  gravados primeiro pelo agente, sem decisão humana, e regravados depois da decisão explícita do responsável.
+
+Problemas que a medição revelou, ainda sem correção:
+
+- O recorte de ações do `context-pack` omite `Excel.CloseExcel.CloseAndSave`, que está na whitelist. Os 3
+  otimizadores concluíram que não havia ação que salva, e os flows de M e G fecham a planilha sem salvar
+  depois de gravar nela, com o risco anotado em TODO.
+- A máscara do contexto mostra `ConnectionString: ***`. O revisor e o tester do G leram isso como defeito
+  do flow, mas o arquivo usa a variável `cfg_` correta: falso positivo, conferido no `Main.robin`.
+- O lint reprovou notas de M e G porque toda linha de lista iniciada com crase é lida como nome de ação. O
+  otimizador não conhece essa regra. As notas foram ajustadas à mão, e a regra do lint não mudou.
 
 ### O que esta fase não fez (honestidade)
 

@@ -1423,7 +1423,8 @@ porte do robô.
 - O prompt e a rubrica da classificação não mudaram, então a medição do golden set continua válida
   pelo caminho antigo. O caminho com pacote de contexto (`refold migrate`) não foi medido no eval.
 - Medido depois: no Claude Code, a meta de US$ 1 não é atingida (ver `docs/historico.md`, Fase 38).
-  O contexto fixo do harness pesa mais que o tamanho do robô.
+  A migração completa custou US$ 2,11 (P), 3,24 (M) e 5,17 (G). Até o checkpoint pesa o contexto fixo do
+  harness; depois dele, o número de flows.
 - A cota de 0,25 do otimizador é menor que os US$ 0,43 medidos no Claude Code, que tem contexto fixo e
   releitura que o `refold` não tem. Se a IAra custar parecido, a otimização depende da sobra dos
   estágios anteriores ou é descartada. Calibrar com a primeira medição real.
