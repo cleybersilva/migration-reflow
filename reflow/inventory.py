@@ -9,6 +9,7 @@ FACT_FIELDS: tuple[str, ...] = (
     "data_sources",
     "dependencies",
     "http_calls",
+    "scripts",
     "ui_interactions",
 )
 
@@ -23,6 +24,7 @@ class Inventory:
     data_sources: list[dict] = field(default_factory=list)
     dependencies: list[dict] = field(default_factory=list)
     http_calls: list[dict] = field(default_factory=list)
+    scripts: list[dict] = field(default_factory=list)
     ui_interactions: list[dict] = field(default_factory=list)
     unknown_commands: list[dict] = field(default_factory=list)
     warnings: list[dict] = field(default_factory=list)

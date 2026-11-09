@@ -42,6 +42,8 @@ A360_REGISTRY: dict[tuple[str, str], str] = {
     ("CredentialVault", "get"): "credentials",
     # Dependência entre bots (TaskBot acionando outro bot)
     ("TaskBot", "run"): "dependencies",
+    # Script embutido: nem tela nem fonte de dados, para não distorcer a checagem do veredito
+    ("VBScript", "open"): "scripts",
 }
 
 # Python: operação resolvida (via alias de import) -> categoria.

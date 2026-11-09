@@ -12,7 +12,7 @@ from pathlib import Path
 
 COMPLEXITY_NAME = "complexity.json"
 _ORDER = {"P": 0, "M": 1, "G": 2}
-_INTEGRATIONS = ("ui_interactions", "http_calls", "data_sources", "credentials")
+_INTEGRATIONS = ("ui_interactions", "http_calls", "data_sources", "scripts", "credentials")
 
 # (dimensão, rótulo, maior valor ainda P, maior valor ainda M).
 LIMITS = (

@@ -18,15 +18,19 @@ from .kb import KbAction, load_action_kb
 from .syntax import _parse_action, _scan
 from .whitelist import load_truth_table, load_whitelist, truth_table_action_name
 
-GENERATOR_VERSION = "1"
+GENERATOR_VERSION = "2"
 BASE_NAME = "Main.generated.robin"
 GENERATION_NAME = "generation.json"
 CATALOG_PATH = Path("reference") / "subfluxos-comuns.md"
 CREDENTIAL_SLUG = "obter-credencial-do-cofre"
+EXCEL_WRITE = "Excel.write"
+EXCEL_CLOSE = "Excel.CloseExcel.Close"
+EXCEL_CLOSE_AND_SAVE = "Excel.CloseExcel.CloseAndSave"
 _CATEGORIES = {
     "ui_interactions": "Interação com telas",
     "data_sources": "Leitura e gravação de dados",
     "http_calls": "Chamadas externas",
+    "scripts": "Scripts",
     "credentials": "Credenciais",
     "dependencies": "Subflows",
     "unknown_commands": "Pendências de mapeamento",
@@ -189,6 +193,10 @@ def _render_action(
     if row is None:
         return _todo(step, step_id, "comando fora da tabela verdade (a360-to-pad.md)", region)
     action_id = truth_table_action_name(row)
+    # A tabela verdade manda salvar antes de fechar: `Close` descartaria o que o flow gravou.
+    saves = action_id == EXCEL_CLOSE and any(item.origin == EXCEL_WRITE for item in flow.steps)
+    if saves:
+        action_id = EXCEL_CLOSE_AND_SAVE
     entry = mapper.whitelist.get(action_id or "")
     if action_id is None or entry is None or entry.status.lower().startswith("[não validado"):
         return _todo(step, step_id, f"{action_id or 'sem ação PAD'} sem sintaxe confirmada", region)
@@ -261,6 +269,11 @@ def _render_action(
             "# TODO reflow: preencher "
             + ", ".join(name for name, _ in configs)
             + f" (valores não capturados; {evidence})"
+        )
+    if saves:
+        comments.append(
+            "# TODO reflow: o flow grava na planilha antes de fechar; salvar ao fechar foi "
+            f"assumido, confirmar com o analista ({evidence})"
         )
     if {name.lower() for name in step.attributes} & {"authorization", "password", "token"}:
         comments.append("# TODO reflow: segredo nunca literal; usar entrada sensível in_ (A4)")

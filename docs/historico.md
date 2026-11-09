@@ -1769,15 +1769,26 @@ Mesmos robôs, depois do checkpoint. Valores em US$, Claude Code, preço de Opus
 - Nada foi executado no PAD. Os testes gerados têm status `(a executar no PAD)`. Os checkpoints foram
   gravados primeiro pelo agente, sem decisão humana, e regravados depois da decisão explícita do responsável.
 
-Problemas que a medição revelou, ainda sem correção:
+### Adendo: correções do que a medição revelou
 
-- O recorte de ações do `context-pack` omite `Excel.CloseExcel.CloseAndSave`, que está na whitelist. Os 3
-  otimizadores concluíram que não havia ação que salva, e os flows de M e G fecham a planilha sem salvar
-  depois de gravar nela, com o risco anotado em TODO.
-- A máscara do contexto mostra `ConnectionString: ***`. O revisor e o tester do G leram isso como defeito
-  do flow, mas o arquivo usa a variável `cfg_` correta: falso positivo, conferido no `Main.robin`.
-- O lint reprovou notas de M e G porque toda linha de lista iniciada com crase é lida como nome de ação. O
-  otimizador não conhece essa regra. As notas foram ajustadas à mão, e a regra do lint não mudou.
+- **Fechar sem salvar:** o gerador (versão 2) usa `Excel.CloseExcel.CloseAndSave` quando o flow grava na
+  planilha antes de fechar, com `# TODO reflow` pedindo a confirmação do analista. A detecção olha só o
+  próprio flow: gravar em um subflow e fechar em outro não é percebido.
+- **Recorte de ações:** o `context-pack` omitia `CloseAndSave` e `Database.Close`, e por isso os otimizadores
+  concluíram que elas não existiam. Agora entram as ações de fechamento dos módulos usados. Revisor e tester
+  também recebem as ações que o otimizador acrescentou ao flow.
+- **Máscara:** no pacote de contexto, a referência a uma variável `cfg_` em chave sensível não vira mais `***`,
+  o que evita o falso defeito apontado no G. Só o pacote usa essa opção; fora dele, a máscara segue como antes.
+- **Vazamento na máscara:** em chave sensível, o literal Robin só tinha o `$` mascarado, e o texto passava.
+  Agora o literal com texto fixo é mascarado inteiro em toda chamada de `mask`.
+- **Lint das notas:** a regra (item de lista iniciado com crase é nome de ação) entrou no prompt do otimizador.
+  O lint não mudou.
+- **`VBScript.open`:** entrou no registro, na categoria nova `scripts`, porque não é tela nem fonte de dados. O
+  inventário ganhou o campo `scripts`, e os goldens mudaram só nisso. `packageName` e `commandName` dessa linha
+  continuam um palpite, sem confirmação em export real.
+
+Os custos da tabela acima são anteriores a estas correções. Os robôs de teste não foram gerados de novo, e nada
+disso rodou no PAD.
 
 ### O que esta fase não fez (honestidade)
 

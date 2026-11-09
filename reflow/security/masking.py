@@ -87,6 +87,9 @@ def is_placeholder_value(value: str) -> bool:
 # argumento com valor nu é **referência** a variável, nunca o segredo em si.
 _REFLOW_VARIABLE_RE = re.compile(r"(?:cfg|in|out|step)_\w+")
 _ROBIN_EXPRESSION_RE = re.compile(r"%[^%]*%")
+_SECRET_ROBIN_LITERAL_RE = re.compile(
+    rf"(?is)(?P<key>\b(?:{_SENSITIVE_KEY_WORDS})\b\s*[:=]\s*)\$'''(?P<literal>.*?)'''"
+)
 
 
 def is_safe_assignment(line: str, match: re.Match[str]) -> bool:
@@ -123,16 +126,28 @@ def is_safe_assignment(line: str, match: re.Match[str]) -> bool:
     return False
 
 
-def mask_secrets(text: str) -> str:
-    """Troca o valor atribuído a uma chave sensível por `***`, preservando a chave."""
+def mask_secrets(text: str, keep_references: bool = False) -> str:
+    """Troca o valor atribuído a uma chave sensível por `***`, preservando a chave.
+
+    Com `keep_references`, mantém a referência nua a variável do reflow (mesma regra de
+    `is_safe_assignment`), para quem precisa ler o flow. O padrão continua mascarando tudo.
+    """
 
     def _redact(match: re.Match[str]) -> str:
+        if keep_references and _REFLOW_VARIABLE_RE.fullmatch(match.group("value")):
+            return match.group(0)
         return match.group(0).replace(match.group("value"), "***")
+
+    def _redact_literal(match: re.Match[str]) -> str:
+        fixed_text = _ROBIN_EXPRESSION_RE.sub("", match.group("literal")).strip()
+        return f"{match.group('key')}***" if fixed_text else match.group(0)
 
     # Bearer primeiro: remove "bearer <token>" por inteiro para que a passada de
     # SECRET_ASSIGNMENT_RE (que roda depois) só veja "Authorization: ***" e não
     # tente capturar a palavra "Bearer" como valor.
     masked = BEARER_TOKEN_RE.sub("***", text)
+    # Literal Robin antes da passada geral, que leria só o `$` como valor e deixaria o texto.
+    masked = _SECRET_ROBIN_LITERAL_RE.sub(_redact_literal, masked)
     return SECRET_ASSIGNMENT_RE.sub(_redact, masked)
 
 
@@ -146,9 +161,9 @@ def mask_pii(text: str) -> str:
     return masked
 
 
-def mask(text: str) -> str:
+def mask(text: str, keep_references: bool = False) -> str:
     """Aplica as duas máscaras — segredos e PII — em qualquer texto livre."""
-    return mask_pii(mask_secrets(text))
+    return mask_pii(mask_secrets(text, keep_references))
 
 
 def mask_data(value: Any) -> Any:

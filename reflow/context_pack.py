@@ -11,6 +11,8 @@ import re
 from pathlib import Path
 
 from .robin.generate import GENERATION_NAME
+from .robin.kb import load_action_kb
+from .robin.syntax import analyze_robin
 from .security.masking import mask
 
 CLASSIFICATION_NAME = "classification.md"
@@ -27,13 +29,13 @@ PACKED_AGENTS = (
     "reflow-robin-reviewer",
     "reflow-pad-tester",
 )
-# Ações que o otimizador pode acrescentar sem origem no legado.
-_RESOURCE_ACTIONS = {
-    "Excel.CloseExcel.Close",
-    "WebAutomation.CloseWebBrowser",
-    "SET",
-    "IF",
-    "BLOCK",
+# Ações que o otimizador pode acrescentar sem origem no legado. As de fechamento só entram
+# se o projeto usa o módulo; sem elas, o agent conclui que o recurso não tem como fechar.
+_CONTROL_ACTIONS = {"SET", "IF", "BLOCK"}
+_CLOSING_ACTIONS = {
+    "Excel": {"Excel.CloseExcel.Close", "Excel.CloseExcel.CloseAndSave"},
+    "WebAutomation": {"WebAutomation.CloseWebBrowser"},
+    "Database": {"Database.Close"},
 }
 _SECTION_RE = re.compile(r"^### `([^`]+)`[^\n]*\n(.*?)(?=^### |^## |\Z)", re.MULTILINE | re.DOTALL)
 
@@ -65,12 +67,26 @@ def _flow_files(out: Path) -> list[Path]:
     return sorted((out / "04-pad").glob("*/Main.robin"))
 
 
-def _used_actions(out: Path) -> set[str]:
+def _used_actions(root: Path, out: Path) -> set[str]:
+    """Ações da base e do flow atual: o otimizador pode ter acrescentado alguma à base."""
     used: set[str] = set()
     for meta in sorted((out / "04-pad").glob(f"*/{GENERATION_NAME}")):
         data = json.loads(meta.read_text(encoding="utf-8"))
         used.update(step["action"] for step in data.get("steps", []) if step.get("action"))
+    kb = load_action_kb(root)
+    for path in _flow_files(out):
+        text = path.read_bytes().decode("utf-8").replace("\r\n", "\n")
+        used.update(action for _, action in analyze_robin(text, kb)[1])
     return used
+
+
+def _project_actions(root: Path, out: Path) -> set[str]:
+    used = _used_actions(root, out)
+    actions = used | _CONTROL_ACTIONS
+    for module, closing in _CLOSING_ACTIONS.items():
+        if any(action.startswith(f"{module}.") for action in used):
+            actions |= closing
+    return actions
 
 
 def _docs(out: Path, names: tuple[str, ...] | None = None) -> list[tuple[str, str]]:
@@ -123,11 +139,10 @@ def sections(root: Path, project: str, agent: str) -> list[tuple[str, str]]:
         (path.relative_to(out).as_posix(), path.read_bytes().decode("utf-8").replace("\r\n", "\n"))
         for path in _flow_files(out)
     ]
-    used = _used_actions(out)
     uses = _docs(out, ("use-cases.md", "business-rules.md"))
+    whitelist = _whitelist_sections(root, _project_actions(root, out))
     if agent == "reflow-robin-optimizer":
         # Main.robin já traz id, origem e evidência de cada passo: generation.json só repetiria.
-        whitelist = _whitelist_sections(root, used | _RESOURCE_ACTIONS)
         return [
             (CONVENTIONS, read(CONVENTIONS)),
             (f"{ACTIONS} (só as ações deste projeto)", whitelist),
@@ -135,7 +150,6 @@ def sections(root: Path, project: str, agent: str) -> list[tuple[str, str]]:
             *uses,
             *flows,
         ]
-    whitelist = _whitelist_sections(root, used)
     if agent == "reflow-robin-reviewer":
         notes = [
             (path.relative_to(out).as_posix(), path.read_text(encoding="utf-8"))
@@ -160,7 +174,8 @@ def build_pack(root: Path, project: str, agent: str) -> str:
     parts = [f"# Contexto de {agent} para {project}", ""]
     for label, content in sections(root, project, agent):
         parts.extend([f"## {label}", "", content.strip(), ""])
-    return mask("\n".join(parts))
+    # Sem manter a referência, o agent lê `ConnectionString: ***` e acusa um defeito que não existe.
+    return mask("\n".join(parts), keep_references=True)
 
 
 def write_pack(root: Path, project: str, agent: str) -> Path:

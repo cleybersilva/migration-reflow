@@ -30,8 +30,12 @@ O que você pode fazer:
   nomes de negócio em snake_case, mantendo o prefixo.
 - Sinalizar um trecho que corresponda a padrão `catalogado` de `reference/subfluxos-comuns.md`,
   seguindo a regra de lá, sem nunca sinalizar `proposto` como catalogado.
-- Fechar um recurso que o legado deixou aberto, com ação da whitelist listada no contexto.
-- Atualizar `notas-conversao.md` e `README.md` quando mudar o flow.
+- Fechar um recurso que o legado deixou aberto, com ação da whitelist listada no contexto. Se
+  o flow grava na planilha, feche com `Excel.CloseExcel.CloseAndSave` e deixe um `# TODO reflow`
+  pedindo a confirmação do analista.
+- Atualizar `notas-conversao.md` e `README.md` quando mudar o flow. Nas notas, item de lista que
+  começa com crase é lido pelo lint como nome de ação: fora da lista de ações, comece com uma
+  palavra (`` - Passo `step_22_excel_close`: ... ``).
 
 O que você não pode fazer, e o `reflow optimize-check` reprova:
 

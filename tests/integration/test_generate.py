@@ -15,7 +15,8 @@ from reflow.report import build_batch_report
 from reflow.robin import lint_robin_files
 from reflow.robin.generate import BASE_NAME, build_flows
 from reflow.robin.optimize import check_project, restore_base
-from reflow.robin.whitelist import load_whitelist
+from reflow.robin.whitelist import load_truth_table, load_whitelist
+from reflow.security.masking import mask
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = {
@@ -246,6 +247,85 @@ def test_context_pack_carries_only_what_the_flow_uses_and_is_masked(workspace: P
     require("### `Excel.ReadFromExcel.ReadCells`" in pack, "ação usada precisa estar no pacote")
     require("### `Database.Close`" not in pack, "ação não usada fica fora")
     require("flow-main/Main.robin" in pack, "o flow precisa estar no pacote")
+
+
+def _excel_fact(command: str, line: int) -> dict:
+    return {"packageName": "Excel", "commandName": command, "file": "a.json", "line": line}
+
+
+def test_excel_close_saves_only_when_the_flow_wrote(workspace: Path) -> None:
+    facts = [_excel_fact("open", 1), _excel_fact("write", 2), _excel_fact("close", 3)]
+    inventory = {"source_type": "a360", "data_sources": facts}
+    closing = build_flows(workspace, inventory)[0][0].steps[2]
+    require((closing.line or "").startswith("Excel.CloseExcel.CloseAndSave "), str(closing.line))
+    require(any("confirmar com o analista" in text for text in closing.comments), "pede revisão")
+
+    del facts[1]
+    untouched = build_flows(workspace, inventory)[0][0].steps[1]
+    require((untouched.line or "").startswith("Excel.CloseExcel.Close "), str(untouched.line))
+
+
+def test_context_pack_offers_closing_actions_of_the_modules_used(workspace: Path) -> None:
+    project = "a360-excel-vault"
+    _approve(workspace, project)
+    reflow_main(["generate", project])
+    for agent in ("reflow-robin-optimizer", "reflow-robin-reviewer", "reflow-pad-tester"):
+        pack = build_pack(workspace, project, agent)
+        require("### `Excel.CloseExcel.CloseAndSave`" in pack, f"{agent}: falta a ação que salva")
+        require("### `WebAutomation.CloseWebBrowser`" not in pack, f"{agent}: módulo não usado")
+
+
+def test_context_pack_shows_actions_the_optimizer_added(workspace: Path) -> None:
+    project = "a360-excel-vault"
+    _approve(workspace, project)
+    reflow_main(["generate", project])
+    robin = _robin(workspace, project)
+    robin.write_bytes(robin.read_bytes() + b"WebAutomation.CloseWebBrowser BrowserInstance: x\r\n")
+    pack = build_pack(workspace, project, "reflow-robin-reviewer")
+    require("### `WebAutomation.CloseWebBrowser`" in pack, "ação acrescentada precisa aparecer")
+
+
+def test_context_pack_keeps_variable_reference_and_masks_values(workspace: Path) -> None:
+    project = "a360-excel-vault"
+    _approve(workspace, project)
+    reflow_main(["generate", project])
+    robin = _robin(workspace, project)
+    extra = [
+        "# ConnectionString: cfg_04_conexao",
+        "# ConnectionString: synthetic-server",
+        "",
+    ]
+    robin.write_bytes(robin.read_bytes() + "\r\n".join(extra).encode("utf-8"))
+    pack = build_pack(workspace, project, "reflow-robin-reviewer")
+    require("ConnectionString: cfg_04_conexao" in pack, "referência à variável não é segredo")
+    require("synthetic-server" not in pack, "valor continua mascarado")
+    require(mask("ConnectionString: cfg_04_conexao") == "ConnectionString: ***", "padrão não muda")
+
+
+def test_mask_hides_the_text_of_a_robin_literal() -> None:
+    masked = mask("Password: $'''valor-ficticio''' Outro: 1")  # reflow:allow-secret
+    require("valor-ficticio" not in masked, masked)
+    require("Outro: 1" in masked, "o resto da linha fica")
+    expression = "Password: $'''%in_senha%'''"  # reflow:allow-secret
+    require("%in_senha%" in mask(expression), "expressão não é valor fixo")
+
+
+def test_mapped_truth_table_commands_are_all_in_the_extractor_registry(workspace: Path) -> None:
+    """Linha sem ação PAD (`—`) é comando desconhecido de propósito e fica fora do registro."""
+    missing = [
+        (row["Pacote A360"], row["Comando A360"])
+        for row in load_truth_table(workspace)
+        if row["Ação PAD equivalente"].strip() != "—"
+        and (row["Pacote A360"], row["Comando A360"]) not in A360_REGISTRY
+    ]
+    require(not missing, f"fora do registro: {missing}")
+
+
+def test_vbscript_is_a_script_step_with_the_validated_action(workspace: Path) -> None:
+    fact = {"packageName": "VBScript", "commandName": "open", "file": "a.json", "line": 1}
+    step = build_flows(workspace, {"source_type": "a360", "scripts": [fact]})[0][0].steps[0]
+    require(step.region == "Scripts", step.region)
+    require(step.action == "Scripting.RunVBScript.RunVBScript", str(step.action))
 
 
 def test_report_shows_complexity(workspace: Path) -> None:

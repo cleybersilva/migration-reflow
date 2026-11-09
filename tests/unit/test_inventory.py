@@ -12,10 +12,17 @@ def require(condition: bool, message: str) -> None:
         pytest.fail(message)
 
 
-def test_fact_fields_are_the_five_categorized_lists() -> None:
+def test_fact_fields_are_the_six_categorized_lists() -> None:
     require(
         set(FACT_FIELDS)
-        == {"credentials", "data_sources", "dependencies", "http_calls", "ui_interactions"},
+        == {
+            "credentials",
+            "data_sources",
+            "dependencies",
+            "http_calls",
+            "scripts",
+            "ui_interactions",
+        },
         f"FACT_FIELDS inesperado: {FACT_FIELDS}",
     )
 
