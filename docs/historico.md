@@ -1765,7 +1765,8 @@ Mesmos robôs, depois do checkpoint. Valores em US$, Claude Code, preço de Opus
   ou lê todos eles. O G gerou 108,8 mil tokens de saída nas 3 últimas etapas; o P, 32,2 mil.
 - Nesta medição o agent lia o pacote em um turno próprio, e a cada turno o contexto inteiro é reenviado.
   O `refold` entrega o pacote na primeira mensagem, então o custo dele pode ser diferente. Segue sem
-  execução real, à espera da autorização para usar a chave de API.
+  execução real: o uso da chave de API foi autorizado em 2026-11-09 (Sonnet 5.5, teto de US$ 1 por
+  robô), mas a confirmação de segurança do ambiente reteve as duas tentativas, sem gasto.
 - Nada foi executado no PAD. Os testes gerados têm status `(a executar no PAD)`. Os checkpoints foram
   gravados primeiro pelo agente, sem decisão humana, e regravados depois da decisão explícita do responsável.
 
