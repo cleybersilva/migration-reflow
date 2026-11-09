@@ -17,6 +17,7 @@ from tests.classification_support import classification_text, review_text
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = "a360-excel-vault"
+FIXTURE = ROOT / "tests" / "fixtures" / "a360" / "excel-vault"
 PRICE_MODEL = "claude-opus-5-5"
 TURN = {"input_tokens": 1000, "output_tokens": 500}  # US$ 0,014 no preço do Opus 5.5
 
@@ -99,7 +100,7 @@ def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         monkeypatch.delenv(name, raising=False)
     shutil.copytree(ROOT / "reference", tmp_path / "reference")
     shutil.copytree(ROOT / ".opencode" / "agents", tmp_path / ".opencode" / "agents")
-    shutil.copytree(ROOT / "input" / PROJECT, tmp_path / "input" / PROJECT)
+    shutil.copytree(FIXTURE, tmp_path / "input" / PROJECT)
     require(reflow_main(["extract", PROJECT]) == 0, "extract deveria concluir")
     return tmp_path
 

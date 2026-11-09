@@ -17,7 +17,12 @@ from reflow.robin.optimize import check_project, restore_base
 from reflow.robin.whitelist import load_whitelist
 
 ROOT = Path(__file__).resolve().parents[2]
-PROJECTS = ("a360-excel-vault", "a360-browser-rest", "quote-scraper")
+SOURCES = {
+    "a360-excel-vault": ROOT / "tests" / "fixtures" / "a360" / "excel-vault",
+    "a360-browser-rest": ROOT / "tests" / "fixtures" / "a360" / "browser-rest",
+    "quote-scraper": ROOT / "input" / "quote-scraper",
+}
+PROJECTS = tuple(SOURCES)
 CLASSIFICATION = "---\nverdict: PARTIAL\n---\n"
 
 
@@ -48,8 +53,8 @@ def _approve(root: Path, project: str, verdict: str = "PARTIAL") -> None:
 def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.chdir(tmp_path)
     shutil.copytree(ROOT / "reference", tmp_path / "reference")
-    for project in PROJECTS:
-        shutil.copytree(ROOT / "input" / project, tmp_path / "input" / project)
+    for project, source in SOURCES.items():
+        shutil.copytree(source, tmp_path / "input" / project)
         require(reflow_main(["extract", project]) == 0, f"extract de {project}")
     return tmp_path
 
