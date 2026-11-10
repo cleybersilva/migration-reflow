@@ -128,6 +128,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--restore", action="store_true", help="Se reprovar, devolve a base determinística."
     )
 
+    optimize_needed = sub.add_parser(
+        "optimize-needed", help="Diz se a base gerada tem algo que só o otimizador resolve."
+    )
+    optimize_needed.add_argument("project")
+
     pack = sub.add_parser("context-pack", help="Monta o contexto mínimo de um agent, sem LLM.")
     pack.add_argument("project")
     pack.add_argument("agent", choices=context_pack.PACKED_AGENTS)
@@ -620,6 +625,23 @@ def _cmd_optimize_check(args: argparse.Namespace) -> int:
     return 2
 
 
+def _cmd_optimize_needed(args: argparse.Namespace) -> int:
+    """Sempre 0 quando há base: a resposta está na saída, `sim` ou `não`."""
+    root = Path.cwd()
+    if not _valid_project_name(args.project):
+        print(f"nome de projeto inválido: {args.project}", file=sys.stderr)
+        return 1
+    if not optimize.generated_flows(root, args.project):
+        print(f"{args.project}: nada gerado, rode `reflow generate` antes.", file=sys.stderr)
+        return 1
+    reasons = optimize.optimization_reasons(root, args.project)
+    if reasons:
+        print(f"optimize-needed sim: {'; '.join(reasons)}.")
+    else:
+        print("optimize-needed não: nenhum recurso aberto sem fechamento; a base fica.")
+    return 0
+
+
 def _cmd_context_pack(args: argparse.Namespace) -> int:
     root = Path.cwd()
     if not _valid_project_name(args.project):
@@ -744,6 +766,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "optimize-check":
         return _cmd_optimize_check(args)
+
+    if args.command == "optimize-needed":
+        return _cmd_optimize_needed(args)
 
     if args.command == "context-pack":
         return _cmd_context_pack(args)

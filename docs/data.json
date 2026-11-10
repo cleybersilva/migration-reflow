@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-09T16:40:12+00:00",
+  "generatedAt": "2026-11-10T16:06:00+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -23,6 +23,27 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/migration-reflow/Otimizar e revisar so onde ha o que fazer (ADR-036, Fase 39)",
+      "title": "Otimizar e revisar so onde ha o que fazer (ADR-036, Fase 39)",
+      "project": "migration-reflow",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-10",
+      "hora": "09:00 -03:00",
+      "atividade": "Otimizador so com recurso aberto e amostragem de revisor e tester em M e G",
+      "tags": [],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "decision",
+        "access_scope": "project",
+        "confidence": "media",
+        "retention": "permanente"
+      },
+      "content": "# Otimizar e revisar so onde ha o que fazer (ADR-036, Fase 39)\n\n## O que foi modificado\n| Arquivo | Mudanca | Tipo |\n|---|---|---|\n| `reflow/robin/optimize.py` | `optimization_flows` e `optimization_reasons`: so recurso aberto sem fechamento | implementacao |\n| `reflow/context_pack.py` | otimizador recebe so flows com motivo; revisor e tester so o `flow-main` em M e G, com secao \"Amostragem\" | implementacao |\n| `reflow/cli.py` | comando `optimize-needed` (sim/nao) | implementacao |\n| `refold/migrate.py` | estagio do otimizador `pulado` sem motivo; `pulado` conta como feito; `estimate` idem | implementacao |\n| `.opencode/agents/*` (3), skill `reflow-convert` | instrucao de amostragem e do `optimize-needed`, sincronizados | implementacao |\n| testes | 4 novos (amostragem, P sem amostragem, alvo do otimizador, pulado no refold) | implementacao |\n\n## O que foi implantado\n508 testes e ruff verdes. Pacotes do robo G sintetico ~50% menores (otimizador 95,6 para 51,1 KB; revisor 103,7 para 47,8; tester 85,3 para 40,8). M: 3% a 10%.\n\n## Beneficios para o projeto\nCusto pos-checkpoint deixa de crescer com o numero de flows em M e G.\n\n## Causa raiz / motivo\nMedicao da Fase 38: G gastou US$ 3,94 pos-checkpoint; 0 de 3 otimizadores ligaram variaveis.\n\n## Como reverter\nReverter o commit da Fase 39; `optimization_flows` volta a aceitar outros motivos.\n\n## Pendencias\n- Custo novo nao medido; `refold migrate` real autorizado mas retido pela confirmacao de seguranca.\n- Subflows de M e G ficam sem revisao semantica e teste gerados."
+    },
     {
       "id": "projects/migration-reflow/Migrador que otimiza codigo gerado, orcamento e complexidade PMG (ADR-035, Fase 38)",
       "title": "Migrador que otimiza codigo gerado, orcamento e complexidade PMG (ADR-035, Fase 38)",

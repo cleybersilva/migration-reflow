@@ -152,6 +152,22 @@ def test_full_run_records_cost_and_keeps_the_gate(workspace: Path) -> None:
     require(statuses["reflow-robin-optimizer"] == "ok", f"{statuses}")
 
 
+def test_optimizer_is_skipped_when_the_base_has_nothing_for_it(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = FakeModel(workspace)
+    _run(workspace, model)
+    _approve(workspace)
+    monkeypatch.setattr(migrate.optimize, "optimization_reasons", lambda root, project: [])
+    require(_run(workspace, model) == 0, "a migração segue com a base")
+    require(model.calls[3:] == ["robin-review", "tester"], f"{model.calls}")
+    statuses = {item["agent"]: item["status"] for item in _ledger(workspace)["stages"]}
+    require(statuses["reflow-robin-optimizer"] == "pulado", f"{statuses}")
+    calls = len(model.calls)
+    _run(workspace, model)
+    require("optimizer" not in model.calls[calls:], f"pulado conta como feito: {model.calls}")
+
+
 def test_second_run_does_not_pay_twice(workspace: Path) -> None:
     model = FakeModel(workspace)
     _run(workspace, model)

@@ -21,6 +21,8 @@ _SET_CFG_RE = re.compile(r"^SET\s+(cfg_\w+)\s+TO\s+(.*)$", re.MULTILINE)
 _EMPTY_TEXT = "$''''''"
 _ARG_TEXT_RE = re.compile(r"\w+:\s*\$'''(.*?)'''")
 _STEP_NUMBER_RE = re.compile(r"^step_\d+_")
+# Texto que o `reflow generate` grava na base; mudou lá, muda aqui (teste cobre os dois).
+_OPEN_HANDLE_TODO = "# TODO reflow: instância sem fechamento"
 
 
 def generated_flows(root: Path, project: str) -> list[Path]:
@@ -72,6 +74,25 @@ def check_flow(root: Path, meta_path: Path) -> list[Issue]:
         if value not in known and re.sub(r"%[^%]*%", "", value).strip(" /\\:"):
             issues.append(Issue("aviso", rel, f"literal novo em argumento: {value[:60]}"))
     return issues
+
+
+def optimization_flows(root: Path, project: str) -> list[str]:
+    """Flows cuja base tem o que só o otimizador resolve: recurso aberto sem fechamento.
+
+    Renomear e reagrupar não pagam uma chamada de LLM, e ligar variáveis não aconteceu em
+    nenhum dos 3 robôs medidos, porque os casos de uso não provavam a ligação (ADR-036).
+    """
+    names = []
+    for meta_path in generated_flows(root, project):
+        base_path = meta_path.parent / BASE_NAME
+        if base_path.is_file() and _OPEN_HANDLE_TODO in _text(base_path):
+            names.append(meta_path.parent.name)
+    return names
+
+
+def optimization_reasons(root: Path, project: str) -> list[str]:
+    """Vazio: o otimizador é pulado e a base determinística segue como resultado."""
+    return [f"{name}: recurso aberto sem fechamento" for name in optimization_flows(root, project)]
 
 
 def check_project(root: Path, project: str) -> list[Issue]:

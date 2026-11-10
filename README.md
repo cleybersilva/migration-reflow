@@ -434,6 +434,7 @@ partir do inventário e da tabela verdade, e o agent só a otimiza.
 uv run python -m reflow complexity <projeto>            # P, M ou G, também gravado no extract
 uv run python -m reflow generate <projeto>              # base Robin sem LLM (exige checkpoint)
 uv run python -m reflow context-pack <projeto> <agent>  # contexto mínimo do agent
+uv run python -m reflow optimize-needed <projeto>       # sim/não: a base tem recurso aberto?
 uv run python -m reflow optimize-check <projeto> --restore  # gate; se reprovar, volta à base
 uv run python -m refold estimate <projeto>              # custo estimado, sem chamar a API
 uv run python -m refold migrate <projeto> --budget 1.00 # pipeline com teto em dólar

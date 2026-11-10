@@ -46,7 +46,10 @@ Depois do checkpoint aprovado:
 1. `uv run python -m reflow generate <projeto>` monta, sem LLM, `04-pad/<flow>/Main.robin`,
    `Main.generated.robin` (a base), `generation.json`, `README.md` e `notas-conversao.md`.
    Ação fora da whitelist, comando sem mapeamento e elemento de UI viram `# TODO reflow`.
-2. `uv run python -m reflow context-pack <projeto> reflow-robin-optimizer` monta o contexto.
+2. `uv run python -m reflow optimize-needed <projeto>`. Se responder `não`, pule os passos 3 e 5:
+   a base fica como resultado (ADR-036). Se responder `sim`, rode
+   `uv run python -m reflow context-pack <projeto> reflow-robin-optimizer`, que monta o
+   contexto só com os flows que têm recurso aberto.
 3. Chame o agent **reflow-robin-optimizer**, indicando esse arquivo. Ele só reorganiza, nomeia,
    liga variáveis e sinaliza subfluxo comum catalogado (`reference/subfluxos-comuns.md`).
    Não trave a migração se ele falhar: a base segue válida.

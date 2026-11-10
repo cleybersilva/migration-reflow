@@ -1799,3 +1799,18 @@ disso rodou no PAD.
 - Não usou robô real, e a aprovação de checkpoint usada no bench é de fixture sintética.
 - Os limites P/M/G não foram calibrados, e não se comparou o mérito dos flows além das contagens.
 
+
+## Fase 39: otimizar e revisar só onde há o que fazer (ADR-036)
+
+As duas maiores alavancas de custo apontadas pela Fase 38, implementadas sem mudar o piso determinístico:
+
+- **Otimizador só com motivo:** a base precisa ter recurso aberto sem fechamento, e o agent recebe só os
+  flows com esse problema. Sem nenhum, ele é pulado (`reflow optimize-needed`, estágio `pulado` no
+  `cost.json`).
+- **Amostragem em M e G:** revisor do Robin e tester ficam no flow principal; o pacote lista os que
+  ficaram fora.
+
+Validação: 508 testes, `ruff` limpo. Nos robôs sintéticos, os 3 ainda têm recurso aberto no flow
+principal, então o otimizador continua sendo chamado, mas só nele: no G, cai de 6 flows para 1. Pacotes do
+G cerca de 50% menores; no M, 3% a 10%. Pela proporção, o G deve ficar perto de metade dos US$ 3,94 pós-checkpoint
+medidos, mas isso é conta, não medição: o custo novo e o `refold` real seguem sem rodar.

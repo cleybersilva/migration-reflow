@@ -96,7 +96,8 @@ Eval: `uv run python -m reflow classify-eval prepare|score|clean|labels [--case 
 o golden set sintético de `tests/fixtures/classification/` (ver ADR-034). `reviewed_at` em
 `expected.json` é só do analista: agent nenhum preenche.
 Conversão (ADR-035): `uv run python -m reflow generate <projeto> [--force]`,
-`reflow context-pack <projeto> <agent>`, `reflow optimize-check <projeto> [--restore]` e
+`reflow context-pack <projeto> <agent>`, `reflow optimize-needed <projeto>` (ADR-036: sem
+recurso aberto, o otimizador é pulado), `reflow optimize-check <projeto> [--restore]` e
 `reflow complexity [<projeto>|--all]`. O LLM otimiza a base gerada, nunca a recria: o gate
 reprova passo removido e valor inventado. `Main.generated.robin` e `generation.json` são
 gerados e nenhum agent os edita.

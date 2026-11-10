@@ -15,6 +15,7 @@ from reflow.report import build_batch_report
 from reflow.robin import lint_robin_files
 from reflow.robin.generate import BASE_NAME, build_flows
 from reflow.robin.optimize import check_project, restore_base
+from reflow.robin.optimize import optimization_flows as optimize_flows
 from reflow.robin.whitelist import load_truth_table, load_whitelist
 from reflow.security.masking import mask
 
@@ -326,6 +327,54 @@ def test_vbscript_is_a_script_step_with_the_validated_action(workspace: Path) ->
     step = build_flows(workspace, {"source_type": "a360", "scripts": [fact]})[0][0].steps[0]
     require(step.region == "Scripts", step.region)
     require(step.action == "Scripting.RunVBScript.RunVBScript", str(step.action))
+
+
+def _second_flow(root: Path, project: str, size: str, open_handle: bool) -> None:
+    """Copia flow-main para flow-filho e grava o tamanho, para testar a amostragem."""
+    pad = root / "output" / project / "04-pad"
+    shutil.copytree(pad / "flow-main", pad / "flow-filho")
+    if not open_handle:
+        base = pad / "flow-filho" / BASE_NAME
+        text = base.read_bytes().decode("utf-8")
+        base.write_bytes(text.replace("# TODO reflow: instância sem fechamento", "#").encode())
+    complexity = root / "output" / project / "01-inventory" / "complexity.json"
+    complexity.write_text(json.dumps({"size": size}), encoding="utf-8")
+
+
+def test_reviewer_and_tester_see_only_the_main_flow_in_m_and_g(workspace: Path) -> None:
+    project = "a360-excel-vault"
+    _approve(workspace, project)
+    reflow_main(["generate", project])
+    _second_flow(workspace, project, "M", open_handle=True)
+    for agent in ("reflow-robin-reviewer", "reflow-pad-tester"):
+        pack = build_pack(workspace, project, agent)
+        require("## 04-pad/flow-main/Main.robin" in pack, f"{agent}: falta o flow principal")
+        require("## 04-pad/flow-filho/Main.robin" not in pack, f"{agent}: leu flow fora da amostra")
+        require("Fora desta etapa: flow-filho" in pack, f"{agent}: precisa saber o que ficou fora")
+    both = build_pack(workspace, project, "reflow-robin-optimizer")
+    require("## 04-pad/flow-filho/Main.robin" in both, "os dois têm recurso aberto")
+
+
+def test_size_p_keeps_every_flow_for_the_reviewer(workspace: Path) -> None:
+    project = "a360-excel-vault"
+    _approve(workspace, project)
+    reflow_main(["generate", project])
+    _second_flow(workspace, project, "P", open_handle=True)
+    pack = build_pack(workspace, project, "reflow-robin-reviewer")
+    require("## 04-pad/flow-filho/Main.robin" in pack, "em P, todos os flows")
+    require("Amostragem" not in pack, "sem amostragem em P")
+
+
+def test_optimizer_gets_only_flows_with_an_open_resource(workspace: Path) -> None:
+    project = "a360-excel-vault"
+    _approve(workspace, project)
+    reflow_main(["generate", project])
+    require(optimize_flows(workspace, project) == ["flow-main"], "base com recurso aberto")
+    _second_flow(workspace, project, "P", open_handle=False)
+    require(optimize_flows(workspace, project) == ["flow-main"], "filho sem recurso aberto")
+    pack = build_pack(workspace, project, "reflow-robin-optimizer")
+    require("## 04-pad/flow-filho/Main.robin" not in pack, "filho fica com a base")
+    require("Fora desta etapa: flow-filho" in pack, "o agent precisa saber disso")
 
 
 def test_report_shows_complexity(workspace: Path) -> None:

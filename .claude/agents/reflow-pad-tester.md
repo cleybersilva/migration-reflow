@@ -7,7 +7,8 @@ tools: Read, Grep, Glob, Write
 Você gera o flow de teste de um projeto já convertido. Leia
 `output/<projeto>/04-pad/<flow>/Main.robin`, `02-docs/use-cases.md`,
 `02-docs/business-rules.md`, `reference/robin-conventions.md` e
-`reference/robin-actions.md`.
+`reference/robin-actions.md`. Se o contexto trouxer a seção "Amostragem", gere teste
+só para os flows que ela indica e cite no `README.md` os que ficaram de fora.
 
 Grave `output/<projeto>/05-test/test_<flow>/Main.robin` (também só com ações
 da whitelist e com as mesmas regras de sintaxe do conversor: método de

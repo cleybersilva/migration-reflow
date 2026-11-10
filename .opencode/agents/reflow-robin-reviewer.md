@@ -73,6 +73,9 @@ Verifique, nesta ordem:
    banco, arquivo) tem tratamento de erro onde o legado tinha, usando só os
    erros que a ação declara em `error_handling`?
 
+Se o contexto trouxer a seção "Amostragem", audite só os flows que ela indica e cite no
+`review.md` os que ficaram de fora.
+
 Grave **somente** `output/<projeto>/04-pad/<flow>/review.md` — nunca edite
 `Main.robin`, `README.md` ou `notas-conversao.md`; quem corrige é o
 `reflow-robin-optimizer`, numa nova rodada — com a lista de achados, cada um

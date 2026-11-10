@@ -10,6 +10,8 @@ import json
 import re
 from pathlib import Path
 
+from .complexity import read_size
+from .robin import optimize
 from .robin.generate import GENERATION_NAME
 from .robin.kb import load_action_kb
 from .robin.syntax import analyze_robin
@@ -32,6 +34,10 @@ PACKED_AGENTS = (
 # Ações que o otimizador pode acrescentar sem origem no legado. As de fechamento só entram
 # se o projeto usa o módulo; sem elas, o agent conclui que o recurso não tem como fechar.
 _CONTROL_ACTIONS = {"SET", "IF", "BLOCK"}
+# Amostragem por tamanho (ADR-036): quem só lê e audita não precisa de todos os flows.
+SAMPLED_AGENTS = ("reflow-robin-reviewer", "reflow-pad-tester")
+SAMPLED_SIZES = {"M", "G"}
+MAIN_FLOW = "flow-main"
 _CLOSING_ACTIONS = {
     "Excel": {"Excel.CloseExcel.Close", "Excel.CloseExcel.CloseAndSave"},
     "WebAutomation": {"WebAutomation.CloseWebBrowser"},
@@ -65,6 +71,18 @@ def _whitelist_sections(root: Path, actions: set[str]) -> str:
 
 def _flow_files(out: Path) -> list[Path]:
     return sorted((out / "04-pad").glob("*/Main.robin"))
+
+
+def _sample(out: Path, paths: list[Path]) -> tuple[list[Path], list[str]]:
+    """Em M e G, revisor e tester ficam no flow principal: o custo cresce com cada flow lido.
+
+    Principal é o `flow-main` (vem do `main.json` do A360); sem ele, o maior flow.
+    """
+    if read_size(out) not in SAMPLED_SIZES or len(paths) <= 1:
+        return paths, []
+    main = next((path for path in paths if path.parent.name == MAIN_FLOW), None)
+    main = main or max(paths, key=lambda path: path.stat().st_size)
+    return [main], [path.parent.name for path in paths if path != main]
 
 
 def _used_actions(root: Path, out: Path) -> set[str]:
@@ -135,10 +153,32 @@ def sections(root: Path, project: str, agent: str) -> list[tuple[str, str]]:
     if agent not in PACKED_AGENTS:
         raise ValueError(f"agent sem pacote de contexto: {agent}")
 
+    paths, skipped = _flow_files(out), []
+    if agent in SAMPLED_AGENTS:
+        paths, skipped = _sample(out, paths)
+    if agent == "reflow-robin-optimizer":
+        targets = set(optimize.optimization_flows(root, project))
+        if targets:
+            skipped = [path.parent.name for path in paths if path.parent.name not in targets]
+            paths = [path for path in paths if path.parent.name in targets]
     flows = [
         (path.relative_to(out).as_posix(), path.read_bytes().decode("utf-8").replace("\r\n", "\n"))
-        for path in _flow_files(out)
+        for path in paths
     ]
+    if skipped:
+        kept = ", ".join(f"`{path.parent.name}`" for path in paths)
+        why = (
+            "só estes têm recurso aberto sem fechamento; os demais ficam com a base"
+            if agent == "reflow-robin-optimizer"
+            else f"complexidade {read_size(out)}; os demais ficam sem revisão nem teste"
+        )
+        flows.append(
+            (
+                "Amostragem (ADR-036)",
+                f"Trabalhe só em {kept}: {why}. Fora desta etapa: {', '.join(skipped)}. "
+                "Não grave nada neles e diga isso no resultado.",
+            )
+        )
     uses = _docs(out, ("use-cases.md", "business-rules.md"))
     whitelist = _whitelist_sections(root, _project_actions(root, out))
     if agent == "reflow-robin-optimizer":
@@ -153,7 +193,8 @@ def sections(root: Path, project: str, agent: str) -> list[tuple[str, str]]:
     if agent == "reflow-robin-reviewer":
         notes = [
             (path.relative_to(out).as_posix(), path.read_text(encoding="utf-8"))
-            for path in sorted((out / "04-pad").glob("*/notas-conversao.md"))
+            for path in (flow.parent / "notas-conversao.md" for flow in paths)
+            if path.is_file()
         ]
         return [
             (CATALOG, read(CATALOG)),

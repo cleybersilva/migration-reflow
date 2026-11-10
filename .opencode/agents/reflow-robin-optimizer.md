@@ -19,7 +19,8 @@ só a leitura do processo permite. A base já é um resultado válido: se nada m
 verdade, não grave nada e diga isso.
 
 Leia só `output/<projeto>/_context/reflow-robin-optimizer.md`. Quando o contexto vier na
-primeira mensagem, ele já é esse arquivo.
+primeira mensagem, ele já é esse arquivo. Se ele trouxer a seção "Amostragem", mexa só nos
+flows que ela indica.
 
 O que você pode fazer:
 

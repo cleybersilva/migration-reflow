@@ -128,7 +128,7 @@ def _run_stage(
 
 def _done(root: Path, project: str, stage: BudgetStage, ledger: dict) -> bool:
     finished = any(
-        item["agent"] == stage.agent and item["status"] in {"ok", "descartado"}
+        item["agent"] == stage.agent and item["status"] in {"ok", "descartado", "pulado"}
         for item in ledger["stages"]
     )
     out = root / "output" / project
@@ -150,6 +150,10 @@ def _run_group(
     later = AFTER_CHECKPOINT if stages is BEFORE_CHECKPOINT else ()
     while pending:
         stage = pending.pop(0)
+        if stage.agent == OPTIMIZER and not optimize.optimization_reasons(root, project):
+            # Nada que só o LLM resolve: a base fica e a cota passa para os próximos (ADR-036).
+            _record(root, project, ledger, stage.agent, "pulado", None)
+            continue
         limit = _stage_limit(budget, ledger["total_usd"], stage, [stage, *pending, *later])
         if limit < MIN_STAGE_USD:
             _record(root, project, ledger, stage.agent, "sem orçamento", None)
@@ -261,6 +265,10 @@ def estimate(root: Path, project: str, model: str | None) -> int:
     total = 0.0
     print(f"Estimativa para {project}, modelo {model} (não medida):")
     for stage in (*BEFORE_CHECKPOINT, *AFTER_CHECKPOINT):
+        skipped = stage.agent == OPTIMIZER and optimize.generated_flows(root, project)
+        if skipped and not optimize.optimization_reasons(root, project):
+            print(f"- {stage.agent}: pulado, a base não tem o que só ele resolve")
+            continue
         tokens = _pack_tokens(root, project, stage)
         if tokens is None:
             print(f"- {stage.agent}: falta artefato anterior, sem como estimar")

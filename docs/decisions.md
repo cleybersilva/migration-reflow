@@ -1429,3 +1429,28 @@ porte do robô.
   releitura que o `refold` não tem. Se a IAra custar parecido, a otimização depende da sobra dos
   estágios anteriores ou é descartada. Calibrar com a primeira medição real.
 
+
+## ADR-036: otimizar e revisar só onde há o que fazer
+
+**Contexto:** na migração completa (Fase 38), depois do checkpoint o custo cresceu com o número de
+flows. Cada agent lia, e o otimizador regravava, todos eles: no G foram 108,8 mil tokens de saída nas
+3 etapas finais. Nos 3 robôs medidos, o otimizador só fechou recursos; nenhum ligou variáveis, porque os
+casos de uso não provavam a ligação.
+
+**Decisão:**
+
+- O otimizador só é chamado quando a base gerada tem recurso aberto sem fechamento, e recebe só os flows
+  com esse problema. Sem nenhum, `refold migrate` grava o estágio como `pulado` e a base fica.
+  `reflow optimize-needed <projeto>` dá a mesma resposta para as skills.
+- Em M e G, o revisor do Robin e o tester recebem só o flow principal (`flow-main`, ou o maior). O
+  pacote diz quais flows ficaram de fora, e o agent precisa registrar isso no resultado. Em P, nada muda.
+
+**Consequências:**
+
+- No G medido, os pacotes caíram cerca de metade: otimizador 95,6 para 51,1 KB, revisor 103,7 para
+  47,8 KB e tester 85,3 para 40,8 KB. No M, a queda foi de 3% a 10%, porque o principal domina. O custo
+  em dólar não foi medido de novo.
+- Subflows de M e G deixam de ter revisão semântica e teste gerados. O lint e o `optimize-check`
+  continuam cobrindo todos. Revisar um subflow passa a ser decisão do analista.
+- Ligar variáveis deixou de ser motivo para chamar o LLM. Se um robô real provar que vale, o motivo volta
+  em `reflow/robin/optimize.py`.
