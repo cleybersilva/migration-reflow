@@ -1828,3 +1828,12 @@ O gerador gravava um `flow-*` por bot, todos no mesmo nível, sem ligar o `CALL`
 Validação: 510 testes (2 novos: hierarquia com índice e pasta obsoleta), `ruff` limpo. O índice do
 `bench-g` foi renderizado em memória (1 entrada, 5 subflows na ordem de chamada). Os outputs locais de bench
 não foram regerados, e nada rodou no PAD.
+
+### Adendo: índice no pacote e outputs locais regerados
+
+- Em M e G, o pacote do revisor e do tester traz `04-pad/README.md` junto do flow principal: o agent vê
+  o que os subflows de fora fazem e quem os chama, por cerca de 1 KB, sem lê-los. Em P nada muda.
+- Sem `flow-main`, o principal da amostragem passa a ser o maior `flow-*`; `subflow-*` só como último caso.
+- `bench-g`, `bench-m`, `bench-pu` regerados com `--force` (backup feito antes). Lint e `optimize-check`
+  verdes. Pacote do revisor no G: 47,7 KB. A otimização e os `review.md` medidos antes foram descartados.
+- `a360-browser-rest` não foi regerado: checkpoint em formato legado, e regravar a aprovação é do analista.

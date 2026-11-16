@@ -76,12 +76,16 @@ def _flow_files(out: Path) -> list[Path]:
 def _sample(out: Path, paths: list[Path]) -> tuple[list[Path], list[str]]:
     """Em M e G, revisor e tester ficam no flow principal: o custo cresce com cada flow lido.
 
-    Principal é o `flow-main` (vem do `main.json` do A360); sem ele, o maior flow.
+    Principal é o `flow-main` (vem do `main.json` do A360); sem ele, o maior ponto de entrada
+    (`flow-*`, nunca um `subflow-*` se houver alternativa).
     """
     if read_size(out) not in SAMPLED_SIZES or len(paths) <= 1:
         return paths, []
     main = next((path for path in paths if path.parent.name == MAIN_FLOW), None)
-    main = main or max(paths, key=lambda path: path.stat().st_size)
+    main = main or max(
+        paths,
+        key=lambda path: (not path.parent.name.startswith("subflow-"), path.stat().st_size),
+    )
     return [main], [path.parent.name for path in paths if path != main]
 
 
@@ -179,6 +183,10 @@ def sections(root: Path, project: str, agent: str) -> list[tuple[str, str]]:
                 "Não grave nada neles e diga isso no resultado.",
             )
         )
+        # O índice (ADR-037) mostra o que os flows de fora fazem e quem os chama, por ~1 KB.
+        index = out / "04-pad" / "README.md"
+        if index.is_file():
+            flows.append(("04-pad/README.md", index.read_text(encoding="utf-8")))
     uses = _docs(out, ("use-cases.md", "business-rules.md"))
     whitelist = _whitelist_sections(root, _project_actions(root, out))
     if agent == "reflow-robin-optimizer":

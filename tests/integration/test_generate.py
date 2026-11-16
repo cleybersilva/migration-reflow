@@ -351,6 +351,7 @@ def test_reviewer_and_tester_see_only_the_main_flow_in_m_and_g(workspace: Path) 
         require("## 04-pad/flow-main/Main.robin" in pack, f"{agent}: falta o flow principal")
         require("## 04-pad/flow-filho/Main.robin" not in pack, f"{agent}: leu flow fora da amostra")
         require("Fora desta etapa: flow-filho" in pack, f"{agent}: precisa saber o que ficou fora")
+        require("## 04-pad/README.md" in pack, f"{agent}: o índice resume os flows de fora")
     both = build_pack(workspace, project, "reflow-robin-optimizer")
     require("## 04-pad/flow-filho/Main.robin" in both, "os dois têm recurso aberto")
 
@@ -363,6 +364,7 @@ def test_size_p_keeps_every_flow_for_the_reviewer(workspace: Path) -> None:
     pack = build_pack(workspace, project, "reflow-robin-reviewer")
     require("## 04-pad/flow-filho/Main.robin" in pack, "em P, todos os flows")
     require("Amostragem" not in pack, "sem amostragem em P")
+    require("## 04-pad/README.md" not in pack, "em P o agent já lê todos, o índice sobraria")
 
 
 def test_optimizer_gets_only_flows_with_an_open_resource(workspace: Path) -> None:
