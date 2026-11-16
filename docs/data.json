@@ -1,6 +1,10 @@
 {
-  "generatedAt": "2026-11-16T17:16:37+00:00",
+  "generatedAt": "2026-11-16T17:39:40+00:00",
   "projects": [
+    {
+      "id": "ai-engineering-os",
+      "label": "ai-engineering-os"
+    },
     {
       "id": "migration-reflow",
       "label": "migration-reflow"
@@ -14,10 +18,6 @@
       "label": "mpes-calendario"
     },
     {
-      "id": "ai-engineering-os",
-      "label": "ai-engineering-os"
-    },
-    {
       "id": "opencode",
       "label": "opencode"
     },
@@ -27,6 +27,31 @@
     }
   ],
   "notes": [
+    {
+      "id": "projects/ai-engineering-os/painel-ao-vivo-aios-dashboard",
+      "title": "painel-ao-vivo-aios-dashboard",
+      "project": "ai-engineering-os",
+      "categoria": "implementacao",
+      "categoriaLabel": "Implementação",
+      "status": "concluido",
+      "statusLabel": "Concluído",
+      "data": "2026-11-16",
+      "hora": "15:00 -03:00",
+      "atividade": "Painel ao vivo aios dashboard (1.1.0) com arquitetura, fases e catálogo",
+      "tags": [
+        "ai-engineering-os",
+        "dashboard",
+        "observabilidade"
+      ],
+      "meta": {
+        "source_tool": "claude-code",
+        "memory_type": "project",
+        "access_scope": "project",
+        "confidence": "alta",
+        "retention": "permanente"
+      },
+      "content": "# Painel ao vivo `aios dashboard` (1.1.0)\n\n## O que foi modificado\n| Arquivo | Mudança | Tipo |\n|---|---|---|\n| src/aios/dashboard.py | snapshot (sondas locais, runs, eventos, spans, métricas) e project_view (catálogo com uso); servidor loopback | implementacao |\n| src/aios/dashboard.html | página: mapa ao vivo com pacotes por span, arquitetura do README, fluxo em 9 fases coloridas, catálogo vivo, KPIs | implementacao |\n| src/aios/cli.py | comando `aios dashboard [--port] [--no-open]` | implementacao |\n| config/observability.toml | seção [dashboard] (127.0.0.1:9470, cache 2 s) | configuracao |\n| tests/unit/test_dashboard.py | 7 testes (probes mockadas, origem GitHub, catálogo, 421, CSP, loopback) | implementacao |\n\n## O que foi implantado\n- PR #11 mesclado na main (a7b16f3), CI verde em Ubuntu e Windows, 207 testes, scanner 0 achados.\n- Verificado no navegador em desktop e celular com dados reais.\n\n## Benefícios para o projeto\n- Uma tela mostra a cadeia GitHub > túnel > portão > n8n > receptor, execuções, spans e o que está acionado.\n\n## Causa raiz / motivo\n- Acompanhar o sistema exigia juntar `aios run list`, `aios telemetry` e sondas manuais.\n\n## Como reverter\n- Reverter o commit a7b16f3; nenhuma configuração externa depende do painel.\n\n## Pendências\n- Fases 1 e 2 não têm span próprio (mostram só estado).\n- Origem GitHub detectada pelo delivery `gh-` que o n8n gera."
+    },
     {
       "id": "projects/migration-reflow/indice 04-pad no context-pack em M e G",
       "title": "indice 04-pad no context-pack em M e G",
@@ -67,7 +92,7 @@
         "confidence": "alta",
         "retention": "permanente"
       },
-      "content": "# Output de 04-pad com hierarquia e índice (ADR-037)\n\n## O que foi modificado\n| arquivo | mudança | tipo |\n| --- | --- | --- |\n| reflow/robin/generate.py | bot alvo de CALL vira `subflow-<nome>`; `_render_index` grava `04-pad/README.md`; pasta obsoleta recusada sem --force; GENERATOR_VERSION 3 | implementacao |\n| tests/integration/test_generate.py | 2 testes: hierarquia + índice, pasta obsoleta | implementacao |\n| README.md, docs/decisions.md (ADR-037), docs/historico.md (Fase 40), skill reflow-convert | docs | manutencao |\n\n## O que foi implantado\n510 testes verdes, ruff limpo. Índice do bench-g renderizado em memória: flow-main + 5 subflows na ordem de chamada.\n\n## Benefícios para o projeto\n- Ponto de entrada e subflows visíveis sem abrir cada flow; zero token (determinístico).\n- Contrato `04-pad/*/Main.robin` intacto: lint, optimize-check, context-pack, refold, report sem mudança.\n\n## Causa raiz / motivo\nEm M/G todas as pastas `flow-*` ficavam no mesmo nível e o `CALL Subflow_x` não apontava para pasta nenhuma.\n\n## Como reverter\nReverter o commit; regerar com `reflow generate <projeto> --force`.\n\n## Pendências\n- Outputs locais de bench não foram regerados (exigem --force, que descarta otimização).\n- Próximo passo de custo: incluir o índice no context-pack em M/G no lugar de ler subflows."
+      "content": "# Output de 04-pad com hierarquia e índice (ADR-037)\n\n## O que foi modificado\n| arquivo | mudança | tipo |\n| --- | --- | --- |\n| reflow/robin/generate.py | bot alvo de CALL vira `subflow-<nome>`; `_render_index` grava `04-pad/README.md`; pasta obsoleta recusada sem --force; GENERATOR_VERSION 3 | implementacao |\n| tests/integration/test_generate.py | 2 testes: hierarquia + índice, pasta obsoleta | implementacao |\n| README.md, docs/decisions.md (ADR-037), docs/historico.md (Fase 40), skill reflow-convert | docs | manutencao |\n\n## O que foi implantado\n510 testes verdes, ruff limpo. Índice do bench-g renderizado em memória: flow-main + 5 subflows na ordem de chamada.\n\n## Benefícios para o projeto\n- Ponto de entrada e subflows visíveis sem abrir cada flow; zero token (determinístico).\n- Contrato `04-pad/*/Main.robin` intacto: lint, optimize-check, context-pack, refold, report sem mudança.\n\n## Causa raiz / motivo\nEm M/G todas as pastas `flow-*` ficavam no mesmo nível e o `CALL Subflow_x` não apontava para pasta nenhuma.\n\n## Como reverter\nReverter o commit; regerar com `reflow generate <projeto> --force`.\n\n## Pendências\n- Outputs locais de bench não foram regerados (exigem --force, que descarta otimização).\n- Próximo passo de custo: incluir o índice no context-pack em M/G no lugar de ler subflows.\n\n## Guarda contra conversão manual (2026-11-16)\n| arquivo | mudança | tipo |\n|---|---|---|\n| reflow/robin/generate.py | `generate_project` recusa, mesmo com `--force`, quando 04-pad tem Main.robin sem generation.json | correcao |\n| tests/integration/test_generate.py | teste da recusa com e sem force, piloto intacto | implementacao |\n| SKILL reflow-convert, ADR-037, historico | documentado | manutencao |\n\n- Causa raiz: regerar os pilotos A360 criou flow-main ao lado do uc-01-* manual (flow duplicado, lint e context-pack leriam os dois).\n- Verificação: 511 testes, ruff limpo; `reflow generate a360-excel-vault --force` recusa com a mensagem nova.\n- Reverter: remover o bloco `manual` em generate_project.\n- Pendência: as pastas geradas antes da guarda (não versionadas) aguardam remoção pelo usuário."
     },
     {
       "id": "projects/kong-gateway/kong-gateway instalação e correção Python 3.14",

@@ -46,7 +46,8 @@ Depois do checkpoint aprovado:
 1. `uv run python -m reflow generate <projeto>` monta, sem LLM, `04-pad/<flow>/Main.robin`,
    `Main.generated.robin` (a base), `generation.json`, `README.md` e `notas-conversao.md`, mais o
    índice `04-pad/README.md`. Bot chamado por outro vira `subflow-<nome>`; o resto, `flow-<nome>`.
-   Pasta de geração anterior que não existe mais é recusada sem `--force`.
+   Pasta de geração anterior que não existe mais é recusada sem `--force`. Conversão manual em
+   `04-pad/` (`Main.robin` sem `generation.json`) bloqueia a geração mesmo com `--force`: mova-a antes.
    Ação fora da whitelist, comando sem mapeamento e elemento de UI viram `# TODO reflow`.
 2. `uv run python -m reflow optimize-needed <projeto>`. Se responder `não`, pule os passos 3 e 5:
    a base fica como resultado (ADR-036). Se responder `sim`, rode

@@ -507,6 +507,18 @@ def generate_project(
                     "use --force para descartar essas mudanças"
                 )
     names = {flow.name for flow in flows}
+    # Conversão manual (Main.robin sem generation.json): gerar ao lado duplica o flow, e
+    # --force não vale aqui porque o trabalho manual nunca é apagado pelo gerador.
+    manual = sorted(
+        robin.parent.name
+        for robin in pad.glob("*/Main.robin")
+        if not (robin.parent / GENERATION_NAME).is_file() and robin.parent.name not in names
+    )
+    if manual:
+        raise GenerateError(
+            f"{project}: 04-pad já tem conversão manual ({', '.join(manual)}); "
+            "mova-a para fora de 04-pad antes de gerar"
+        )
     stale = sorted(
         meta.parent for meta in pad.glob(f"*/{GENERATION_NAME}") if meta.parent.name not in names
     )

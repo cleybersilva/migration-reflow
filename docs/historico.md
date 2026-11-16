@@ -1837,3 +1837,11 @@ não foram regerados, e nada rodou no PAD.
 - `bench-g`, `bench-m`, `bench-pu` regerados com `--force` (backup feito antes). Lint e `optimize-check`
   verdes. Pacote do revisor no G: 47,7 KB. A otimização e os `review.md` medidos antes foram descartados.
 - `a360-browser-rest` não foi regerado: checkpoint em formato legado, e regravar a aprovação é do analista.
+
+### Adendo: checkpoint regravado e guarda contra conversão manual
+
+- O usuário regravou a aprovação do `a360-browser-rest` com vínculo de hash (commit `375e174`).
+- A regeração dos dois pilotos A360 criou `flow-main/` ao lado do `uc-01-*` manual, duplicando o flow.
+  `reflow generate` agora recusa, mesmo com `--force`, quando `04-pad/` tem `Main.robin` sem
+  `generation.json`. As pastas criadas antes da guarda ficaram fora do versionamento e aguardam remoção
+  pelo usuário.

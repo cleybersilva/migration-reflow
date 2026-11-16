@@ -410,6 +410,17 @@ def test_stale_generated_folder_is_refused_unless_forced(workspace: Path) -> Non
     require(not (pad / "flow-child-bot").exists(), "--force remove a pasta antiga")
 
 
+def test_manual_conversion_in_04_pad_blocks_generation_even_forced(workspace: Path) -> None:
+    pilot = workspace / "output" / "x" / "04-pad" / "uc-01-x"
+    pilot.mkdir(parents=True)
+    (pilot / "Main.robin").write_text("# manual\n", encoding="utf-8")
+    for force in (False, True):
+        with pytest.raises(GenerateError, match="uc-01-x"):
+            generate_project(workspace, "x", _parent_and_child(), "fp", "M", force=force)
+    require((pilot / "Main.robin").is_file(), "o piloto manual fica intacto")
+    require(not (pilot.parent / "flow-main").exists(), "nada é gerado ao lado")
+
+
 def test_report_shows_complexity(workspace: Path) -> None:
     out = build_batch_report(workspace)
     require("| Complexidade |" in out, out)

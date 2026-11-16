@@ -1472,6 +1472,9 @@ o LLM.
   custa token.
 - Pasta com `generation.json` que a nova geração não produz é recusada sem `--force`, e removida com ele.
   Isso evita `flow-x` e `subflow-x` lado a lado depois da mudança de nome.
+- Pasta com `Main.robin` e sem `generation.json` é conversão manual (os pilotos `uc-01-*`): a geração é
+  recusada mesmo com `--force`, porque gerar ao lado duplicaria o flow e o gerador nunca apaga trabalho
+  manual. Quem decide move a pasta para fora de `04-pad/`.
 - `GENERATOR_VERSION` passa a `3`.
 
 **Consequências:**
