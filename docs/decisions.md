@@ -1454,3 +1454,30 @@ casos de uso não provavam a ligação.
   continuam cobrindo todos. Revisar um subflow passa a ser decisão do analista.
 - Ligar variáveis deixou de ser motivo para chamar o LLM. Se um robô real provar que vale, o motivo volta
   em `reflow/robin/optimize.py`.
+
+
+## ADR-037: output de `04-pad/` com hierarquia e índice
+
+**Contexto:** em M e G o gerador gravava uma pasta `flow-<arquivo>` por bot, todas no mesmo nível. O
+`flow-main` chamava `CALL Subflow_captura_dados`, mas nada ligava esse nome à pasta `flow-captura-dados`.
+Para achar o ponto de entrada e a ordem, era preciso abrir cada flow, e isso vale para o analista e para
+o LLM.
+
+**Decisão:**
+
+- Bot que é alvo de um `CALL` (dependência `TaskBot.run` no inventário) vira `subflow-<nome>`. O resto
+  continua `flow-<nome>`, então `flow-main` não muda.
+- `reflow generate` grava `04-pad/README.md`: ponto de entrada, cada `CALL` com o passo e a pasta de
+  destino, subflows na ordem de chamada, contagens e como montar no PAD. O índice é determinístico e não
+  custa token.
+- Pasta com `generation.json` que a nova geração não produz é recusada sem `--force`, e removida com ele.
+  Isso evita `flow-x` e `subflow-x` lado a lado depois da mudança de nome.
+- `GENERATOR_VERSION` passa a `3`.
+
+**Consequências:**
+
+- O contrato `04-pad/*/Main.robin` não muda: lint, `optimize-check`, `context-pack`, `refold` e o
+  relatório seguem iguais.
+- Outputs gerados antes desta versão precisam de `reflow generate <projeto> --force` uma vez, o que
+  descarta a otimização feita sobre eles.
+- Só A360 tem `CALL` resolvido; Python e .NET continuam com um único `flow-legado`.

@@ -1814,3 +1814,17 @@ Validação: 508 testes, `ruff` limpo. Nos robôs sintéticos, os 3 ainda têm r
 principal, então o otimizador continua sendo chamado, mas só nele: no G, cai de 6 flows para 1. Pacotes do
 G cerca de 50% menores; no M, 3% a 10%. Pela proporção, o G deve ficar perto de metade dos US$ 3,94 pós-checkpoint
 medidos, mas isso é conta, não medição: o custo novo e o `refold` real seguem sem rodar.
+
+
+## Fase 40: output de `04-pad/` organizado (ADR-037)
+
+O gerador gravava um `flow-*` por bot, todos no mesmo nível, sem ligar o `CALL` à pasta. Agora:
+
+- Bot chamado por outro vira `subflow-<nome>`; o ponto de entrada segue `flow-main`.
+- `04-pad/README.md` é o índice: entrada, cada `CALL` com o passo e a pasta, subflows na ordem de
+  chamada, contagens e como montar no PAD. É gerado sem LLM.
+- Pasta de uma geração anterior é recusada sem `--force`.
+
+Validação: 510 testes (2 novos: hierarquia com índice e pasta obsoleta), `ruff` limpo. O índice do
+`bench-g` foi renderizado em memória (1 entrada, 5 subflows na ordem de chamada). Os outputs locais de bench
+não foram regerados, e nada rodou no PAD.

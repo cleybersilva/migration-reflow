@@ -13,7 +13,7 @@ from reflow.context_pack import build_pack
 from reflow.patterns import A360_REGISTRY
 from reflow.report import build_batch_report
 from reflow.robin import lint_robin_files
-from reflow.robin.generate import BASE_NAME, build_flows
+from reflow.robin.generate import BASE_NAME, GenerateError, build_flows, generate_project
 from reflow.robin.optimize import check_project, restore_base
 from reflow.robin.optimize import optimization_flows as optimize_flows
 from reflow.robin.whitelist import load_truth_table, load_whitelist
@@ -375,6 +375,37 @@ def test_optimizer_gets_only_flows_with_an_open_resource(workspace: Path) -> Non
     pack = build_pack(workspace, project, "reflow-robin-optimizer")
     require("## 04-pad/flow-filho/Main.robin" not in pack, "filho fica com a base")
     require("Fora desta etapa: flow-filho" in pack, "o agent precisa saber disso")
+
+
+def _parent_and_child() -> dict:
+    call = {
+        "packageName": "TaskBot",
+        "commandName": "run",
+        "file": "main.json",
+        "line": 1,
+        "target": "child_bot.json",
+    }
+    child = {"packageName": "Excel", "commandName": "open", "file": "child_bot.json", "line": 1}
+    return {"source_type": "a360", "dependencies": [call], "data_sources": [child]}
+
+
+def test_called_bot_becomes_subflow_and_the_index_maps_the_call(workspace: Path) -> None:
+    flows, _ = build_flows(workspace, _parent_and_child())
+    require([flow.name for flow in flows] == ["subflow-child-bot", "flow-main"], str(flows))
+    generate_project(workspace, "x", _parent_and_child(), "fp", "M")
+    index = (workspace / "output" / "x" / "04-pad" / "README.md").read_text("utf-8")
+    require(index.index("`flow-main/") < index.index("`subflow-child-bot/"), "entrada primeiro")
+    require("→ `subflow-child-bot`" in index, index)
+
+
+def test_stale_generated_folder_is_refused_unless_forced(workspace: Path) -> None:
+    pad = workspace / "output" / "x" / "04-pad"
+    generate_project(workspace, "x", _parent_and_child(), "fp", "M")
+    shutil.copytree(pad / "subflow-child-bot", pad / "flow-child-bot")
+    with pytest.raises(GenerateError, match="flow-child-bot"):
+        generate_project(workspace, "x", _parent_and_child(), "fp", "M")
+    generate_project(workspace, "x", _parent_and_child(), "fp", "M", force=True)
+    require(not (pad / "flow-child-bot").exists(), "--force remove a pasta antiga")
 
 
 def test_report_shows_complexity(workspace: Path) -> None:

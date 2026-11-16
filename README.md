@@ -294,6 +294,7 @@ projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
 | `01-inventory/complexity.json` | complexidade `P`/`M`/`G`, métricas, motivos e confiança |
 | `02-docs/` | documentação de negócio/técnica + `architecture.md` (Mermaid) |
 | `03-classification/classification.md` | veredito `PAD`/`PARTIAL`/`NOT_PAD`, casos de uso, alertas |
+| `04-pad/README.md` | índice gerado: ponto de entrada (`flow-*`), subflows (`subflow-*`, bots chamados por `CALL`) na ordem de chamada, contagens e como montar no PAD |
 | `04-pad/<flow>/` | `Main.robin`, `Main.generated.robin` (base sem LLM), `generation.json`, `README.md`, `notas-conversao.md` |
 | `cost.json` | custo medido por estágio, gravado pelo `refold migrate` |
 | `_context/` | pacote de contexto por agent, regenerável e fora do Git |
@@ -316,8 +317,10 @@ projeto parou — olha `00-manifest.json` antes de refazer uma fase já feita.
    cola; não prova que ele faz o que o legado fazia.
 4. Declare no designer as variáveis de entrada `in_` citadas no topo do
    `Main.robin` e preencha as `cfg_` marcadas com `# TODO reflow`.
-5. Abra `output/<projeto>/04-pad/<flow>/Main.robin`, selecione tudo, copie.
-6. No designer do PAD, clique no corpo do `Main` e cole (Ctrl+V).
+5. Abra `output/<projeto>/04-pad/README.md` para ver o ponto de entrada e os subflows; depois
+   abra `04-pad/flow-*/Main.robin`, selecione tudo, copie.
+6. No designer do PAD, clique no corpo do `Main` e cole (Ctrl+V). Cada `subflow-*/Main.robin`
+   vai num subflow com o nome usado no `CALL` (ex.: `Subflow_<nome>`).
 7. Rode o flow. Saída esperada sempre em `C:\Users\Public\Documents\`.
 8. Repita com `05-test/test_<flow>/Main.robin` para o flow de teste; leia os
    cenários `CT-xx` no `README.md` ao lado e registre manualmente

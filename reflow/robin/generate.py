@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from .kb import KbAction, load_action_kb
 from .syntax import _parse_action, _scan
 from .whitelist import load_truth_table, load_whitelist, truth_table_action_name
 
-GENERATOR_VERSION = "2"
+GENERATOR_VERSION = "3"
 BASE_NAME = "Main.generated.robin"
 GENERATION_NAME = "generation.json"
 CATALOG_PATH = Path("reference") / "subfluxos-comuns.md"
@@ -397,17 +398,83 @@ def _crlf(text: str) -> bytes:
     return text.replace("\r\n", "\n").replace("\n", "\r\n").encode("utf-8")
 
 
+def _render_index(project: str, flows: list[Flow], size: str) -> str:
+    """Índice de `04-pad/`: quem chama quem e como montar no PAD, sem ler cada flow."""
+    folders = {Path(flow.source).stem.lower(): flow.name for flow in flows}
+    called = {flow.name for flow in flows if flow.name.startswith("subflow-")}
+    calls = [
+        folders.get(step.region.removeprefix("Subflow: ").lower())
+        for flow in sorted(flows, key=lambda item: item.name in called)
+        for step in flow.steps
+        if step.action == "CALL" and step.line
+    ]
+    order = list(dict.fromkeys(name for name in calls if name))
+
+    def rank(flow: Flow) -> tuple[bool, int]:
+        """Entrada primeiro; subflows na ordem em que são chamados."""
+        return flow.name in called, order.index(flow.name) if flow.name in order else len(order)
+
+    def entry(flow: Flow) -> list[str]:
+        done = sum(1 for step in flow.steps if step.line)
+        out = [
+            f"- `{flow.name}/Main.robin` (origem `{flow.source}`): {len(flow.steps)} "
+            f"passo(s), {done} com ação, {len(flow.steps) - done} pendente(s)"
+        ]
+        for step in flow.steps:
+            if step.action == "CALL" and step.line:
+                target = folders.get(step.region.removeprefix("Subflow: ").lower())
+                where = f"`{target}`" if target else "subflow padrão do PAD, sem pasta"
+                out.append(f"  - `{step.step_id}`: `{step.line}` → {where}")
+        return out
+
+    lines = [
+        f"# {project}: flows para o PAD",
+        "",
+        f"Gerado por `reflow generate`, sem LLM. Complexidade: **{size}**. Nada aqui foi "
+        "executado no PAD.",
+        "",
+        "## Estrutura",
+        "",
+        "`flow-*` não é chamado por nenhum outro flow (ponto de entrada). `subflow-*` é bot filho, "
+        "chamado por `CALL`.",
+        "",
+    ]
+    for flow in sorted(flows, key=rank):
+        lines.extend(entry(flow))
+    lines.extend(
+        [
+            "",
+            "## Como montar no PAD",
+            "",
+            "1. Criar um desktop flow e colar `flow-*/Main.robin` no subflow `Main`.",
+            "2. Para cada `subflow-*`, criar no designer o subflow com o nome usado no `CALL` "
+            "(ex.: `Subflow_<nome>`) e colar o `Main.robin` da pasta.",
+            "3. Preencher as `cfg_` e resolver os `# TODO reflow` listados no `README.md` de "
+            "cada pasta.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def build_flows(root: Path, inventory: dict) -> tuple[list[Flow], dict]:
     mapper = _Mapper(root)
     groups: dict[str, list[Step]] = {}
     a360 = inventory.get("source_type") == "a360"
-    for step in collect_steps(inventory):
+    steps_all = collect_steps(inventory)
+    for step in steps_all:
         groups.setdefault(step.file if a360 else "legado", []).append(step)
+    # Bot chamado por outro vira `subflow-`: a pasta mostra a hierarquia que o CALL já tem.
+    called = {
+        Path(step.target).stem.lower()
+        for step in steps_all
+        if a360 and step.category == "dependencies" and step.target
+    }
     flows = []
     used_names: set[str] = set()
     for source, steps in sorted(groups.items()):
         stem = re.sub(r"[^a-z0-9]+", "-", Path(source).stem.lower()).strip("-") or "main"
-        name = f"flow-{stem}"
+        prefix = "subflow" if Path(source).stem.lower() in called else "flow"
+        name = f"{prefix}-{stem}"
         while name in used_names:
             name += "-x"
         used_names.add(name)
@@ -439,6 +506,17 @@ def generate_project(
                     f"{project}: {flow.name}/Main.robin foi alterado depois da geração; "
                     "use --force para descartar essas mudanças"
                 )
+    names = {flow.name for flow in flows}
+    stale = sorted(
+        meta.parent for meta in pad.glob(f"*/{GENERATION_NAME}") if meta.parent.name not in names
+    )
+    if stale and not force:
+        raise GenerateError(
+            f"{project}: pastas de uma geração anterior ({', '.join(p.name for p in stale)}); "
+            "use --force para removê-las"
+        )
+    for folder in stale:
+        shutil.rmtree(folder)
     for flow in flows:
         folder = pad / flow.name
         folder.mkdir(parents=True, exist_ok=True)
@@ -470,4 +548,5 @@ def generate_project(
             json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+    (pad / "README.md").write_text(_render_index(project, flows, size), encoding="utf-8")
     return flows
