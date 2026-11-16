@@ -1,9 +1,9 @@
 {
   "checkpoint": {
-    "approved_at": "2026-10-21T16:44:33+00:00",
-    "approved_by": "usuário (conversa interativa)",
-    "decision": "aprovado",
-    "scope": "UC-01 (Browser.open + REST.get + CredentialVault.getCredential); UC-02 (TaskBot.run -> Excel.read) fica fora do PAD, conforme classification.md"
+    "classification_sha256": "964e7c3a87caf1fd15f231b212a98436900897246d7915c90feeaab4ea8d4656",
+    "decision": "approved",
+    "inputs_fingerprint": "5d11827b457535eaaf8dc765a064c8da2bd45bdf787f51e4af36364a86a77068",
+    "recorded_at": "2026-11-16T17:16:05.721794+00:00"
   },
   "extracted_at": "2026-10-21T16:32:40.214352+00:00",
   "inputs": [

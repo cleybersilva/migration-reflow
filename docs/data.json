@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T13:02:56+00:00",
+  "generatedAt": "2026-11-16T17:16:37+00:00",
   "projects": [
     {
       "id": "migration-reflow",
@@ -46,7 +46,7 @@
         "confidence": "alta",
         "retention": "permanente"
       },
-      "content": "# Índice 04-pad no context-pack em M e G\n\n## O que foi modificado\n| arquivo | mudança | tipo |\n| --- | --- | --- |\n| reflow/context_pack.py | pacote amostrado (revisor/tester em M/G) inclui 04-pad/README.md; fallback do principal prefere flow-* a subflow-* | implementacao |\n| tests/integration/test_generate.py | índice presente em M, ausente em P | implementacao |\n| docs/historico.md | adendo da Fase 40 | manutencao |\n\n## O que foi implantado\n510 testes, ruff limpo. bench-g/m/pu regerados com --force (backup no scratchpad), lint e optimize-check ok. Pacote do revisor G: 47,7 KB.\n\n## Benefícios para o projeto\nAgent vê estrutura dos subflows fora da amostra por ~1 KB, sem lê-los.\n\n## Pendências\n- a360-browser-rest: checkpoint em formato legado, regravar aprovação é do analista.\n- output/a360-excel-vault/04-pad: flow-main e README gerados ao lado do piloto uc-01 ficaram sem commit; remoção aguarda aprovação do usuário.\n\nRelacionado: [[output 04-pad com hierarquia e indice (ADR-037)]]"
+      "content": "# Índice 04-pad no context-pack em M e G\n\n## O que foi modificado\n| arquivo | mudança | tipo |\n| --- | --- | --- |\n| reflow/context_pack.py | pacote amostrado (revisor/tester em M/G) inclui 04-pad/README.md; fallback do principal prefere flow-* a subflow-* | implementacao |\n| tests/integration/test_generate.py | índice presente em M, ausente em P | implementacao |\n| docs/historico.md | adendo da Fase 40 | manutencao |\n\n## O que foi implantado\n510 testes, ruff limpo. bench-g/m/pu regerados com --force (backup no scratchpad), lint e optimize-check ok. Pacote do revisor G: 47,7 KB.\n\n## Benefícios para o projeto\nAgent vê estrutura dos subflows fora da amostra por ~1 KB, sem lê-los.\n\n## Pendências\n- a360-browser-rest: checkpoint em formato legado, regravar aprovação é do analista.\n- output/a360-excel-vault/04-pad: flow-main e README gerados ao lado do piloto uc-01 ficaram sem commit; remoção aguarda aprovação do usuário.\n\nRelacionado: [[output 04-pad com hierarquia e indice (ADR-037)]]\n\n## Fechamento (2026-11-16)\n- Checkpoint do a360-browser-rest regravado pelo usuário (aprovação explícita na conversa) no formato com vínculo de hash (fingerprint de input + sha256 da classificação). O escopo UC-01/UC-02 segue em classification.md.\n- `reflow generate a360-browser-rest` rodou e criou flow-main, subflow-child e o índice, fora do versionamento, ao lado do piloto `uc-01-browser-rest`. Mesma situação do a360-excel-vault: a remoção desses itens não versionados ficou retida na confirmação de segurança do ambiente."
     },
     {
       "id": "projects/migration-reflow/output 04-pad com hierarquia e indice (ADR-037)",
