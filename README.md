@@ -610,61 +610,32 @@ anterior "em andamento"), reextração que invalida fases posteriores.
 
 <div align="center">
 
-<img src="https://github.com/cleybersilva.png" width="120" style="border-radius:50%" alt="Cleyber Silva"/>
+<img src="https://github.com/cleybersilva.png" width="96" alt="Cleyber Silva">
 
-### **Cleyber Gomes da Silva**
+### Cleyber Silva
 
-**AI Scientist / SRE Engineer** · TCS × Itaú Unibanco
-**MBA em Inteligência Artificial e Big Data (concluído)** · ICMC / USP
-**Mestrando em Engenharia de Software** · CESAR School · **Doutorando em Ciências da Educação** · VCU
+**AI Scientist · SRE Engineer · TICS × Itaú**
 
-📍 João Pessoa, Paraíba, Brasil
+**Mestrando em Engenharia de Software · CESAR School**
 
-[![GitHub](https://img.shields.io/badge/GitHub-cleybersilva-181717?logo=github)](https://github.com/cleybersilva)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?logo=linkedin)](https://linkedin.com/in/cleyber-silva)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/cleybersilva)
+[![Calendário MPES](https://img.shields.io/badge/Calendário_MPES-FF6200?style=for-the-badge&logo=googlecalendar&logoColor=white)](https://cleybersilva.github.io/mpes-calendario/)
+[![Repositório MPES](https://img.shields.io/badge/Repo_MPES-FF6200?style=for-the-badge&logo=github&logoColor=white)](https://github.com/cleybersilva/mpes-calendario)
+[![Lattes](https://img.shields.io/badge/Lattes-1F4E78?style=for-the-badge&logo=googlescholar&logoColor=white)](https://lattes.cnpq.br/5666713747674179)
 
-</div>
-
-### Sobre o autor
-
-AI Scientist / SRE Engineer com experiência em ambientes bancários regulados,
-atualmente alocado ao **Itaú Unibanco** via **TCS (Tata Consultancy
-Services)**. Simultaneamente, mestrando em **Engenharia de Software** pela
-**CESAR School** e doutorando em **Ciências da Educação** pela **VCU (Veni Creator
-University)**, onde também atua como professor, pesquisador e
-gestor do VLE (Moodle).
-
-Especialista em **RPA → hyperautomation**, **GitOps**, **Observability** e
-**AI aplicada a operações**. O **reflow** nasceu da necessidade real de
-migrar robôs A360 legados para o Power Automate Desktop no Itaú sem perder
-rastreabilidade nem governança — substituindo um prompt monolítico por
-skills e agents especializados, com checkpoint humano obrigatório antes de
-qualquer conversão ir para produção.
-
-**Formação:**
-- 🎓 MBA em Inteligência Artificial e Big Data · ICMC/USP (concluído)
-- 🎓 Mestrado em Engenharia de Software · CESAR School (em andamento)
-- 🎓 Doutorado em Ciências da Educação · VCU (em andamento)
-- 🎓 Pós-graduações concorrentes em DevOps, Cloud Architecture, SRE e .NET/Azure
-
----
-
-<div align="center">
-
-### ⭐ Se este projeto foi útil, considere dar uma estrela!
-
-**Feito com ❤️ para tirar a migração RPA → PAD da mão de quem recorta prompt**
-
----
-
-**reflow** · Skills + Agents + Checkpoint Humano · TCS × Itaú
-
-[⬆ Voltar ao topo](#-reflow)
-
----
-
-_"A esteira executa o que é determinístico; o humano decide o que é sensível — com o inventário já mascarado na mão."_
-
-© 2026 · Cleyber Gomes da Silva
+<img src="assets/logo-cesar.png" width="160" alt="CESAR School">
 
 </div>
+
+### Formação acadêmica
+
+| Curso | Instituição |
+| --- | --- |
+| **Mestrado em Engenharia de Software** | CESAR School · 2026–2028 · em curso |
+| **Pós-graduação em Arquitetura de Soluções Avançadas de Cloud com Azure** | Anhanguera · 2026–2027 · em curso |
+| **MBA em Inteligência Artificial e Big Data** | USP · 2025–2026 |
+| **Especialização em Engenharia de Confiabilidade de Sites (SRE)** | PUC Minas · 2024–2025 |
+| **Pós-graduação em Arquitetura de Sistemas .NET com Azure** | FIAP · 2023–2024 |
+| **Especialização em Engenharia DevOps** | UNYLEYA · 2022–2023 |
+| **Mestrado em Ciências da Educação** | Veni Creator Christian University · 2022 |
+| **Doutorado em Ciências da Educação** | Veni Creator Christian University · 2025–2028 · em curso |
